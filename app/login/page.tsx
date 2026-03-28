@@ -5,16 +5,18 @@ import { supabase } from "@/lib/supabase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
+      password,
     });
 
     if (error) {
       alert(error.message);
     } else {
-      alert("Check your email for login link!");
+      window.location.href = "/";
     }
   };
 
@@ -30,11 +32,19 @@ export default function Login() {
         onChange={(e) => setEmail(e.target.value)}
       />
 
+      <input
+        type="password"
+        placeholder="Enter password"
+        className="w-full p-2 border mb-4"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
       <button
         onClick={handleLogin}
         className="px-4 py-2 bg-black text-white"
       >
-        Send Magic Link
+        Login
       </button>
     </main>
   );
