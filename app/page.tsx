@@ -11,118 +11,115 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      // ✅ get logged in user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       setUser(user);
 
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*");
+      // 🌍 auto language detect
+      const browserLang = navigator.language.toLowerCase();
+      if (browserLang.includes("de")) {
+        setLang("de");
+      } else {
+        setLang("en");
+      }
 
-      if (!error) setRecipes(data || []);
+      // 🔒 fetch ONLY user's recipes
+      if (user) {
+        const { data, error } = await supabase
+          .from("recipes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("id", { ascending: false });
+
+        if (!error) setRecipes(data || []);
+      }
     };
 
     fetchData();
   }, []);
 
-  {/* Logout Function */ }
+  // 🔐 logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    alert("Logged out!");
     window.location.reload();
   };
 
   return (
-    <main className="p-6 max-w-2xl mx-auto">
+    <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">My Cookbook</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+        <h1>My Cookbook</h1>
 
-        <div className="flex items-center gap-3">
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
 
-          {/* 🌍 LANGUAGE TOGGLE */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setLang("en")}
-              className={`px-2 py-1 rounded border ${lang === "en"
-                ? "bg-white text-black"
-                : "bg-black text-white"
-                }`}
-            >
-              EN
-            </button>
-
-            <button
-              onClick={() => setLang("de")}
-              className={`px-2 py-1 rounded border ${lang === "de"
-                ? "bg-white text-black"
-                : "bg-black text-white"
-                }`}
-            >
-              DE
-            </button>
-          </div>
-
-          {/* 🔐 LOGIN BUTTON and LOGOUT BUTTON */}
-          {user ? (
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 border rounded"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="px-3 py-1 border rounded"
-            >
-              Login
-            </Link>
+          {/* 👤 user email */}
+          {user && (
+            <span style={{ fontSize: 12, opacity: 0.7 }}>
+              {user.email}
+            </span>
           )}
 
-          {/* ➕ ADD BUTTON */}
-          <Link
-            href="/add"
-            className="px-3 py-1 bg-black text-white rounded"
-          >
-            + Add Recipe
+          {/* 🔐 login/logout */}
+          {user ? (
+            <button onClick={handleLogout}>Logout</button>
+          ) : (
+            <Link href="/login">Login</Link>
+          )}
+
+          {/* ➕ add */}
+          <Link href="/add">
+            <button>+ Add</button>
           </Link>
         </div>
       </div>
 
-      {/* EMPTY STATE */}
+      {/* EMPTY */}
       {recipes.length === 0 && (
-        <p className="text-gray-400">No recipes yet.</p>
+        <p>No recipes yet.</p>
       )}
 
-      {/* RECIPES LIST */}
-      <div className="space-y-4">
+      {/* LIST */}
+      <div>
         {recipes.map((recipe) => (
           <div
             key={recipe.id}
-            className="border p-4 rounded flex justify-between items-start hover:bg-gray-900 transition"
+            style={{
+              border: "1px solid #444",
+              padding: 12,
+              borderRadius: 8,
+              marginBottom: 10,
+              display: "flex",
+              justifyContent: "space-between",
+            }}
           >
 
-            {/* LEFT SIDE (clickable content) */}
-            <Link href={`/recipe/${recipe.id}`} className="flex-1">
-              <div className="cursor-pointer">
+            {/* LEFT */}
+            <Link href={`/recipe/${recipe.id}`} style={{ flex: 1 }}>
+              <div>
 
-                {/* 🧠 TITLE WITH FALLBACK */}
-                <h2 className="text-xl font-semibold">
+                <h2>
                   {lang === "de"
                     ? recipe.title_de || recipe.title_en
                     : recipe.title_en}
                 </h2>
 
-                {/* CATEGORY */}
-                <p className="text-gray-400">{recipe.category}</p>
+                <p style={{ opacity: 0.6 }}>{recipe.category}</p>
 
-                {/* TAGS */}
-                <div className="mt-2 flex gap-2 flex-wrap">
+                <div style={{ marginTop: 6 }}>
                   {recipe.tags?.map((tag: string, i: number) => (
                     <span
                       key={i}
-                      className="text-sm bg-gray-200 text-black px-2 py-1 rounded"
+                      style={{
+                        fontSize: 12,
+                        marginRight: 6,
+                        border: "1px solid #666",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                      }}
                     >
                       {tag}
                     </span>
@@ -132,42 +129,36 @@ export default function Home() {
               </div>
             </Link>
 
-            {/* RIGHT SIDE BUTTONS */}
-            <div className="flex flex-col gap-2 ml-4">
+            {/* RIGHT (ONLY OWNER) */}
+            {user?.id === recipe.user_id && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 
-              {/* EDIT */}
-              <Link href={`/edit/${recipe.id}`}>
-                <button className="px-3 py-1 bg-blue-500 text-white rounded">
-                  Edit
+                <Link href={`/edit/${recipe.id}`}>
+                  <button>Edit</button>
+                </Link>
+
+                <button
+                  onClick={async () => {
+                    const confirmDelete = confirm("Delete?");
+                    if (!confirmDelete) return;
+
+                    const { error } = await supabase
+                      .from("recipes")
+                      .delete()
+                      .eq("id", recipe.id);
+
+                    if (!error) {
+                      setRecipes((prev) =>
+                        prev.filter((r) => r.id !== recipe.id)
+                      );
+                    }
+                  }}
+                >
+                  Delete
                 </button>
-              </Link>
 
-              {/* DELETE */}
-              <button
-                onClick={async () => {
-                  const confirmDelete = confirm("Delete this recipe?");
-                  if (!confirmDelete) return;
-
-                  const { error } = await supabase
-                    .from("recipes")
-                    .delete()
-                    .eq("id", recipe.id);
-
-                  if (error) {
-                    alert(error.message);
-                  } else {
-                    // remove from UI instantly
-                    setRecipes((prev) =>
-                      prev.filter((r) => r.id !== recipe.id)
-                    );
-                  }
-                }}
-                className="px-3 py-1 bg-red-500 text-white rounded"
-              >
-                Delete
-              </button>
-
-            </div>
+              </div>
+            )}
 
           </div>
         ))}
