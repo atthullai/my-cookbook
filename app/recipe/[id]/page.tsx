@@ -7,7 +7,7 @@ import RecipeClient from "./RecipeClient";
 
 export default function RecipePage() {
   const params = useParams();
-  const id = Number(params.id);
+  const id = params.id;
 
   const [recipe, setRecipe] = useState<any>(null);
 
