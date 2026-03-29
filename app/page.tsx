@@ -6,24 +6,30 @@ import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const [recipes, setRecipes] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [lang, setLang] = useState<"en" | "de">("en");
 
   useEffect(() => {
-    const fetchRecipes = async () => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
       const { data, error } = await supabase
         .from("recipes")
-        .select("*")
-        .order("id", { ascending: false });
+        .select("*");
 
-      if (error) {
-        console.error("Error fetching recipes:", error);
-      } else {
-        setRecipes(data || []);
-      }
+      if (!error) setRecipes(data || []);
     };
 
-    fetchRecipes();
+    fetchData();
   }, []);
+
+  {/* Logout Function */ }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    alert("Logged out!");
+    window.location.reload();
+  };
 
   return (
     <main className="p-6 max-w-2xl mx-auto">
@@ -39,8 +45,8 @@ export default function Home() {
             <button
               onClick={() => setLang("en")}
               className={`px-2 py-1 rounded border ${lang === "en"
-                  ? "bg-white text-black"
-                  : "bg-black text-white"
+                ? "bg-white text-black"
+                : "bg-black text-white"
                 }`}
             >
               EN
@@ -49,21 +55,30 @@ export default function Home() {
             <button
               onClick={() => setLang("de")}
               className={`px-2 py-1 rounded border ${lang === "de"
-                  ? "bg-white text-black"
-                  : "bg-black text-white"
+                ? "bg-white text-black"
+                : "bg-black text-white"
                 }`}
             >
               DE
             </button>
           </div>
 
-          {/* 🔐 LOGIN BUTTON */}
-          <Link
-            href="/login"
-            className="px-3 py-1 border rounded"
-          >
-            Login
-          </Link>
+          {/* 🔐 LOGIN BUTTON and LOGOUT BUTTON */}
+          {user ? (
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1 border rounded"
+            >
+              Logout
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="px-3 py-1 border rounded"
+            >
+              Login
+            </Link>
+          )}
 
           {/* ➕ ADD BUTTON */}
           <Link
