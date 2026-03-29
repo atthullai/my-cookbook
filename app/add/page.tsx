@@ -1,168 +1,174 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-export default function AddRecipe() {
-  const [title, setTitle] = useState("");
-  const [titleDe, setTitleDe] = useState("");
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 
-  const [category, setCategory] = useState("");
-  const [tags, setTags] = useState("");
+export default function EditRecipe() {
+  const router = useRouter();
+  const params = useParams();
 
-  const [ingredients, setIngredients] = useState("");
-  const [ingredientsDe, setIngredientsDe] = useState("");
+  const recipeId = Number(params.id);
 
-  const [steps, setSteps] = useState("");
-  const [stepsDe, setStepsDe] = useState("");
+  const [lang, setLang] = useState<"en" | "de">("en");
+  const [recipe, setRecipe] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
 
-  // adding Translate function.
-  const translate = async (text: string) => {
-    if (!text) return "";
+  useEffect(() => {
+    const fetchData = async () => {
+      // 🔐 get user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    try {
-      const res = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-          text
-        )}&langpair=en|de`
-      );
-      const data = await res.json();
-      return data.responseData.translatedText;
-    } catch (err) {
-      console.error("Translation error:", err);
-      return text; // fallback
-    }
-  };
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setUser(user);
+
+      // 📦 get recipe
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("id", recipeId)
+        .single();
+
+      if (error || !data) {
+        alert("Recipe not found");
+        router.push("/");
+        return;
+      }
+
+      // 🔒 OWNER CHECK (VERY IMPORTANT)
+      if (data.user_id !== user.id) {
+        alert("Not allowed");
+        router.push("/");
+        return;
+      }
+
+      setRecipe(data);
+    };
+
+    if (recipeId) fetchData();
+  }, [recipeId, router]);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      alert("You must be logged in!");
-      return;
-    }
-
-    // 🔥 AUTO TRANSLATE (only if empty)
-    const autoTitleDe = titleDe || (await translate(title));
-    const autoIngredientsDe =
-      ingredientsDe || (await translate(ingredients));
-    const autoStepsDe = stepsDe || (await translate(steps));
-
-    const { error } = await supabase.from("recipes").insert([
-      {
-        user_id: user.id,
-
-        // EN
-        title_en: title,
-        ingredients_en: ingredients,
-        steps_en: steps,
-
-        // DE (manual OR auto)
-        title_de: autoTitleDe,
-        ingredients_de: autoIngredientsDe,
-        steps_de: autoStepsDe,
-
-        category,
-        tags: tags ? tags.split(",").map((t) => t.trim()) : [],
-      },
-    ]);
+    const { error } = await supabase
+      .from("recipes")
+      .update({
+        title_en: recipe.title_en,
+        title_de: recipe.title_de,
+        category: recipe.category,
+        tags: recipe.tags,
+        ingredients_en: recipe.ingredients_en,
+        ingredients_de: recipe.ingredients_de,
+        steps_en: recipe.steps_en,
+        steps_de: recipe.steps_de,
+      })
+      .eq("id", recipeId);
 
     if (error) {
       console.error(error);
-      alert(error.message);
+      alert("Error updating recipe");
     } else {
-      alert("Recipe saved!");
-      window.location.href = "/";
+      alert("Recipe updated!");
+      router.push("/");
     }
   };
 
+  if (!recipe) return <p style={{ padding: 20 }}>Loading...</p>;
+
   return (
-    <main className="p-6 max-w-2xl mx-auto">
-      <Link href="/" className="inline-block mb-4 text-sm underline">
-        ← Back to recipes
+    <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
+      {/* Back */}
+      <Link href="/" style={{ display: "inline-block", marginBottom: 10 }}>
+        ← Back
       </Link>
 
-      <h1 className="text-3xl font-bold mb-6">Add Recipe</h1>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+        <h1>Edit Recipe</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-
-        {/* ENGLISH */}
-        <h2 className="font-semibold text-lg">English 🇬🇧</h2>
-
-        <input
-          type="text"
-          placeholder="Title (EN)"
-          className="w-full p-2 border rounded"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-
-        <textarea
-          placeholder="Ingredients (EN)"
-          className="w-full p-2 border rounded"
-          value={ingredients}
-          onChange={(e) => setIngredients(e.target.value)}
-        />
-
-        <textarea
-          placeholder="Steps (EN)"
-          className="w-full p-2 border rounded"
-          value={steps}
-          onChange={(e) => setSteps(e.target.value)}
-        />
-
-        {/* GERMAN */}
-        <h2 className="font-semibold text-lg mt-6">German 🇩🇪</h2>
-
-        <input
-          type="text"
-          placeholder="Title (DE)"
-          className="w-full p-2 border rounded"
-          value={titleDe}
-          onChange={(e) => setTitleDe(e.target.value)}
-        />
-
-        <textarea
-          placeholder="Ingredients (DE)"
-          className="w-full p-2 border rounded"
-          value={ingredientsDe}
-          onChange={(e) => setIngredientsDe(e.target.value)}
-        />
-
-        <textarea
-          placeholder="Steps (DE)"
-          className="w-full p-2 border rounded"
-          value={stepsDe}
-          onChange={(e) => setStepsDe(e.target.value)}
-        />
-
-        {/* SHARED */}
-        <h2 className="font-semibold text-lg mt-6">General</h2>
-
-        <input
-          type="text"
-          placeholder="Category"
-          className="w-full p-2 border rounded"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        />
-
-        <input
-          type="text"
-          placeholder="Tags (comma separated)"
-          className="w-full p-2 border rounded"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-        />
-
-        <button className="px-4 py-2 bg-black text-white rounded">
-          Add Recipe
+        <button onClick={() => setLang(lang === "en" ? "de" : "en")}>
+          {lang === "en" ? "DE" : "EN"}
         </button>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* TITLE */}
+        <input
+          value={lang === "en" ? recipe.title_en : recipe.title_de}
+          onChange={(e) =>
+            setRecipe({
+              ...recipe,
+              [lang === "en" ? "title_en" : "title_de"]: e.target.value,
+            })
+          }
+          placeholder={lang === "en" ? "Title" : "Titel"}
+        />
+
+        {/* CATEGORY */}
+        <input
+          value={recipe.category || ""}
+          onChange={(e) =>
+            setRecipe({ ...recipe, category: e.target.value })
+          }
+          placeholder="Category"
+        />
+
+        {/* TAGS */}
+        <input
+          value={(recipe.tags || []).join(", ")}
+          onChange={(e) =>
+            setRecipe({
+              ...recipe,
+              tags: e.target.value.split(",").map((t) => t.trim()),
+            })
+          }
+          placeholder="Tags"
+        />
+
+        {/* INGREDIENTS */}
+        <textarea
+          value={
+            lang === "en"
+              ? recipe.ingredients_en
+              : recipe.ingredients_de
+          }
+          onChange={(e) =>
+            setRecipe({
+              ...recipe,
+              [
+                lang === "en"
+                  ? "ingredients_en"
+                  : "ingredients_de"
+              ]: e.target.value,
+            })
+          }
+          placeholder={lang === "en" ? "Ingredients" : "Zutaten"}
+        />
+
+        {/* STEPS */}
+        <textarea
+          value={
+            lang === "en" ? recipe.steps_en : recipe.steps_de
+          }
+          onChange={(e) =>
+            setRecipe({
+              ...recipe,
+              [lang === "en" ? "steps_en" : "steps_de"]: e.target.value,
+            })
+          }
+          placeholder={lang === "en" ? "Steps" : "Zubereitung"}
+        />
+
+        <button>Save Changes</button>
       </form>
     </main>
   );

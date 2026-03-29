@@ -14,73 +14,93 @@ export default function EditRecipe() {
 
   const [lang, setLang] = useState<"en" | "de">("en");
   const [recipe, setRecipe] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-  const fetchRecipe = async () => {
-    const { data, error } = await supabase
+    const fetchData = async () => {
+      // 🔐 get user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setUser(user);
+
+      // 📦 get recipe
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("id", recipeId)
+        .single();
+
+      if (error || !data) {
+        alert("Recipe not found");
+        router.push("/");
+        return;
+      }
+
+      // 🔒 OWNER CHECK (VERY IMPORTANT)
+      if (data.user_id !== user.id) {
+        alert("Not allowed");
+        router.push("/");
+        return;
+      }
+
+      setRecipe(data);
+    };
+
+    if (recipeId) fetchData();
+  }, [recipeId, router]);
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+
+    const { error } = await supabase
       .from("recipes")
-      .select("*")
-      .eq("id", recipeId)
-      .single();
+      .update({
+        title_en: recipe.title_en,
+        title_de: recipe.title_de,
+        category: recipe.category,
+        tags: recipe.tags,
+        ingredients_en: recipe.ingredients_en,
+        ingredients_de: recipe.ingredients_de,
+        steps_en: recipe.steps_en,
+        steps_de: recipe.steps_de,
+      })
+      .eq("id", recipeId);
 
     if (error) {
       console.error(error);
+      alert("Error updating recipe");
     } else {
-      setRecipe(data);
+      alert("Recipe updated!");
+      router.push("/");
     }
   };
 
-  if (recipeId) fetchRecipe();
-}, [recipeId]);
-
-  const handleSubmit = async (e: any) => {
-  e.preventDefault();
-
-  const { error } = await supabase
-    .from("recipes")
-    .update({
-      title_en: recipe.title_en,
-      title_de: recipe.title_de,
-      category: recipe.category,
-      tags: recipe.tags,
-      ingredients_en: recipe.ingredients_en,
-      ingredients_de: recipe.ingredients_de,
-      steps_en: recipe.steps_en,
-      steps_de: recipe.steps_de,
-    })
-    .eq("id", recipeId);
-
-  if (error) {
-    console.error(error);
-    alert("Error updating recipe");
-  } else {
-    alert("Recipe updated!");
-    router.push("/");
-  }
-};
-
-  if (!recipe) return <p className="p-6">Loading...</p>;
+  if (!recipe) return <p style={{ padding: 20 }}>Loading...</p>;
 
   return (
-    <main className="p-6 max-w-2xl mx-auto">
+    <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
       {/* Back */}
-      <Link href="/" className="inline-block mb-4 underline">
+      <Link href="/" style={{ display: "inline-block", marginBottom: 10 }}>
         ← Back
       </Link>
 
-      {/* Header with language toggle */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Edit Recipe</h1>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+        <h1>Edit Recipe</h1>
 
-        <button
-          onClick={() => setLang(lang === "en" ? "de" : "en")}
-          className="px-3 py-1 border rounded-lg"
-        >
+        <button onClick={() => setLang(lang === "en" ? "de" : "en")}>
           {lang === "en" ? "DE" : "EN"}
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {/* TITLE */}
         <input
           value={lang === "en" ? recipe.title_en : recipe.title_de}
@@ -90,31 +110,28 @@ export default function EditRecipe() {
               [lang === "en" ? "title_en" : "title_de"]: e.target.value,
             })
           }
-          className="w-full p-2 border rounded"
           placeholder={lang === "en" ? "Title" : "Titel"}
         />
 
         {/* CATEGORY */}
         <input
-          value={recipe.category}
+          value={recipe.category || ""}
           onChange={(e) =>
             setRecipe({ ...recipe, category: e.target.value })
           }
-          className="w-full p-2 border rounded"
           placeholder="Category"
         />
 
         {/* TAGS */}
         <input
-          value={recipe.tags.join(", ")}
+          value={(recipe.tags || []).join(", ")}
           onChange={(e) =>
             setRecipe({
               ...recipe,
               tags: e.target.value.split(",").map((t) => t.trim()),
             })
           }
-          className="w-full p-2 border rounded"
-          placeholder="Tags (comma separated)"
+          placeholder="Tags"
         />
 
         {/* INGREDIENTS */}
@@ -134,7 +151,6 @@ export default function EditRecipe() {
               ]: e.target.value,
             })
           }
-          className="w-full p-2 border rounded"
           placeholder={lang === "en" ? "Ingredients" : "Zutaten"}
         />
 
@@ -149,13 +165,10 @@ export default function EditRecipe() {
               [lang === "en" ? "steps_en" : "steps_de"]: e.target.value,
             })
           }
-          className="w-full p-2 border rounded"
           placeholder={lang === "en" ? "Steps" : "Zubereitung"}
         />
 
-        <button className="px-4 py-2 bg-black text-white rounded">
-          Save Changes
-        </button>
+        <button>Save Changes</button>
       </form>
     </main>
   );
