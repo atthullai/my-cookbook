@@ -17,6 +17,24 @@ export default function AddRecipe() {
   const [steps, setSteps] = useState("");
   const [stepsDe, setStepsDe] = useState("");
 
+  // adding Translate function.
+  const translate = async (text: string) => {
+    if (!text) return "";
+
+    try {
+      const res = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+          text
+        )}&langpair=en|de`
+      );
+      const data = await res.json();
+      return data.responseData.translatedText;
+    } catch (err) {
+      console.error("Translation error:", err);
+      return text; // fallback
+    }
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
@@ -29,6 +47,12 @@ export default function AddRecipe() {
       return;
     }
 
+    // 🔥 AUTO TRANSLATE (only if empty)
+    const autoTitleDe = titleDe || (await translate(title));
+    const autoIngredientsDe =
+      ingredientsDe || (await translate(ingredients));
+    const autoStepsDe = stepsDe || (await translate(steps));
+
     const { error } = await supabase.from("recipes").insert([
       {
         user_id: user.id,
@@ -38,13 +62,13 @@ export default function AddRecipe() {
         ingredients_en: ingredients,
         steps_en: steps,
 
-        // DE
-        title_de: titleDe,
-        ingredients_de: ingredientsDe,
-        steps_de: stepsDe,
+        // DE (manual OR auto)
+        title_de: autoTitleDe,
+        ingredients_de: autoIngredientsDe,
+        steps_de: autoStepsDe,
 
         category,
-        tags: tags.split(",").map((t) => t.trim()),
+        tags: tags ? tags.split(",").map((t) => t.trim()) : [],
       },
     ]);
 
