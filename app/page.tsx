@@ -47,29 +47,36 @@ export default function Home() {
       ) : (
         <ul className="space-y-4">
           {recipes.map((recipe) => (
-            <li key={recipe.id} className="border p-4 rounded">
-              <Link href={`/recipe/${recipe.id}`}>
-                <h2 className="text-xl font-semibold">
-                  {recipe.title_en}
-                </h2>
-              </Link>
+            <li
+              key={recipe.id}
+              className="border p-4 rounded flex justify-between items-start"
+            >
+              <div>
+                <Link href={`/recipe/${recipe.id}`}>
+                  <h2 className="text-xl font-semibold">
+                    {recipe.title_en}
+                  </h2>
+                </Link>
 
-              <p className="text-sm text-gray-500">
-                {recipe.category}
-              </p>
+                <p className="text-sm text-gray-500">
+                  {recipe.category}
+                </p>
 
-              {/* ✅ TAGS */}
-              <div className="mt-2 flex gap-2 flex-wrap">
-                {recipe.tags?.map((tag: string, i: number) => (
-                  <span
-                    key={i}
-                    className="text-xs bg-gray-200 text-black px-2 py-1 rounded"
-                  >
-                    {tag}
-                  </span>
-                ))}
+                {/* TAGS */}
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  {recipe.tags?.map((tag: string, i: number) => (
+                    <span
+                      key={i}
+                      className="text-xs bg-gray-200 text-black px-2 py-1 rounded"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 flex gap-2">
+
+              {/* ✅ BUTTONS ON RIGHT */}
+              <div className="flex flex-col gap-2">
                 <Link
                   href={`/edit/${recipe.id}`}
                   className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
