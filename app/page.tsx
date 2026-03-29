@@ -57,7 +57,15 @@ export default function Home() {
             </button>
           </div>
 
-          {/* ADD BUTTON */}
+          {/* 🔐 LOGIN BUTTON */}
+          <Link
+            href="/login"
+            className="px-3 py-1 border rounded"
+          >
+            Login
+          </Link>
+
+          {/* ➕ ADD BUTTON */}
           <Link
             href="/add"
             className="px-3 py-1 bg-black text-white rounded"
