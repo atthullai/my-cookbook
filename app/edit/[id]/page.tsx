@@ -12,13 +12,12 @@ export default function EditRecipe() {
 
   const recipeId = Number(params.id);
 
-  const [lang, setLang] = useState<"en" | "de">("en");
   const [recipe, setRecipe] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      // 🔐 get user
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -30,7 +29,6 @@ export default function EditRecipe() {
 
       setUser(user);
 
-      // 📦 get recipe
       const { data, error } = await supabase
         .from("recipes")
         .select("*")
@@ -43,7 +41,7 @@ export default function EditRecipe() {
         return;
       }
 
-      // 🔒 OWNER CHECK (VERY IMPORTANT)
+      // 🔒 owner check
       if (data.user_id !== user.id) {
         alert("Not allowed");
         router.push("/");
@@ -51,66 +49,100 @@ export default function EditRecipe() {
       }
 
       setRecipe(data);
+      setLoading(false);
     };
 
     if (recipeId) fetchData();
   }, [recipeId, router]);
 
+  // 🌍 translate helper
+  const translate = async (text: string) => {
+    if (!text) return "";
+
+    try {
+      const res = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+          text
+        )}&langpair=en|de`
+      );
+      const data = await res.json();
+      return data.responseData.translatedText;
+    } catch {
+      return text;
+    }
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+
+    // 🤖 auto translate if DE empty
+    const autoTitleDe =
+      recipe.title_de || (await translate(recipe.title_en));
+    const autoIngredientsDe =
+      recipe.ingredients_de ||
+      (await translate(recipe.ingredients_en));
+    const autoStepsDe =
+      recipe.steps_de || (await translate(recipe.steps_en));
 
     const { error } = await supabase
       .from("recipes")
       .update({
         title_en: recipe.title_en,
-        title_de: recipe.title_de,
+        title_de: autoTitleDe,
         category: recipe.category,
         tags: recipe.tags,
         ingredients_en: recipe.ingredients_en,
-        ingredients_de: recipe.ingredients_de,
+        ingredients_de: autoIngredientsDe,
         steps_en: recipe.steps_en,
-        steps_de: recipe.steps_de,
+        steps_de: autoStepsDe,
       })
       .eq("id", recipeId);
 
     if (error) {
-      console.error(error);
       alert("Error updating recipe");
     } else {
-      alert("Recipe updated!");
+      alert("Updated!");
       router.push("/");
     }
   };
 
-  if (!recipe) return <p style={{ padding: 20 }}>Loading...</p>;
+  // ⏳ loading state
+  if (loading) {
+    return (
+      <main style={{ padding: 20 }}>
+        <p>Loading recipe...</p>
+      </main>
+    );
+  }
 
   return (
     <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
-      {/* Back */}
-      <Link href="/" style={{ display: "inline-block", marginBottom: 10 }}>
+      <Link href="/" style={{ marginBottom: 10, display: "inline-block" }}>
         ← Back
       </Link>
 
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-        <h1>Edit Recipe</h1>
+      <h1>Edit Recipe</h1>
 
-        <button onClick={() => setLang(lang === "en" ? "de" : "en")}>
-          {lang === "en" ? "DE" : "EN"}
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* TITLE */}
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      >
+        {/* TITLE EN */}
         <input
-          value={lang === "en" ? recipe.title_en : recipe.title_de}
+          value={recipe.title_en}
           onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              [lang === "en" ? "title_en" : "title_de"]: e.target.value,
-            })
+            setRecipe({ ...recipe, title_en: e.target.value })
           }
-          placeholder={lang === "en" ? "Title" : "Titel"}
+          placeholder="Title (EN)"
+        />
+
+        {/* TITLE DE */}
+        <input
+          value={recipe.title_de || ""}
+          onChange={(e) =>
+            setRecipe({ ...recipe, title_de: e.target.value })
+          }
+          placeholder="Title (DE)"
         />
 
         {/* CATEGORY */}
@@ -134,38 +166,52 @@ export default function EditRecipe() {
           placeholder="Tags"
         />
 
-        {/* INGREDIENTS */}
+        {/* INGREDIENTS EN */}
         <textarea
-          value={
-            lang === "en"
-              ? recipe.ingredients_en
-              : recipe.ingredients_de
-          }
+          value={recipe.ingredients_en}
           onChange={(e) =>
             setRecipe({
               ...recipe,
-              [
-                lang === "en"
-                  ? "ingredients_en"
-                  : "ingredients_de"
-              ]: e.target.value,
+              ingredients_en: e.target.value,
             })
           }
-          placeholder={lang === "en" ? "Ingredients" : "Zutaten"}
+          placeholder="Ingredients (EN)"
         />
 
-        {/* STEPS */}
+        {/* INGREDIENTS DE */}
         <textarea
-          value={
-            lang === "en" ? recipe.steps_en : recipe.steps_de
-          }
+          value={recipe.ingredients_de || ""}
           onChange={(e) =>
             setRecipe({
               ...recipe,
-              [lang === "en" ? "steps_en" : "steps_de"]: e.target.value,
+              ingredients_de: e.target.value,
             })
           }
-          placeholder={lang === "en" ? "Steps" : "Zubereitung"}
+          placeholder="Ingredients (DE)"
+        />
+
+        {/* STEPS EN */}
+        <textarea
+          value={recipe.steps_en}
+          onChange={(e) =>
+            setRecipe({
+              ...recipe,
+              steps_en: e.target.value,
+            })
+          }
+          placeholder="Steps (EN)"
+        />
+
+        {/* STEPS DE */}
+        <textarea
+          value={recipe.steps_de || ""}
+          onChange={(e) =>
+            setRecipe({
+              ...recipe,
+              steps_de: e.target.value,
+            })
+          }
+          placeholder="Steps (DE)"
         />
 
         <button>Save Changes</button>
