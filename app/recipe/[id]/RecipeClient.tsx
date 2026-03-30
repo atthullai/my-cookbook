@@ -22,10 +22,16 @@ export default function RecipeClient({ recipe }: any) {
   return (
     <>
       {/* HEADER */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-
-        {/* TITLE (with language) */}
-        <h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        {/* TITLE */}
+        <h1 style={{ fontSize: 32, fontWeight: "bold" }}>
           {lang === "de"
             ? recipe.title_de || recipe.title_en
             : recipe.title_en}
@@ -33,14 +39,27 @@ export default function RecipeClient({ recipe }: any) {
 
         {/* LANGUAGE BUTTONS */}
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setLang("en")}>EN</button>
-          <button onClick={() => setLang("de")}>DE</button>
+          <button
+            className="button"
+            onClick={() => setLang("en")}
+            style={{ background: lang === "en" ? "#333" : "transparent" }}
+          >
+            EN
+          </button>
+
+          <button
+            className="button"
+            onClick={() => setLang("de")}
+            style={{ background: lang === "de" ? "#333" : "transparent" }}
+          >
+            DE
+          </button>
         </div>
       </div>
 
-      {/* 🔥 SERVINGS */}
-      <div style={{ marginBottom: 20 }}>
-        <p>Servings:</p>
+      {/* SERVINGS */}
+      <div style={{ marginBottom: 24 }}>
+        <p style={{ marginBottom: 8 }}>Servings:</p>
 
         <div style={{ display: "flex", gap: 8 }}>
           {[0.5, 1, 2].map((m) => (
@@ -60,12 +79,18 @@ export default function RecipeClient({ recipe }: any) {
       </div>
 
       {/* INGREDIENTS */}
-      <div style={{ marginBottom: 20 }}>
-        <h3>Ingredients</h3>
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ marginBottom: 10 }}>Ingredients</h3>
 
         {recipe.ingredients && recipe.ingredients.length > 0 ? (
           recipe.ingredients.map((ing: any, i: number) => {
             const isChecked = checked.includes(i);
+
+            // ✅ safe scaling
+            const scaledAmount =
+              ing.amount && !isNaN(Number(ing.amount))
+                ? Number(ing.amount) * multiplier
+                : ing.amount;
 
             return (
               <div
@@ -74,34 +99,36 @@ export default function RecipeClient({ recipe }: any) {
                 className="ingredient-item"
                 style={{
                   display: "flex",
-                  gap: 8,
+                  gap: 10,
+                  padding: "6px 0",
+                  cursor: "pointer",
                   opacity: isChecked ? 0.5 : 1,
                 }}
               >
                 <span>{isChecked ? "☑" : "☐"}</span>
 
-                <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
-                  {ing.amount ? Number(ing.amount) * multiplier : ""}{" "}
-                  {ing.unit} {ing.name}
+                <span
+                  style={{
+                    textDecoration: isChecked ? "line-through" : "none",
+                  }}
+                >
+                  {scaledAmount} {ing.unit} {ing.name}
                 </span>
               </div>
             );
           })
         ) : (
-          // fallback for old recipes
-          recipe.ingredients_en?.split(",").map((item: string, i: number) => (
-            <div key={i}>
-              {multiplier !== 1 && `${multiplier}× `}
-              {item.trim()}
-            </div>
-          ))
+          <p style={{ opacity: 0.6 }}>
+            No structured ingredients available
+          </p>
         )}
       </div>
 
       {/* STEPS */}
       <div>
-        <h3>Steps</h3>
-        <p>
+        <h3 style={{ marginBottom: 10 }}>Steps</h3>
+
+        <p style={{ lineHeight: 1.6 }}>
           {lang === "de"
             ? recipe.steps_de || recipe.steps_en
             : recipe.steps_en}
@@ -110,3 +137,4 @@ export default function RecipeClient({ recipe }: any) {
     </>
   );
 }
+
