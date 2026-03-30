@@ -102,7 +102,7 @@ export default function AddRecipe() {
       <h1>Add Recipe</h1>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        
+
         {/* EN */}
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (EN)" />
         <textarea className="input" value={ingredients} onChange={(e) => setIngredients(e.target.value)} placeholder="Ingredients (EN)" />

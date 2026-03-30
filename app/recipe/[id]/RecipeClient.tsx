@@ -45,40 +45,33 @@ export default function RecipeClient({ recipe }: any) {
       <div style={{ marginBottom: 20 }}>
         <h3>Ingredients</h3>
 
-        {recipe.ingredients_en
-          ?.split(",")
-          .map((item: string, i: number) => {
-            const isChecked = checked.includes(i);
+        {recipe.ingredients?.map((ing: any, i: number) => {
+          const isChecked = checked.includes(i);
 
-            return (
-              <div
-                key={i}
-                onClick={() => toggleCheck(i)}
-                className="ingredient-item"
+          return (
+            <div
+              key={i}
+              onClick={() => toggleCheck(i)}
+              className="ingredient-item"
+              style={{
+                display: "flex",
+                gap: 8,
+                opacity: isChecked ? 0.5 : 1,
+              }}
+            >
+              <span>{isChecked ? "☑" : "☐"}</span>
+
+              <span
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  opacity: isChecked ? 0.5 : 1,
+                  textDecoration: isChecked ? "line-through" : "none",
                 }}
               >
-                {/* checkbox */}
-                <span>
-                  {isChecked ? "☑" : "☐"}
-                </span>
-
-                {/* ingredient text */}
-                <span
-                  style={{
-                    textDecoration: isChecked ? "line-through" : "none",
-                  }}
-                >
-                  {multiplier !== 1 && `${multiplier}× `}
-                  {item.trim()}
-                </span>
-              </div>
-            );
-          })}
+                {Number(ing.amount) * multiplier || ing.amount}{" "}
+                {ing.unit} {ing.name}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* STEPS */}
