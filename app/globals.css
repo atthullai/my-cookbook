@@ -10,6 +10,7 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
 /* optional: keep your theme */
 :root {
   --background: #0a0a0a;
@@ -66,4 +67,15 @@ body {
   padding: 8px;
   border-radius: 6px;
   border: 1px solid #555;
+}
+/* clickable ingredient row */
+.ingredient-item {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+
+.ingredient-item:hover {
+  background: #111;
 }
