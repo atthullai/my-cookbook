@@ -8,7 +8,8 @@ export default function Home() {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [lang, setLang] = useState<"en" | "de">("en");
-  {/* Adding Search state.*/ }
+
+  // 🔍 Search state
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -22,11 +23,7 @@ export default function Home() {
 
       // 🌍 auto language detect
       const browserLang = navigator.language.toLowerCase();
-      if (browserLang.includes("de")) {
-        setLang("de");
-      } else {
-        setLang("en");
-      }
+      setLang(browserLang.includes("de") ? "de" : "en");
 
       // 🔒 fetch ONLY user's recipes
       if (user) {
@@ -50,14 +47,13 @@ export default function Home() {
   };
 
   return (
-    <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
-
+    <main className="container">
       {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
         <h1>My Cookbook</h1>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-
+          
           {/* 👤 user email */}
           {user && (
             <span style={{ fontSize: 12, opacity: 0.7 }}>
@@ -65,69 +61,55 @@ export default function Home() {
             </span>
           )}
 
-          {/* 🔐 login/logout */}
+          {/* 🔐 login/logout (styled) */}
           {user ? (
-            <button onClick={handleLogout}>Logout</button>
+            <button className="button" onClick={handleLogout}>
+              Logout
+            </button>
           ) : (
-            <Link href="/login">Login</Link>
+            <Link href="/login">
+              <button className="button">Login</button>
+            </Link>
           )}
 
-          {/* ➕ Add Recipe Button(new)*/}
-          <Link
-            href="/add"
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              background: "#222",
-              color: "white",
-            }}
-          >
-            + Add Recipe
+          {/* ➕ Add Recipe (use reusable button style) */}
+          <Link href="/add">
+            <button className="button button-primary">
+              + Add Recipe
+            </button>
           </Link>
         </div>
       </div>
 
-      {/* EMPTY */}
-      {recipes.length === 0 && (
-        <p>No recipes yet.</p>
-      )}
-
-      {/* Input for search before recipe list.*/}
+      {/* 🔍 SEARCH BAR (use reusable input style) */}
       <input
+        className="input"
         placeholder="Search recipes..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 8,
-          marginBottom: 20,
-          border: "1px solid #444",
-          borderRadius: 6,
-        }}
       />
-      {/* LIST */} {/* adding new map to implement search */}
-      <div>
+
+      {/* EMPTY STATE */}
+      {recipes.length === 0 && (
+        <p style={{ marginTop: 10 }}>No recipes yet.</p>
+      )}
+
+      {/* LIST */}
+      <div style={{ marginTop: 10 }}>
         {recipes
+          // 🔍 filter recipes by search
           .filter((r) =>
             r.title_en.toLowerCase().includes(search.toLowerCase())
           )
           .map((recipe) => (
-            <div
-              key={recipe.id}
-              style={{
-                border: "1px solid #444",
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 10,
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-
-              {/* LEFT */}
+            // 🧱 use reusable card class instead of inline styles
+            <div key={recipe.id} className="card">
+              
+              {/* LEFT (clickable area) */}
               <Link href={`/recipe/${recipe.id}`} style={{ flex: 1 }}>
                 <div>
 
+                  {/* 🌍 language fallback */}
                   <h2>
                     {lang === "de"
                       ? recipe.title_de || recipe.title_en
@@ -136,6 +118,7 @@ export default function Home() {
 
                   <p style={{ opacity: 0.6 }}>{recipe.category}</p>
 
+                  {/* 🏷 tags */}
                   <div style={{ marginTop: 6 }}>
                     {recipe.tags?.map((tag: string, i: number) => (
                       <span
@@ -159,12 +142,15 @@ export default function Home() {
               {/* RIGHT (ONLY OWNER) */}
               {user?.id === recipe.user_id && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-
+                  
+                  {/* ✏️ Edit */}
                   <Link href={`/edit/${recipe.id}`}>
-                    <button>Edit</button>
+                    <button className="button">Edit</button>
                   </Link>
 
+                  {/* 🗑 Delete */}
                   <button
+                    className="button button-danger"
                     onClick={async () => {
                       const confirmDelete = confirm("Delete?");
                       if (!confirmDelete) return;

@@ -1,7 +1,6 @@
 "use client";
 
 import { supabase } from "@/lib/supabase";
-
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -9,11 +8,9 @@ import Link from "next/link";
 export default function EditRecipe() {
   const router = useRouter();
   const params = useParams();
-
   const recipeId = Number(params.id);
 
   const [recipe, setRecipe] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,8 +24,6 @@ export default function EditRecipe() {
         return;
       }
 
-      setUser(user);
-
       const { data, error } = await supabase
         .from("recipes")
         .select("*")
@@ -36,14 +31,11 @@ export default function EditRecipe() {
         .single();
 
       if (error || !data) {
-        alert("Recipe not found");
         router.push("/");
         return;
       }
 
-      // 🔒 owner check
       if (data.user_id !== user.id) {
-        alert("Not allowed");
         router.push("/");
         return;
       }
@@ -55,15 +47,11 @@ export default function EditRecipe() {
     if (recipeId) fetchData();
   }, [recipeId, router]);
 
-  // 🌍 translate helper
   const translate = async (text: string) => {
     if (!text) return "";
-
     try {
       const res = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-          text
-        )}&langpair=en|de`
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`
       );
       const data = await res.json();
       return data.responseData.translatedText;
@@ -75,16 +63,13 @@ export default function EditRecipe() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    // 🤖 auto translate if DE empty
-    const autoTitleDe =
-      recipe.title_de || (await translate(recipe.title_en));
+    const autoTitleDe = recipe.title_de || (await translate(recipe.title_en));
     const autoIngredientsDe =
-      recipe.ingredients_de ||
-      (await translate(recipe.ingredients_en));
+      recipe.ingredients_de || (await translate(recipe.ingredients_en));
     const autoStepsDe =
       recipe.steps_de || (await translate(recipe.steps_en));
 
-    const { error } = await supabase
+    await supabase
       .from("recipes")
       .update({
         title_en: recipe.title_en,
@@ -98,64 +83,32 @@ export default function EditRecipe() {
       })
       .eq("id", recipeId);
 
-    if (error) {
-      alert("Error updating recipe");
-    } else {
-      alert("Updated!");
-      router.push("/");
-    }
+    router.push("/");
   };
 
-  // ⏳ loading state
   if (loading) {
     return (
-      <main style={{ padding: 20 }}>
+      <main className="container">
         <p>Loading recipe...</p>
       </main>
     );
   }
 
   return (
-    <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
-      <Link href="/" style={{ marginBottom: 10, display: "inline-block" }}>
-        ← Back
-      </Link>
+    <main className="container">
+      <Link href="/">← Back</Link>
 
       <h1>Edit Recipe</h1>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 10 }}
-      >
-        {/* TITLE EN */}
-        <input
-          value={recipe.title_en}
-          onChange={(e) =>
-            setRecipe({ ...recipe, title_en: e.target.value })
-          }
-          placeholder="Title (EN)"
-        />
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        
+        <input className="input" value={recipe.title_en} onChange={(e) => setRecipe({ ...recipe, title_en: e.target.value })} />
+        <input className="input" value={recipe.title_de || ""} onChange={(e) => setRecipe({ ...recipe, title_de: e.target.value })} />
 
-        {/* TITLE DE */}
-        <input
-          value={recipe.title_de || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, title_de: e.target.value })
-          }
-          placeholder="Title (DE)"
-        />
+        <input className="input" value={recipe.category || ""} onChange={(e) => setRecipe({ ...recipe, category: e.target.value })} />
 
-        {/* CATEGORY */}
         <input
-          value={recipe.category || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, category: e.target.value })
-          }
-          placeholder="Category"
-        />
-
-        {/* TAGS */}
-        <input
+          className="input"
           value={(recipe.tags || []).join(", ")}
           onChange={(e) =>
             setRecipe({
@@ -163,58 +116,15 @@ export default function EditRecipe() {
               tags: e.target.value.split(",").map((t) => t.trim()),
             })
           }
-          placeholder="Tags"
         />
 
-        {/* INGREDIENTS EN */}
-        <textarea
-          value={recipe.ingredients_en}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              ingredients_en: e.target.value,
-            })
-          }
-          placeholder="Ingredients (EN)"
-        />
+        <textarea className="input" value={recipe.ingredients_en} onChange={(e) => setRecipe({ ...recipe, ingredients_en: e.target.value })} />
+        <textarea className="input" value={recipe.ingredients_de || ""} onChange={(e) => setRecipe({ ...recipe, ingredients_de: e.target.value })} />
 
-        {/* INGREDIENTS DE */}
-        <textarea
-          value={recipe.ingredients_de || ""}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              ingredients_de: e.target.value,
-            })
-          }
-          placeholder="Ingredients (DE)"
-        />
+        <textarea className="input" value={recipe.steps_en} onChange={(e) => setRecipe({ ...recipe, steps_en: e.target.value })} />
+        <textarea className="input" value={recipe.steps_de || ""} onChange={(e) => setRecipe({ ...recipe, steps_de: e.target.value })} />
 
-        {/* STEPS EN */}
-        <textarea
-          value={recipe.steps_en}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              steps_en: e.target.value,
-            })
-          }
-          placeholder="Steps (EN)"
-        />
-
-        {/* STEPS DE */}
-        <textarea
-          value={recipe.steps_de || ""}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              steps_de: e.target.value,
-            })
-          }
-          placeholder="Steps (DE)"
-        />
-
-        <button>Save Changes</button>
+        <button className="button button-primary">Save Changes</button>
       </form>
     </main>
   );

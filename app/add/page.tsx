@@ -60,7 +60,6 @@ export default function AddRecipe() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    // 🤖 auto translate if empty
     const autoTitleDe = titleDe || (await translate(title));
     const autoIngredientsDe =
       ingredientsDe || (await translate(ingredients));
@@ -69,16 +68,12 @@ export default function AddRecipe() {
     const { error } = await supabase.from("recipes").insert([
       {
         user_id: user.id,
-
         title_en: title,
         title_de: autoTitleDe,
-
         category,
         tags: tags ? tags.split(",").map((t) => t.trim()) : [],
-
         ingredients_en: ingredients,
         ingredients_de: autoIngredientsDe,
-
         steps_en: steps,
         steps_de: autoStepsDe,
       },
@@ -92,79 +87,37 @@ export default function AddRecipe() {
     }
   };
 
-  // ⏳ loading
   if (loading) {
     return (
-      <main style={{ padding: 20 }}>
+      <main className="container">
         <p>Checking login...</p>
       </main>
     );
   }
 
   return (
-    <main style={{ maxWidth: 700, margin: "auto", padding: 20 }}>
-      <Link href="/" style={{ marginBottom: 10, display: "inline-block" }}>
-        ← Back
-      </Link>
+    <main className="container">
+      <Link href="/">← Back</Link>
 
       <h1>Add Recipe</h1>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 10 }}
-      >
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        
         {/* EN */}
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title (EN)"
-        />
-
-        <textarea
-          value={ingredients}
-          onChange={(e) => setIngredients(e.target.value)}
-          placeholder="Ingredients (EN)"
-        />
-
-        <textarea
-          value={steps}
-          onChange={(e) => setSteps(e.target.value)}
-          placeholder="Steps (EN)"
-        />
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (EN)" />
+        <textarea className="input" value={ingredients} onChange={(e) => setIngredients(e.target.value)} placeholder="Ingredients (EN)" />
+        <textarea className="input" value={steps} onChange={(e) => setSteps(e.target.value)} placeholder="Steps (EN)" />
 
         {/* DE */}
-        <input
-          value={titleDe}
-          onChange={(e) => setTitleDe(e.target.value)}
-          placeholder="Title (DE)"
-        />
-
-        <textarea
-          value={ingredientsDe}
-          onChange={(e) => setIngredientsDe(e.target.value)}
-          placeholder="Ingredients (DE)"
-        />
-
-        <textarea
-          value={stepsDe}
-          onChange={(e) => setStepsDe(e.target.value)}
-          placeholder="Steps (DE)"
-        />
+        <input className="input" value={titleDe} onChange={(e) => setTitleDe(e.target.value)} placeholder="Title (DE)" />
+        <textarea className="input" value={ingredientsDe} onChange={(e) => setIngredientsDe(e.target.value)} placeholder="Ingredients (DE)" />
+        <textarea className="input" value={stepsDe} onChange={(e) => setStepsDe(e.target.value)} placeholder="Steps (DE)" />
 
         {/* GENERAL */}
-        <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Category"
-        />
+        <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" />
+        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags" />
 
-        <input
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="Tags (comma separated)"
-        />
-
-        <button>Add Recipe</button>
+        <button className="button button-primary">Add Recipe</button>
       </form>
     </main>
   );
