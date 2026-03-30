@@ -1,23 +1,29 @@
 "use client";
 
 import { supabase } from "@/lib/supabase";
-
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 
-export default function EditRecipe() {
-  const router = useRouter();
-  const params = useParams();
-
-  const recipeId = Number(params.id);
-
-  const [recipe, setRecipe] = useState<any>(null);
+export default function AddRecipe() {
   const [user, setUser] = useState<any>(null);
+
+  const [title, setTitle] = useState("");
+  const [titleDe, setTitleDe] = useState("");
+
+  const [category, setCategory] = useState("");
+  const [tags, setTags] = useState("");
+
+  const [ingredients, setIngredients] = useState("");
+  const [ingredientsDe, setIngredientsDe] = useState("");
+
+  const [steps, setSteps] = useState("");
+  const [stepsDe, setStepsDe] = useState("");
+
   const [loading, setLoading] = useState(true);
 
+  // 🔐 check login
   useEffect(() => {
-    const fetchData = async () => {
+    const checkUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -28,32 +34,11 @@ export default function EditRecipe() {
       }
 
       setUser(user);
-
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*")
-        .eq("id", recipeId)
-        .single();
-
-      if (error || !data) {
-        alert("Recipe not found");
-        router.push("/");
-        return;
-      }
-
-      // 🔒 OWNER CHECK
-      if (data.user_id !== user.id) {
-        alert("Not allowed");
-        router.push("/");
-        return;
-      }
-
-      setRecipe(data);
       setLoading(false);
     };
 
-    if (recipeId) fetchData();
-  }, [recipeId, router]);
+    checkUser();
+  }, []);
 
   // 🌍 translate helper
   const translate = async (text: string) => {
@@ -75,42 +60,43 @@ export default function EditRecipe() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    // 🤖 auto translate only if empty
-    const autoTitleDe =
-      recipe.title_de || (await translate(recipe.title_en));
+    // 🤖 auto translate if empty
+    const autoTitleDe = titleDe || (await translate(title));
     const autoIngredientsDe =
-      recipe.ingredients_de ||
-      (await translate(recipe.ingredients_en));
-    const autoStepsDe =
-      recipe.steps_de || (await translate(recipe.steps_en));
+      ingredientsDe || (await translate(ingredients));
+    const autoStepsDe = stepsDe || (await translate(steps));
 
-    const { error } = await supabase
-      .from("recipes")
-      .update({
-        title_en: recipe.title_en,
+    const { error } = await supabase.from("recipes").insert([
+      {
+        user_id: user.id,
+
+        title_en: title,
         title_de: autoTitleDe,
-        category: recipe.category,
-        tags: recipe.tags,
-        ingredients_en: recipe.ingredients_en,
+
+        category,
+        tags: tags ? tags.split(",").map((t) => t.trim()) : [],
+
+        ingredients_en: ingredients,
         ingredients_de: autoIngredientsDe,
-        steps_en: recipe.steps_en,
+
+        steps_en: steps,
         steps_de: autoStepsDe,
-      })
-      .eq("id", recipeId);
+      },
+    ]);
 
     if (error) {
-      alert("Error updating recipe");
+      alert(error.message);
     } else {
-      alert("Updated!");
-      router.push("/");
+      alert("Recipe added!");
+      window.location.href = "/";
     }
   };
 
-  // ⏳ LOADING STATE (FIXES YOUR ISSUE)
+  // ⏳ loading
   if (loading) {
     return (
       <main style={{ padding: 20 }}>
-        <p>Loading recipe...</p>
+        <p>Checking login...</p>
       </main>
     );
   }
@@ -121,100 +107,64 @@ export default function EditRecipe() {
         ← Back
       </Link>
 
-      <h1>Edit Recipe</h1>
+      <h1>Add Recipe</h1>
 
       <form
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: 10 }}
       >
-        {/* TITLE EN */}
+        {/* EN */}
         <input
-          value={recipe.title_en}
-          onChange={(e) =>
-            setRecipe({ ...recipe, title_en: e.target.value })
-          }
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           placeholder="Title (EN)"
         />
 
-        {/* TITLE DE */}
-        <input
-          value={recipe.title_de || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, title_de: e.target.value })
-          }
-          placeholder="Title (DE)"
-        />
-
-        {/* CATEGORY */}
-        <input
-          value={recipe.category || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, category: e.target.value })
-          }
-          placeholder="Category"
-        />
-
-        {/* TAGS */}
-        <input
-          value={(recipe.tags || []).join(", ")}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              tags: e.target.value.split(",").map((t) => t.trim()),
-            })
-          }
-          placeholder="Tags"
-        />
-
-        {/* INGREDIENTS EN */}
         <textarea
-          value={recipe.ingredients_en}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              ingredients_en: e.target.value,
-            })
-          }
+          value={ingredients}
+          onChange={(e) => setIngredients(e.target.value)}
           placeholder="Ingredients (EN)"
         />
 
-        {/* INGREDIENTS DE */}
         <textarea
-          value={recipe.ingredients_de || ""}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              ingredients_de: e.target.value,
-            })
-          }
-          placeholder="Ingredients (DE)"
-        />
-
-        {/* STEPS EN */}
-        <textarea
-          value={recipe.steps_en}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              steps_en: e.target.value,
-            })
-          }
+          value={steps}
+          onChange={(e) => setSteps(e.target.value)}
           placeholder="Steps (EN)"
         />
 
-        {/* STEPS DE */}
+        {/* DE */}
+        <input
+          value={titleDe}
+          onChange={(e) => setTitleDe(e.target.value)}
+          placeholder="Title (DE)"
+        />
+
         <textarea
-          value={recipe.steps_de || ""}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              steps_de: e.target.value,
-            })
-          }
+          value={ingredientsDe}
+          onChange={(e) => setIngredientsDe(e.target.value)}
+          placeholder="Ingredients (DE)"
+        />
+
+        <textarea
+          value={stepsDe}
+          onChange={(e) => setStepsDe(e.target.value)}
           placeholder="Steps (DE)"
         />
 
-        <button>Save Changes</button>
+        {/* GENERAL */}
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="Category"
+        />
+
+        <input
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+          placeholder="Tags (comma separated)"
+        />
+
+        <button>Add Recipe</button>
       </form>
     </main>
   );
