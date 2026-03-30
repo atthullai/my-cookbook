@@ -70,9 +70,17 @@ export default function Home() {
             <Link href="/login">Login</Link>
           )}
 
-          {/* ➕ add */}
-          <Link href="/add">
-            <button>+ Add</button>
+          {/* ➕ Add Recipe Button(new)*/}
+          <Link
+            href="/add"
+            style={{
+              padding: "6px 12px",
+              borderRadius: 6,
+              background: "#222",
+              color: "white",
+            }}
+          >
+            + Add Recipe
           </Link>
         </div>
       </div>
