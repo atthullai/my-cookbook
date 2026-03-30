@@ -3,62 +3,52 @@
 import { useState } from "react";
 
 export default function RecipeClient({ recipe }: any) {
-  const [lang, setLang] = useState<"en" | "de">("en");
+  const [multiplier, setMultiplier] = useState(1);
 
   return (
     <>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">
-          {lang === "en" ? recipe.title_en : recipe.title_de}
-        </h1>
+      {/* TITLE */}
+      <h1>{recipe.title_en}</h1>
 
-        {/* ✅ Language buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setLang("en")}
-            className={`px-3 py-1 rounded ${
-              lang === "en"
-                ? "bg-black text-white"
-                : "bg-gray-300 text-black"
-            }`}
-          >
-            EN
-          </button>
+      {/* 🔥 SERVINGS */}
+      <div style={{ marginBottom: 20 }}>
+        <p>Servings:</p>
 
-          <button
-            onClick={() => setLang("de")}
-            className={`px-3 py-1 rounded ${
-              lang === "de"
-                ? "bg-black text-white"
-                : "bg-gray-300 text-black"
-            }`}
-          >
-            DE
-          </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[0.5, 1, 2].map((m) => (
+            <button
+              key={m}
+              className="button"
+              onClick={() => setMultiplier(m)}
+              style={{
+                background: multiplier === m ? "#333" : "transparent",
+                color: multiplier === m ? "white" : "inherit",
+              }}
+            >
+              {m}x
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Ingredients */}
-      <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-xl mb-6">
-        <h2 className="text-xl font-semibold mb-2">
-          {lang === "en" ? "Ingredients" : "Zutaten"}
-        </h2>
-        <p>
-          {lang === "en"
-            ? recipe.ingredients_en
-            : recipe.ingredients_de}
-        </p>
+      {/* INGREDIENTS */}
+      <div style={{ marginBottom: 20 }}>
+        <h3>Ingredients</h3>
+
+        {recipe.ingredients_en
+          ?.split(",")
+          .map((item: string, i: number) => (
+            <div key={i}>
+              {multiplier !== 1 && `${multiplier}× `}
+              {item.trim()}
+            </div>
+          ))}
       </div>
 
-      {/* Steps */}
-      <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-xl">
-        <h2 className="text-xl font-semibold mb-2">
-          {lang === "en" ? "Steps" : "Zubereitung"}
-        </h2>
-        <p>
-          {lang === "en" ? recipe.steps_en : recipe.steps_de}
-        </p>
+      {/* STEPS */}
+      <div>
+        <h3>Steps</h3>
+        <p>{recipe.steps_en}</p>
       </div>
     </>
   );
