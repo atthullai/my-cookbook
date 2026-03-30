@@ -58,7 +58,7 @@ export default function Home() {
         <h1>My Cookbook</h1>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          
+
           {/* 👤 USER EMAIL */}
           {user && (
             <span style={{ fontSize: 12, opacity: 0.7 }}>
@@ -84,6 +84,25 @@ export default function Home() {
             </button>
           </Link>
         </div>
+      </div>
+
+      {/* 🌍 LANGUAGE TOGGLE */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          className="button"
+          onClick={() => setLang("en")}
+          style={{ background: lang === "en" ? "#333" : "transparent" }}
+        >
+          EN
+        </button>
+
+        <button
+          className="button"
+          onClick={() => setLang("de")}
+          style={{ background: lang === "de" ? "#333" : "transparent" }}
+        >
+          DE
+        </button>
       </div>
 
       {/* ================= SEARCH ================= */}
@@ -128,7 +147,7 @@ export default function Home() {
                 {/* ACTION BUTTONS (INLINE — FIXES YOUR ISSUE) */}
                 {user?.id === recipe.user_id && (
                   <div style={{ display: "flex", gap: 8 }}>
-                    
+
                     <Link href={`/edit/${recipe.id}`}>
                       <button className="button">Edit</button>
                     </Link>

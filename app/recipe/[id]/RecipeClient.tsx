@@ -23,7 +23,7 @@ export default function RecipeClient({ recipe }: any) {
     <>
       {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        
+
         {/* TITLE (with language) */}
         <h1>
           {lang === "de"
@@ -81,7 +81,7 @@ export default function RecipeClient({ recipe }: any) {
                 <span>{isChecked ? "☑" : "☐"}</span>
 
                 <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
-                  {Number(ing.amount) * multiplier || ing.amount}{" "}
+                  {ing.amount ? Number(ing.amount) * multiplier : ""}{" "}
                   {ing.unit} {ing.name}
                 </span>
               </div>
