@@ -100,11 +100,10 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           justifyContent: "space-between",
           alignItems: "flex-start",
           gap: 16,
-          flexWrap: "wrap",
           marginBottom: 20,
         }}
       >
-        <div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
           <h1>{recipeTitle}</h1>
           <p style={{ marginBottom: 0 }}>{recipe.category || "Uncategorized"}</p>
           <p style={{ marginTop: 8, marginBottom: 0 }}>
@@ -113,7 +112,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0, marginLeft: "auto", justifyContent: "flex-end" }}>
           <button className="button" type="button" onClick={handlePrint}>
             Print
           </button>

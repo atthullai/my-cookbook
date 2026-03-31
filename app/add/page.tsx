@@ -111,20 +111,20 @@ export default function AddRecipe() {
 
     setSaving(true);
 
-    const autoTitleDe = titleDe.trim() || (await translateEnglishToGerman(title));
-    const autoDescriptionDe = descriptionDe.trim() || (descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "");
-    const autoStepsDe = stepsDe.trim() || (await translateEnglishToGerman(steps));
-    const autoNotesDe = notesDe.trim() || (notesEn.trim() ? await translateEnglishToGerman(notesEn) : "");
+    const autoTitleDe = title.trim() ? await translateEnglishToGerman(title) : "";
+    const autoDescriptionDe = descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "";
+    const autoStepsDe = steps.trim() ? await translateEnglishToGerman(steps) : "";
+    const autoNotesDe = notesEn.trim() ? await translateEnglishToGerman(notesEn) : "";
 
-    // German fields are auto-filled only when the user leaves them empty.
+    // German fields are auto-generated from English on save so the two languages stay in sync.
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
         group_en: group.group_en,
-        group_de: group.group_de.trim() || (group.group_en.trim() ? await translateEnglishToGerman(group.group_en) : ""),
+        group_de: group.group_en.trim() ? await translateEnglishToGerman(group.group_en) : "",
         items: await Promise.all(
           group.items.map(async (ingredient) => ({
             ...ingredient,
-            name_de: ingredient.name_de.trim() || (ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : ""),
+            name_de: ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : "",
           }))
         ),
       }))
@@ -133,7 +133,7 @@ export default function AddRecipe() {
     const translatedEquipment = await Promise.all(
       equipment.map(async (item) => ({
         label_en: item.label_en,
-        label_de: item.label_de.trim() || (item.label_en.trim() ? await translateEnglishToGerman(item.label_en) : ""),
+        label_de: item.label_en.trim() ? await translateEnglishToGerman(item.label_en) : "",
       }))
     );
 

@@ -50,6 +50,19 @@ export default function RecipeIndexPage() {
 
   const categories = Array.from(new Set(recipes.map((recipe) => recipe.category).filter(Boolean)));
 
+  const handleDelete = async (recipeId: number) => {
+    const confirmed = window.confirm("Delete this recipe?");
+    if (!confirmed) return;
+
+    const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setRecipes((current) => current.filter((recipe) => recipe.id !== recipeId));
+  };
+
   return (
     <main className="container">
       <h1>Recipe Index</h1>
@@ -65,14 +78,35 @@ export default function RecipeIndexPage() {
               .filter((recipe) => recipe.category === category)
               .map((recipe) => (
                 <div key={recipe.id} className="card">
-                  <Link href={`/recipe/${recipe.id}`}>
-                    <h3 style={{ marginBottom: 8 }}>{recipe.title_en}</h3>
-                  </Link>
-                  <p style={{ marginBottom: 8 }}>{recipe.description_en}</p>
-                  <p style={{ marginBottom: 0 }}>
-                    By {recipe.author_name}
-                    {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
-                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+                      <Link href={`/recipe/${recipe.id}`}>
+                        <h3 style={{ marginBottom: 8 }}>{recipe.title_en}</h3>
+                      </Link>
+                      <p style={{ marginBottom: 8 }}>{recipe.description_en}</p>
+                      <p style={{ marginBottom: 0 }}>
+                        By {recipe.author_name}
+                        {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <Link href={`/edit/${recipe.id}`} className="button">
+                        Edit
+                      </Link>
+                      <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
           </div>
