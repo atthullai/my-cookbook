@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { buildStarterRecipeRows } from "@/data/starter-recipes";
 import { mapRecipeRows } from "@/lib/recipe-db";
-import type { AppUser, RecipeRecord } from "@/lib/recipe-types";
+import type { RecipeRecord } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
 
 export default function RecipeIndexPage() {
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
-  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
 
-  const loadRecipes = async (currentUser: AppUser | null) => {
-    if (!currentUser) {
+  const loadRecipes = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
       setRecipes([]);
       setLoading(false);
       return;
@@ -25,7 +26,7 @@ export default function RecipeIndexPage() {
     const { data, error } = await supabase
       .from("recipes")
       .select("*")
-      .eq("user_id", currentUser.id)
+      .eq("user_id", user.id)
       .order("category", { ascending: true })
       .order("title_en", { ascending: true });
 
@@ -40,86 +41,19 @@ export default function RecipeIndexPage() {
   };
 
   useEffect(() => {
-    let isMounted = true;
-
     const load = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!isMounted) return;
-      setUser(user);
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      await loadRecipes(user);
+      await loadRecipes();
     };
 
     void load();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   const categories = Array.from(new Set(recipes.map((recipe) => recipe.category).filter(Boolean)));
-
-  const handleSyncCollection = async () => {
-    if (!user) {
-      alert("Please log in first.");
-      return;
-    }
-
-    const confirmed = window.confirm("Add the built-in recipe collection without deleting your current recipes?");
-    if (!confirmed) return;
-
-    setSyncing(true);
-
-    // Only add built-in recipes whose slugs are not already present in this user's cookbook.
-    const existingSlugs = new Set(recipes.map((recipe) => recipe.slug));
-    const rows = buildStarterRecipeRows(user.id).filter((recipe) => !existingSlugs.has(recipe.slug));
-
-    if (rows.length === 0) {
-      setSyncing(false);
-      alert("All built-in recipes are already in your cookbook.");
-      return;
-    }
-
-    const { error } = await supabase.from("recipes").insert(rows);
-    if (error) {
-      setSyncing(false);
-      alert(error.message);
-      return;
-    }
-
-    await loadRecipes(user);
-    setSyncing(false);
-  };
 
   return (
     <main className="container">
       <h1>Recipe Index</h1>
       <p>A structured overview of your Supabase cookbook, grouped by category.</p>
-
-      {user ? (
-        <div className="card" style={{ marginTop: 20, marginBottom: 20 }}>
-          <h2 style={{ marginBottom: 8 }}>Collection Tools</h2>
-          <p style={{ marginBottom: 12 }}>
-            Add the built-in recipes to your cookbook without deleting anything you already created.
-          </p>
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={() => void handleSyncCollection()}
-            disabled={syncing}
-          >
-            {syncing ? "Adding..." : "Add Built-In Recipes"}
-          </button>
-        </div>
-      ) : null}
 
       {loading ? <p>Loading recipes...</p> : null}
 
