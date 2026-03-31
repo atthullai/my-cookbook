@@ -11,6 +11,7 @@ import type {
   FaqDraft,
   IngredientDraft,
   IngredientGroupDraft,
+  NutritionDraft,
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
@@ -19,6 +20,7 @@ import {
   EMPTY_FAQ,
   EMPTY_INGREDIENT,
   EMPTY_INGREDIENT_GROUP,
+  EMPTY_NUTRITION,
   EMPTY_STEP_PHOTO,
   EMPTY_TROUBLESHOOTING,
 } from "@/lib/recipe-types";
@@ -54,6 +56,7 @@ export default function AddRecipe() {
   const [tipsDe, setTipsDe] = useState("");
   const [storageEn, setStorageEn] = useState("");
   const [storageDe, setStorageDe] = useState("");
+  const [nutrition, setNutrition] = useState<NutritionDraft>({ ...EMPTY_NUTRITION });
   const [faq, setFaq] = useState<FaqDraft[]>([]);
   const [troubleshooting, setTroubleshooting] = useState<TroubleshootingDraft[]>([]);
   const [stepPhotos, setStepPhotos] = useState<StepPhotoDraft[]>([]);
@@ -123,6 +126,10 @@ export default function AddRecipe() {
 
   const updateStepPhoto = (index: number, field: keyof StepPhotoDraft, value: string) => {
     setStepPhotos((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+
+  const updateNutrition = (field: keyof NutritionDraft, value: string) => {
+    setNutrition((current) => ({ ...current, [field]: value }));
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -218,6 +225,7 @@ export default function AddRecipe() {
       tipsDe: autoTipsDe,
       storageEn,
       storageDe: autoStorageDe,
+      nutrition,
       faq: translatedFaq,
       troubleshooting: translatedTroubleshooting,
       stepPhotos: translatedStepPhotos,
@@ -265,6 +273,7 @@ export default function AddRecipe() {
         tipsDe={tipsDe}
         storageEn={storageEn}
         storageDe={storageDe}
+        nutrition={nutrition}
         faq={faq}
         troubleshooting={troubleshooting}
         stepPhotos={stepPhotos}
@@ -319,6 +328,7 @@ export default function AddRecipe() {
         onTipsDeChange={setTipsDe}
         onStorageEnChange={setStorageEn}
         onStorageDeChange={setStorageDe}
+        onNutritionChange={updateNutrition}
         onFaqAdd={() => setFaq((current) => [...current, { ...EMPTY_FAQ }])}
         onFaqRemove={(index) =>
           setFaq((current) => current.filter((_, currentIndex) => currentIndex !== index))

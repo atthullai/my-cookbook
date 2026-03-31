@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
   getEquipmentLabel,
+  getRecipeNutritionNote,
   getRecipeStorage,
   getIngredientGroupLabel,
   getIngredientLabel,
@@ -20,22 +21,6 @@ type RecipeClientProps = {
   recipe: RecipeRecord;
 };
 
-type NutritionApiResponse = {
-  calories: number;
-  totalWeight: number;
-  yield: number;
-  dietLabels: string[];
-  healthLabels: string[];
-  totalNutrients: Record<
-    string,
-    {
-      label?: string;
-      quantity?: number;
-      unit?: string;
-    }
-  >;
-};
-
 export default function RecipeClient({ recipe }: RecipeClientProps) {
   // These local UI states are purely for the reader experience and are not persisted to the database.
   const [multiplier, setMultiplier] = useState(1);
@@ -43,9 +28,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const [checkedEquipment, setCheckedEquipment] = useState<string[]>([]);
   const [lang, setLang] = useState<AppLanguage>("en");
   const [showNutrition, setShowNutrition] = useState(false);
-  const [nutritionLoading, setNutritionLoading] = useState(false);
-  const [nutritionError, setNutritionError] = useState("");
-  const [nutrition, setNutrition] = useState<NutritionApiResponse | null>(null);
 
   // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
   const parseAmount = (value: RecipeAmount): number | null => {
@@ -106,6 +88,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const recipeNotes = getRecipeNotes(recipe, lang);
   const recipeTips = getRecipeTips(recipe, lang);
   const recipeStorage = getRecipeStorage(recipe, lang);
+  const recipeNutritionNote = getRecipeNutritionNote(recipe, lang);
   const recipeSections = parseInstructionSections(getRecipeSteps(recipe, lang));
   const ingredientGroups: RecipeIngredientGroup[] = recipe.ingredients ?? [];
   const recipeLinks = extractLinks(recipe);
@@ -118,62 +101,17 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     window.print();
   };
 
-  const loadNutrition = async () => {
-    if (nutrition || nutritionLoading) {
-      return;
-    }
-
-    setNutritionLoading(true);
-    setNutritionError("");
-
-    try {
-      const response = await fetch("/api/nutrition", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          recipe,
-        }),
-      });
-
-      const data = (await response.json()) as NutritionApiResponse & { error?: string };
-
-      if (!response.ok) {
-        setNutritionError(data.error || "Could not calculate nutrition facts.");
-        setNutritionLoading(false);
-        return;
-      }
-
-      setNutrition(data);
-    } catch {
-      setNutritionError("Could not calculate nutrition facts.");
-    }
-
-    setNutritionLoading(false);
-  };
-
-  const toggleNutrition = async () => {
-    const nextValue = !showNutrition;
-    setShowNutrition(nextValue);
-
-    if (nextValue) {
-      await loadNutrition();
-    }
-  };
-
-  const servingsCount = nutrition?.yield || recipe.servings || 1;
-  const nutritionItems = nutrition
+  const nutritionItems = recipe.nutrition
     ? [
-        { key: "ENERC_KCAL", label: "Calories", unit: "kcal" },
-        { key: "FAT", label: "Fat", unit: "g" },
-        { key: "FASAT", label: "Saturated Fat", unit: "g" },
-        { key: "CHOCDF", label: "Carbohydrates", unit: "g" },
-        { key: "FIBTG", label: "Fiber", unit: "g" },
-        { key: "SUGAR", label: "Sugar", unit: "g" },
-        { key: "PROCNT", label: "Protein", unit: "g" },
-        { key: "NA", label: "Sodium", unit: "mg" },
-      ]
+        { label_en: "Calories", label_de: "Kalorien", value: recipe.nutrition.calories_kcal, unit: "kcal" },
+        { label_en: "Fat", label_de: "Fett", value: recipe.nutrition.fat_g, unit: "g" },
+        { label_en: "Saturated Fat", label_de: "Gesattigte Fettsauren", value: recipe.nutrition.saturated_fat_g, unit: "g" },
+        { label_en: "Carbohydrates", label_de: "Kohlenhydrate", value: recipe.nutrition.carbs_g, unit: "g" },
+        { label_en: "Fiber", label_de: "Ballaststoffe", value: recipe.nutrition.fiber_g, unit: "g" },
+        { label_en: "Sugar", label_de: "Zucker", value: recipe.nutrition.sugar_g, unit: "g" },
+        { label_en: "Protein", label_de: "Protein", value: recipe.nutrition.protein_g, unit: "g" },
+        { label_en: "Sodium", label_de: "Natrium", value: recipe.nutrition.sodium_mg, unit: "mg" },
+      ].filter((item) => item.value.trim())
     : [];
 
   return (
@@ -531,69 +469,44 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
               Calculated from the ingredient list and current servings when nutrition is enabled.
             </p>
           </div>
-          <button className="button button-primary" type="button" onClick={() => void toggleNutrition()}>
+          <button className="button button-primary" type="button" onClick={() => setShowNutrition((current) => !current)}>
             {showNutrition ? "Hide Nutrition" : "Show Nutrition"}
           </button>
         </div>
 
         {showNutrition ? (
           <div style={{ marginTop: 16 }}>
-            {nutritionLoading ? <p style={{ marginBottom: 0 }}>Calculating nutrition...</p> : null}
-            {nutritionError ? <p style={{ marginBottom: 0 }}>{nutritionError}</p> : null}
-
-            {nutrition ? (
+            {recipe.nutrition ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ marginBottom: 0 }}>
-                  Per serving, based on {servingsCount} serving{servingsCount === 1 ? "" : "s"}.
+                  {lang === "de"
+                    ? `Pro Portion, basierend auf ${recipe.servings || 1} Portion${recipe.servings === 1 ? "" : "en"}.`
+                    : `Per serving, based on ${recipe.servings || 1} serving${recipe.servings === 1 ? "" : "s"}.`}
                 </p>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-                  {nutritionItems.map((item) => {
-                    const nutrient = item.key === "ENERC_KCAL" ? null : nutrition.totalNutrients[item.key];
-                    const quantity =
-                      item.key === "ENERC_KCAL"
-                        ? nutrition.calories / servingsCount
-                        : (nutrient?.quantity ?? 0) / servingsCount;
-
-                    return (
-                      <div key={item.key} className="chip" style={{ justifyContent: "space-between" }}>
-                        <span>{item.label}</span>
-                        <strong>
-                          {Number.isFinite(quantity) ? quantity.toFixed(item.unit === "mg" ? 0 : 1) : "0"}
-                          {item.unit ? ` ${item.unit}` : ""}
-                        </strong>
-                      </div>
-                    );
-                  })}
+                  {nutritionItems.map((item) => (
+                    <div key={item.label_en} className="chip" style={{ justifyContent: "space-between" }}>
+                      <span>{lang === "de" ? item.label_de : item.label_en}</span>
+                      <strong>
+                        {item.value}
+                        {item.unit ? ` ${item.unit}` : ""}
+                      </strong>
+                    </div>
+                  ))}
                 </div>
 
-                {nutrition.dietLabels.length > 0 ? (
-                  <div>
-                    <h4 style={{ marginBottom: 8 }}>Diet Labels</h4>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {nutrition.dietLabels.map((label) => (
-                        <span key={label} className="chip">
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {nutrition.healthLabels.length > 0 ? (
-                  <div>
-                    <h4 style={{ marginBottom: 8 }}>Health Labels</h4>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {nutrition.healthLabels.slice(0, 12).map((label) => (
-                        <span key={label} className="chip">
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                {recipeNutritionNote ? (
+                  <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNutritionNote}</p>
                 ) : null}
               </div>
-            ) : null}
+            ) : (
+              <p style={{ marginBottom: 0 }}>
+                {lang === "de"
+                  ? "Fur dieses Rezept wurden noch keine Nahrwerte eingetragen."
+                  : "Nutrition facts have not been entered for this recipe yet."}
+              </p>
+            )}
           </div>
         ) : null}
       </div>

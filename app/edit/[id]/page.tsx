@@ -12,6 +12,7 @@ import type {
   FaqDraft,
   IngredientDraft,
   IngredientGroupDraft,
+  NutritionDraft,
   RecipeRecord,
   StepPhotoDraft,
   TroubleshootingDraft,
@@ -21,6 +22,7 @@ import {
   EMPTY_FAQ,
   EMPTY_INGREDIENT,
   EMPTY_INGREDIENT_GROUP,
+  EMPTY_NUTRITION,
   EMPTY_STEP_PHOTO,
   EMPTY_TROUBLESHOOTING,
   normalizeRecipe,
@@ -57,6 +59,7 @@ export default function EditRecipe() {
   const [tipsDe, setTipsDe] = useState("");
   const [storageEn, setStorageEn] = useState("");
   const [storageDe, setStorageDe] = useState("");
+  const [nutrition, setNutrition] = useState<NutritionDraft>({ ...EMPTY_NUTRITION });
   const [faq, setFaq] = useState<FaqDraft[]>([]);
   const [troubleshooting, setTroubleshooting] = useState<TroubleshootingDraft[]>([]);
   const [stepPhotos, setStepPhotos] = useState<StepPhotoDraft[]>([]);
@@ -134,6 +137,22 @@ export default function EditRecipe() {
       setTipsDe(normalizedRecipe.tips_de || "");
       setStorageEn(normalizedRecipe.storage_en || "");
       setStorageDe(normalizedRecipe.storage_de || "");
+      setNutrition(
+        normalizedRecipe.nutrition
+          ? {
+              calories_kcal: normalizedRecipe.nutrition.calories_kcal,
+              fat_g: normalizedRecipe.nutrition.fat_g,
+              saturated_fat_g: normalizedRecipe.nutrition.saturated_fat_g,
+              carbs_g: normalizedRecipe.nutrition.carbs_g,
+              fiber_g: normalizedRecipe.nutrition.fiber_g,
+              sugar_g: normalizedRecipe.nutrition.sugar_g,
+              protein_g: normalizedRecipe.nutrition.protein_g,
+              sodium_mg: normalizedRecipe.nutrition.sodium_mg,
+              note_en: normalizedRecipe.nutrition.note_en,
+              note_de: normalizedRecipe.nutrition.note_de,
+            }
+          : { ...EMPTY_NUTRITION }
+      );
       setFaq(
         normalizedRecipe.faq?.length
           ? normalizedRecipe.faq.map((item) => ({
@@ -210,6 +229,9 @@ export default function EditRecipe() {
   };
   const updateStepPhoto = (index: number, field: keyof StepPhotoDraft, value: string) => {
     setStepPhotos((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+  const updateNutrition = (field: keyof NutritionDraft, value: string) => {
+    setNutrition((current) => ({ ...current, [field]: value }));
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -293,6 +315,7 @@ export default function EditRecipe() {
       tipsDe: autoTipsDe,
       storageEn,
       storageDe: autoStorageDe,
+      nutrition,
       faq: translatedFaq,
       troubleshooting: translatedTroubleshooting,
       stepPhotos: translatedStepPhotos,
@@ -340,6 +363,7 @@ export default function EditRecipe() {
         tipsDe={tipsDe}
         storageEn={storageEn}
         storageDe={storageDe}
+        nutrition={nutrition}
         faq={faq}
         troubleshooting={troubleshooting}
         stepPhotos={stepPhotos}
@@ -392,6 +416,7 @@ export default function EditRecipe() {
         onTipsDeChange={setTipsDe}
         onStorageEnChange={setStorageEn}
         onStorageDeChange={setStorageDe}
+        onNutritionChange={updateNutrition}
         onFaqAdd={() => setFaq((current) => [...current, { ...EMPTY_FAQ }])}
         onFaqRemove={(index) => setFaq((current) => current.filter((_, currentIndex) => currentIndex !== index))}
         onFaqChange={updateFaq}

@@ -2,10 +2,12 @@ import type {
   EquipmentDraft,
   FaqDraft,
   IngredientGroupDraft,
+  NutritionDraft,
   RecipeEquipmentItem,
   RecipeFaqItem,
   RecipeIngredient,
   RecipeIngredientGroup,
+  RecipeNutritionFacts,
   RecipeRecord,
   RecipeStepPhoto,
   RecipeTroubleshootingItem,
@@ -83,6 +85,27 @@ export function buildTroubleshootingPayload(items: TroubleshootingDraft[]): Reci
     }));
 }
 
+export function buildNutritionPayload(nutrition: NutritionDraft): RecipeNutritionFacts | null {
+  const hasValues = Object.values(nutrition).some((value) => value.trim());
+
+  if (!hasValues) {
+    return null;
+  }
+
+  return {
+    calories_kcal: nutrition.calories_kcal.trim(),
+    fat_g: nutrition.fat_g.trim(),
+    saturated_fat_g: nutrition.saturated_fat_g.trim(),
+    carbs_g: nutrition.carbs_g.trim(),
+    fiber_g: nutrition.fiber_g.trim(),
+    sugar_g: nutrition.sugar_g.trim(),
+    protein_g: nutrition.protein_g.trim(),
+    sodium_mg: nutrition.sodium_mg.trim(),
+    note_en: nutrition.note_en.trim(),
+    note_de: nutrition.note_de.trim() || nutrition.note_en.trim(),
+  };
+}
+
 export function buildRecipePayload(input: {
   slug: string;
   titleEn: string;
@@ -102,6 +125,7 @@ export function buildRecipePayload(input: {
   tipsDe: string;
   storageEn: string;
   storageDe: string;
+  nutrition: NutritionDraft;
   faq: FaqDraft[];
   troubleshooting: TroubleshootingDraft[];
   stepPhotos: StepPhotoDraft[];
@@ -131,6 +155,7 @@ export function buildRecipePayload(input: {
     tips_de: input.tipsDe.trim() || null,
     storage_en: input.storageEn.trim() || null,
     storage_de: input.storageDe.trim() || null,
+    nutrition: buildNutritionPayload(input.nutrition),
     faq: buildFaqPayload(input.faq),
     troubleshooting: buildTroubleshootingPayload(input.troubleshooting),
     step_photos: buildStepPhotoPayload(input.stepPhotos),

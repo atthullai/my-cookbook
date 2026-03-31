@@ -46,6 +46,19 @@ export type RecipeTroubleshootingItem = {
   fix_de: string;
 };
 
+export type RecipeNutritionFacts = {
+  calories_kcal: string;
+  fat_g: string;
+  saturated_fat_g: string;
+  carbs_g: string;
+  fiber_g: string;
+  sugar_g: string;
+  protein_g: string;
+  sodium_mg: string;
+  note_en: string;
+  note_de: string;
+};
+
 export type RecipeRecord = {
   id: number;
   slug: string;
@@ -75,6 +88,7 @@ export type RecipeRecord = {
   faq?: RecipeFaqItem[];
   troubleshooting?: RecipeTroubleshootingItem[];
   step_photos?: RecipeStepPhoto[];
+  nutrition?: RecipeNutritionFacts | null;
 };
 
 function normalizeString(value: unknown): string {
@@ -183,6 +197,27 @@ function normalizeTroubleshootingItem(value: unknown): RecipeTroubleshootingItem
   };
 }
 
+function normalizeNutrition(value: unknown): RecipeNutritionFacts | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+
+  return {
+    calories_kcal: normalizeString(raw.calories_kcal),
+    fat_g: normalizeString(raw.fat_g),
+    saturated_fat_g: normalizeString(raw.saturated_fat_g),
+    carbs_g: normalizeString(raw.carbs_g),
+    fiber_g: normalizeString(raw.fiber_g),
+    sugar_g: normalizeString(raw.sugar_g),
+    protein_g: normalizeString(raw.protein_g),
+    sodium_mg: normalizeString(raw.sodium_mg),
+    note_en: normalizeString(raw.note_en),
+    note_de: normalizeString(raw.note_de) || normalizeString(raw.note_en),
+  };
+}
+
 export function normalizeRecipe(value: unknown): RecipeRecord {
   const rawValue = value && typeof value === "object" ? value : {};
   const raw = rawValue as Record<string, unknown>;
@@ -226,6 +261,7 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     faq: Array.isArray(raw.faq) ? raw.faq.map(normalizeFaqItem) : [],
     troubleshooting: Array.isArray(raw.troubleshooting) ? raw.troubleshooting.map(normalizeTroubleshootingItem) : [],
     step_photos: Array.isArray(raw.step_photos) ? raw.step_photos.map(normalizeStepPhoto) : [],
+    nutrition: normalizeNutrition(raw.nutrition),
   };
 }
 
@@ -277,6 +313,18 @@ export function getRecipeStorage(recipe: RecipeRecord, lang: AppLanguage): strin
   }
 
   return recipe.storage_en || "";
+}
+
+export function getRecipeNutritionNote(recipe: RecipeRecord, lang: AppLanguage): string {
+  if (!recipe.nutrition) {
+    return "";
+  }
+
+  if (lang === "de" && recipe.nutrition.note_de) {
+    return recipe.nutrition.note_de;
+  }
+
+  return recipe.nutrition.note_en || "";
 }
 
 export function getIngredientGroupLabel(group: RecipeIngredientGroup, lang: AppLanguage): string {
@@ -392,4 +440,30 @@ export const EMPTY_TROUBLESHOOTING: TroubleshootingDraft = {
   issue_de: "",
   fix_en: "",
   fix_de: "",
+};
+
+export type NutritionDraft = {
+  calories_kcal: string;
+  fat_g: string;
+  saturated_fat_g: string;
+  carbs_g: string;
+  fiber_g: string;
+  sugar_g: string;
+  protein_g: string;
+  sodium_mg: string;
+  note_en: string;
+  note_de: string;
+};
+
+export const EMPTY_NUTRITION: NutritionDraft = {
+  calories_kcal: "",
+  fat_g: "",
+  saturated_fat_g: "",
+  carbs_g: "",
+  fiber_g: "",
+  sugar_g: "",
+  protein_g: "",
+  sodium_mg: "",
+  note_en: "",
+  note_de: "",
 };

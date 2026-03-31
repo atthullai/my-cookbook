@@ -126,6 +126,18 @@ export const starterRecipes: StarterRecipe[] = [
       "Pastry cream and diplomat cream keep up to 3 days in the fridge. Baked unfilled choux keep about 2 days at room temperature or 3 days chilled. Filled choux are best the day they are assembled. Unbaked craquelin can be frozen for 1 month, and unbaked piped choux can be frozen up to 3 months.",
     storage_de:
       "Konditorcreme und Diplomatcreme halten bis zu 3 Tage im Kuhlschrank. Gebackene ungefullte Choux halten etwa 2 Tage bei Raumtemperatur oder 3 Tage gekuhlt. Gefullte Choux schmecken am besten am Tag des Fullens. Ungebackenes Craquelin kann 1 Monat und ungebackene aufgespritzte Choux bis zu 3 Monate eingefroren werden.",
+    nutrition: {
+      calories_kcal: "340",
+      fat_g: "22",
+      saturated_fat_g: "14",
+      carbs_g: "31",
+      fiber_g: "0.4",
+      sugar_g: "19",
+      protein_g: "5",
+      sodium_mg: "37",
+      note_en: "Approximate nutrition per filled choux pastry from the source recipe card.",
+      note_de: "Ungefahrer Nahrwert pro gefulltem Choux nach der Rezeptkarte der Vorlage.",
+    },
     faq: [
       {
         question_en: "Why did my choux collapse?",

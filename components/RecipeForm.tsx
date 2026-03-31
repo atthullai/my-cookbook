@@ -6,6 +6,7 @@ import type {
   FaqDraft,
   IngredientDraft,
   IngredientGroupDraft,
+  NutritionDraft,
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
@@ -30,6 +31,7 @@ type RecipeFormProps = {
   tipsDe: string;
   storageEn: string;
   storageDe: string;
+  nutrition: NutritionDraft;
   faq: FaqDraft[];
   troubleshooting: TroubleshootingDraft[];
   stepPhotos: StepPhotoDraft[];
@@ -63,6 +65,7 @@ type RecipeFormProps = {
   onTipsDeChange: (value: string) => void;
   onStorageEnChange: (value: string) => void;
   onStorageDeChange: (value: string) => void;
+  onNutritionChange: (field: keyof NutritionDraft, value: string) => void;
   onFaqAdd: () => void;
   onFaqRemove: (index: number) => void;
   onFaqChange: (index: number, field: keyof FaqDraft, value: string) => void;
@@ -274,6 +277,23 @@ export default function RecipeForm(props: RecipeFormProps) {
         <h3 style={{ marginBottom: 8 }}>Storage</h3>
         <textarea className="input" value={props.storageEn} onChange={(event) => props.onStorageEnChange(event.target.value)} placeholder="Storage Instructions (EN)" />
         <textarea className="input" value={props.storageDe} onChange={(event) => props.onStorageDeChange(event.target.value)} placeholder="Storage Instructions (DE)" />
+      </div>
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <h3 style={{ marginBottom: 8 }}>Nutrition Facts</h3>
+        <p style={{ marginBottom: 12 }}>Enter per-serving nutrition values manually. Labels will show in English or German automatically on the recipe page.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+          <input className="input" value={props.nutrition.calories_kcal} onChange={(event) => props.onNutritionChange("calories_kcal", event.target.value)} placeholder="Calories (kcal)" />
+          <input className="input" value={props.nutrition.fat_g} onChange={(event) => props.onNutritionChange("fat_g", event.target.value)} placeholder="Fat (g)" />
+          <input className="input" value={props.nutrition.saturated_fat_g} onChange={(event) => props.onNutritionChange("saturated_fat_g", event.target.value)} placeholder="Saturated Fat (g)" />
+          <input className="input" value={props.nutrition.carbs_g} onChange={(event) => props.onNutritionChange("carbs_g", event.target.value)} placeholder="Carbs (g)" />
+          <input className="input" value={props.nutrition.fiber_g} onChange={(event) => props.onNutritionChange("fiber_g", event.target.value)} placeholder="Fiber (g)" />
+          <input className="input" value={props.nutrition.sugar_g} onChange={(event) => props.onNutritionChange("sugar_g", event.target.value)} placeholder="Sugar (g)" />
+          <input className="input" value={props.nutrition.protein_g} onChange={(event) => props.onNutritionChange("protein_g", event.target.value)} placeholder="Protein (g)" />
+          <input className="input" value={props.nutrition.sodium_mg} onChange={(event) => props.onNutritionChange("sodium_mg", event.target.value)} placeholder="Sodium (mg)" />
+        </div>
+        <textarea className="input" value={props.nutrition.note_en} onChange={(event) => props.onNutritionChange("note_en", event.target.value)} placeholder="Nutrition note (EN)" />
+        <textarea className="input" value={props.nutrition.note_de} onChange={(event) => props.onNutritionChange("note_de", event.target.value)} placeholder="Nutrition note (DE)" />
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
