@@ -1,6 +1,5 @@
-// This helper keeps machine translation in one place so pages do not all duplicate
-// the same fetch/error-handling code. For now it uses MyMemory; later we can swap the
-// internals to DeepL without changing every page component again.
+// Client components call this helper, which in turn talks to a server Route Handler.
+// That lets us keep API keys on the server and avoid long browser URL requests.
 export async function translateEnglishToGerman(text: string): Promise<string> {
   const trimmedText = text.trim();
 
@@ -10,17 +9,26 @@ export async function translateEnglishToGerman(text: string): Promise<string> {
   }
 
   try {
-    const response = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmedText)}&langpair=en|de`
-    );
+    const response = await fetch("/api/translate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: trimmedText,
+      }),
+    });
+
+    if (!response.ok) {
+      return trimmedText;
+    }
+
     const data = (await response.json()) as {
-      responseData?: {
-        translatedText?: string;
-      };
+      translation?: string;
     };
 
     // Fall back to the original text if the API returns an unexpected shape.
-    return data.responseData?.translatedText?.trim() || trimmedText;
+    return data.translation?.trim() || trimmedText;
   } catch {
     // Translation should never block saving a recipe or profile.
     return trimmedText;
