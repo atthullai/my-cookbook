@@ -30,10 +30,10 @@ export default function RecipeClient({ recipe }: any) {
     return Number(num.toFixed(2));
   };
 
-  // ✅ checklist state
-  const [checked, setChecked] = useState<number[]>([]);
+  // ✅ updated checklist state and toggleCheck
+  const [checked, setChecked] = useState<string[]>([]);
 
-  const toggleCheck = (index: number) => {
+  const toggleCheck = (index: string) => {
     setChecked((prev) =>
       prev.includes(index)
         ? prev.filter((i) => i !== index)
@@ -103,47 +103,51 @@ export default function RecipeClient({ recipe }: any) {
         </div>
       </div>
 
-      {/* INGREDIENTS */}
+      {/* updated INGREDIENTS */}
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ marginBottom: 10 }}>Ingredients</h3>
 
-        {recipe.ingredients && recipe.ingredients.length > 0 ? (
-          recipe.ingredients.map((ing: any, i: number) => {
-            // ✅ checklist state
-            const isChecked = checked.includes(i);
+        {recipe.ingredients?.map((group: any, gi: number) => (
+          <div key={gi} style={{ marginBottom: 16 }}>
 
-            // ✅ SAFE parse (fix TS issue)
-            const base = parseAmount(String(ing.amount));
-            const scaled = base * multiplier;
+            {/* GROUP TITLE */}
+            <h4 style={{ marginBottom: 6 }}>
+              {group.group}
+            </h4>
 
-            return (
-              <div
-                key={i}
-                onClick={() => toggleCheck(i)}
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  opacity: isChecked ? 0.5 : 1,
-                  cursor: "pointer",
-                }}
-              >
-                {/* checkbox */}
-                <span>{isChecked ? "☑" : "☐"}</span>
+            {/* ITEMS */}
+            {group.items.map((ing: any, i: number) => {
+              const index = `${gi}-${i}`;
+              const isChecked = checked.includes(index as any);
 
-                {/* ingredient text */}
-                <span
+              const base = parseAmount(String(ing.amount));
+              const scaled = base * multiplier;
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => toggleCheck(index as any)}
                   style={{
-                    textDecoration: isChecked ? "line-through" : "none",
+                    display: "flex",
+                    gap: 8,
+                    opacity: isChecked ? 0.5 : 1,
+                    cursor: "pointer",
                   }}
                 >
-                  {formatAmount(scaled)} {ing.unit} {ing.name}
-                </span>
-              </div>
-            );
-          })
-        ) : (
-          <p style={{ opacity: 0.6 }}>No structured ingredients available</p>
-        )}
+                  <span>{isChecked ? "☑" : "☐"}</span>
+
+                  <span
+                    style={{
+                      textDecoration: isChecked ? "line-through" : "none",
+                    }}
+                  >
+                    {formatAmount(scaled)} {ing.unit} {ing.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* STEPS */}
