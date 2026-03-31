@@ -4,15 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { RecipeRecord } from "@/lib/recipe-types";
-import { getCuratedRecipeBySlug } from "@/data/curated-recipes";
 import { normalizeRecipe, parseRecipeId } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
 import RecipeClient from "./RecipeClient";
 
 export default function RecipePage() {
   const params = useParams();
-  const rawRecipeId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const recipeId = parseRecipeId(rawRecipeId);
+  const recipeId = parseRecipeId(params.id);
 
   const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,14 +19,6 @@ export default function RecipePage() {
     let isMounted = true;
 
     const fetchRecipe = async () => {
-      const curatedRecipe = rawRecipeId ? getCuratedRecipeBySlug(rawRecipeId) : null;
-
-      if (curatedRecipe) {
-        setRecipe(curatedRecipe);
-        setLoading(false);
-        return;
-      }
-
       if (!recipeId) {
         setLoading(false);
         return;
@@ -36,15 +26,12 @@ export default function RecipePage() {
 
       const { data, error } = await supabase.from("recipes").select("*").eq("id", recipeId).single();
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       if (error || !data) {
         setRecipe(null);
       } else {
-        const normalizedRecipe = normalizeRecipe(data);
-        setRecipe(normalizedRecipe.title_en === "Choux Au Craquelin (Cream Puff)" ? null : normalizedRecipe);
+        setRecipe(normalizeRecipe(data));
       }
 
       setLoading(false);
@@ -55,7 +42,7 @@ export default function RecipePage() {
     return () => {
       isMounted = false;
     };
-  }, [rawRecipeId, recipeId]);
+  }, [recipeId]);
 
   if (loading) {
     return (
@@ -77,8 +64,6 @@ export default function RecipePage() {
   return (
     <main className="container">
       <Link href="/">← Back</Link>
-
-      {/* Render the full interactive recipe view in a dedicated client component. */}
       <RecipeClient recipe={recipe} />
     </main>
   );

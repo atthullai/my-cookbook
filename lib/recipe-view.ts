@@ -94,6 +94,10 @@ export function buildRecipeHighlights(recipe: RecipeRecord): string[] {
     highlights.push(`${recipe.ingredients.length} ingredient section${recipe.ingredients.length > 1 ? "s" : ""}`);
   }
 
+  if (recipe.equipment.length > 0) {
+    highlights.push(`${recipe.equipment.length} tools`);
+  }
+
   return highlights;
 }
 

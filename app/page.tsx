@@ -3,82 +3,70 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
-import { getRecipeTitle, normalizeRecipe } from "@/lib/recipe-types";
-import { curatedRecipes } from "@/data/curated-recipes";
+import { getRecipeTitle } from "@/lib/recipe-types";
+import { buildStarterRecipeRows } from "@/data/starter-recipes";
+import { mapRecipeRows } from "@/lib/recipe-db";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
-  // Keep homepage state narrow and typed so list, search, and actions stay predictable.
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [user, setUser] = useState<AppUser | null>(null);
   const [lang, setLang] = useState<AppLanguage>("en");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const fetchRecipes = async (currentUser: AppUser | null) => {
+    if (!currentUser) {
+      setRecipes([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("recipes")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("id", { ascending: false });
+
+    if (error) {
+      alert(error.message);
+      setRecipes([]);
+    } else {
+      setRecipes(mapRecipeRows(data ?? []));
+    }
+
+    setLoading(false);
+  };
 
   useEffect(() => {
     let isMounted = true;
 
-    // Fetch auth state first, then pull only the current user's private recipes.
-    const fetchData = async () => {
+    const load = async () => {
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       setUser(currentUser);
 
       const browserLang = navigator.language.toLowerCase();
       setLang(browserLang.includes("de") ? "de" : "en");
 
-      if (!currentUser) {
-        setRecipes([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order("id", { ascending: false });
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        alert(error.message);
-        setRecipes([]);
-      } else {
-        setRecipes(
-          (data ?? [])
-            .map(normalizeRecipe)
-            .filter((recipe) => recipe.title_en !== "Choux Au Craquelin (Cream Puff)")
-        );
-      }
-
-      setLoading(false);
+      await fetchRecipes(currentUser);
     };
 
-    void fetchData();
+    void load();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // Home shows both curated cookbook entries and your own personal recipes.
-  const allRecipes = [...curatedRecipes, ...recipes];
-
-  const filteredRecipes = allRecipes.filter((recipe) => {
+  const filteredRecipes = recipes.filter((recipe) => {
     const searchValue = search.trim().toLowerCase();
-
-    if (!searchValue) {
-      return true;
-    }
+    if (!searchValue) return true;
 
     return [recipe.title_en, recipe.title_de ?? "", recipe.category ?? "", recipe.tags.join(" ")]
       .join(" ")
@@ -86,32 +74,28 @@ export default function Home() {
       .includes(searchValue);
   });
 
+  const latestRecipes = filteredRecipes.slice(0, 6);
+
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-
     if (error) {
       alert(error.message);
       return;
     }
-
     window.location.reload();
   };
 
   const handleDelete = async (recipeId: number) => {
     const confirmed = window.confirm("Delete this recipe?");
-
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
-
     if (error) {
       alert(error.message);
       return;
     }
 
-    setRecipes((currentRecipes) => currentRecipes.filter((recipe) => recipe.id !== recipeId));
+    setRecipes((current) => current.filter((recipe) => recipe.id !== recipeId));
   };
 
   const handleDeleteAllRecipes = async () => {
@@ -120,14 +104,10 @@ export default function Home() {
       return;
     }
 
-    const confirmed = window.confirm("Delete all your saved recipes? This only affects your own recipes, not the built-in cookbook collection.");
-
-    if (!confirmed) {
-      return;
-    }
+    const confirmed = window.confirm("Delete all your saved recipes?");
+    if (!confirmed) return;
 
     const { error } = await supabase.from("recipes").delete().eq("user_id", user.id);
-
     if (error) {
       alert(error.message);
       return;
@@ -136,11 +116,33 @@ export default function Home() {
     setRecipes([]);
   };
 
-  const latestRecipes = filteredRecipes.slice(0, 6);
+  const handleInstallStarterCookbook = async () => {
+    if (!user) {
+      alert("Please log in first.");
+      return;
+    }
+
+    setSyncing(true);
+
+    const rows = buildStarterRecipeRows(user.id);
+    const starterSlugs = rows.map((recipe) => recipe.slug);
+
+    // Remove any old starter copies first so repeated installs stay clean.
+    await supabase.from("recipes").delete().eq("user_id", user.id).in("slug", starterSlugs);
+
+    const { error } = await supabase.from("recipes").insert(rows);
+    if (error) {
+      setSyncing(false);
+      alert(error.message);
+      return;
+    }
+
+    await fetchRecipes(user);
+    setSyncing(false);
+  };
 
   return (
     <main className="container">
-      {/* Home works as an editorial landing page with quick access to the newest recipes. */}
       <div
         style={{
           display: "flex",
@@ -154,14 +156,12 @@ export default function Home() {
         <div>
           <h1>My Cookbook</h1>
           <p style={{ marginBottom: 0 }}>
-            A private family cookbook with bilingual recipes, personal notes, and the stories behind who taught them to me.
+            A private family cookbook with bilingual recipes, personal notes, and the people I learned them from.
           </p>
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          {user?.email ? (
-            <span style={{ fontSize: 12, opacity: 0.75 }}>{user.email}</span>
-          ) : null}
+          {user?.email ? <span style={{ fontSize: 12, opacity: 0.75 }}>{user.email}</span> : null}
 
           {user ? (
             <button className="button" type="button" onClick={handleLogout}>
@@ -178,6 +178,12 @@ export default function Home() {
           </Link>
 
           {user ? (
+            <button className="button" type="button" onClick={() => void handleInstallStarterCookbook()}>
+              {syncing ? "Installing..." : "Install Starter Cookbook"}
+            </button>
+          ) : null}
+
+          {user ? (
             <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
               Delete My Recipes
             </button>
@@ -185,31 +191,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Language toggle only changes display text, not stored recipe content. */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button
-          className="button"
-          type="button"
-          onClick={() => setLang("en")}
-          style={{ background: lang === "en" ? "#f0d6c5" : undefined }}
-        >
-          EN
-        </button>
-
-        <button
-          className="button"
-          type="button"
-          onClick={() => setLang("de")}
-          style={{ background: lang === "de" ? "#f0d6c5" : undefined }}
-        >
-          DE
-        </button>
-      </div>
-
       <div className="card" style={{ marginTop: 20 }}>
         <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
         <p style={{ marginBottom: 12 }}>
-          Home shows the newest highlights. For the full structured collection, use the recipe index.
+          Home shows the newest recipes. The recipe index shows the full structured collection.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/recipes" className="button">
@@ -221,6 +206,15 @@ export default function Home() {
         </div>
       </div>
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, marginTop: 16 }}>
+        <button className="button" type="button" onClick={() => setLang("en")} style={{ background: lang === "en" ? "#f0d6c5" : undefined }}>
+          EN
+        </button>
+        <button className="button" type="button" onClick={() => setLang("de")} style={{ background: lang === "de" ? "#f0d6c5" : undefined }}>
+          DE
+        </button>
+      </div>
+
       <input
         className="input"
         placeholder="Search all recipes, categories, or tags..."
@@ -229,10 +223,7 @@ export default function Home() {
       />
 
       {loading ? <p style={{ marginTop: 12 }}>Loading recipes...</p> : null}
-
-      {!loading && filteredRecipes.length === 0 ? (
-        <p style={{ marginTop: 12 }}>No recipes match your search.</p>
-      ) : null}
+      {!loading && filteredRecipes.length === 0 ? <p style={{ marginTop: 12 }}>No recipes found yet.</p> : null}
 
       <div style={{ marginTop: 18 }}>
         <h2 style={{ marginBottom: 10 }}>Newest Recipes</h2>
@@ -249,27 +240,22 @@ export default function Home() {
               }}
             >
               <div>
-                <Link href={`/recipe/${recipe.slug}`}>
+                <Link href={`/recipe/${recipe.id}`}>
                   <h2 style={{ marginBottom: 6 }}>{getRecipeTitle(recipe, lang)}</h2>
                 </Link>
                 <p style={{ marginBottom: 0, opacity: 0.75 }}>{recipe.category || "Uncategorized"}</p>
                 <p style={{ marginTop: 8, marginBottom: 0 }}>
-                  By {recipe.author_name || "Saran"}
+                  By {recipe.author_name}
                   {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
                 </p>
               </div>
 
-              {!recipe.is_curated && typeof recipe.id === "number" && user?.id === recipe.user_id ? (
+              {user?.id === recipe.user_id ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Link href={`/edit/${recipe.id}`} className="button">
                     Edit
                   </Link>
-
-                  <button
-                    className="button button-danger"
-                    type="button"
-                    onClick={() => void handleDelete(recipe.id as number)}
-                  >
+                  <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
                     Delete
                   </button>
                 </div>

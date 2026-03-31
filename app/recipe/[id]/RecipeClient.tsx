@@ -3,7 +3,15 @@
 import Image from "next/image";
 import { useState } from "react";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
-import { getRecipeDescription, getRecipeNotes, getRecipeSteps, getRecipeTitle } from "@/lib/recipe-types";
+import {
+  getEquipmentLabel,
+  getIngredientGroupLabel,
+  getIngredientLabel,
+  getRecipeDescription,
+  getRecipeNotes,
+  getRecipeSteps,
+  getRecipeTitle,
+} from "@/lib/recipe-types";
 import { buildRecipeHighlights, extractLinks, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
 
 type RecipeClientProps = {
@@ -220,8 +228,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <h3>Ingredients</h3>
 
         {ingredientGroups.map((group, groupIndex) => (
-          <div key={`${group.group}-${groupIndex}`} style={{ marginBottom: 16 }}>
-            <h4>{group.group}</h4>
+          <div key={`${group.group_en}-${groupIndex}`} style={{ marginBottom: 16 }}>
+            <h4>{getIngredientGroupLabel(group, lang)}</h4>
 
             {group.items.map((ingredient, ingredientIndex) => {
               const itemId = `${groupIndex}-${ingredientIndex}`;
@@ -247,7 +255,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
                     {amountLabel}
                     {ingredient.unit ? ` ${ingredient.unit}` : ""}
-                    {ingredient.name ? ` ${ingredient.name}` : ""}
+                    {getIngredientLabel(ingredient, lang) ? ` ${getIngredientLabel(ingredient, lang)}` : ""}
                   </span>
                 </div>
               );
@@ -277,9 +285,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {recipe.equipment.map((item) => (
               <button
-                key={item}
+                key={item.label_en}
                 type="button"
-                onClick={() => toggleEquipmentCheck(item)}
+                onClick={() => toggleEquipmentCheck(item.label_en)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -291,9 +299,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   color: "inherit",
                 }}
               >
-                <span>{checkedEquipment.includes(item) ? "☑" : "☐"}</span>
-                <span style={{ textDecoration: checkedEquipment.includes(item) ? "line-through" : "none" }}>
-                  {item}
+                <span>{checkedEquipment.includes(item.label_en) ? "☑" : "☐"}</span>
+                <span style={{ textDecoration: checkedEquipment.includes(item.label_en) ? "line-through" : "none" }}>
+                  {getEquipmentLabel(item, lang)}
                 </span>
               </button>
             ))}

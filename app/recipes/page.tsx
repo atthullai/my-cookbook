@@ -1,24 +1,72 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { curatedRecipes } from "@/data/curated-recipes";
+import type { RecipeRecord } from "@/lib/recipe-types";
+import { mapRecipeRows } from "@/lib/recipe-db";
+import { supabase } from "@/lib/supabase";
 
 export default function RecipeIndexPage() {
-  const categories = Array.from(new Set(curatedRecipes.map((recipe) => recipe.category).filter(Boolean)));
+  const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("category", { ascending: true })
+        .order("title_en", { ascending: true });
+
+      if (!isMounted) return;
+
+      if (error) {
+        alert(error.message);
+        setRecipes([]);
+      } else {
+        setRecipes(mapRecipeRows(data ?? []));
+      }
+
+      setLoading(false);
+    };
+
+    void load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categories = Array.from(new Set(recipes.map((recipe) => recipe.category).filter(Boolean)));
 
   return (
     <main className="container">
       <h1>Recipe Index</h1>
-      <p>A structured overview of the cookbook, grouped so it is easier to browse than the homepage.</p>
+      <p>A structured overview of your Supabase cookbook, grouped by category.</p>
+
+      {loading ? <p>Loading recipes...</p> : null}
 
       {categories.map((category) => (
         <section key={category} style={{ marginTop: 28 }}>
           <h2 style={{ marginBottom: 12 }}>{category}</h2>
-
           <div style={{ display: "grid", gap: 14 }}>
-            {curatedRecipes
+            {recipes
               .filter((recipe) => recipe.category === category)
               .map((recipe) => (
-                <div key={recipe.slug} className="card">
-                  <Link href={`/recipe/${recipe.slug}`}>
+                <div key={recipe.id} className="card">
+                  <Link href={`/recipe/${recipe.id}`}>
                     <h3 style={{ marginBottom: 8 }}>{recipe.title_en}</h3>
                   </Link>
                   <p style={{ marginBottom: 8 }}>{recipe.description_en}</p>
@@ -34,7 +82,3 @@ export default function RecipeIndexPage() {
     </main>
   );
 }
-
-export const metadata = {
-  title: "Recipe Index",
-};
