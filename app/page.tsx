@@ -5,25 +5,23 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
+  // 📦 state
   const [recipes, setRecipes] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [lang, setLang] = useState<"en" | "de">("en");
   const [search, setSearch] = useState("");
 
-  // 📦 FETCH DATA
+  // 📦 FETCH USER + RECIPES
   useEffect(() => {
     const fetchData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
-      // 🌍 detect language
+      // 🌍 detect browser language once
       const browserLang = navigator.language.toLowerCase();
       setLang(browserLang.includes("de") ? "de" : "en");
 
-      // 🔒 fetch only user's recipes
+      // 🔒 fetch only logged-in user's recipes
       if (user) {
         const { data, error } = await supabase
           .from("recipes")
@@ -48,25 +46,15 @@ export default function Home() {
     <main className="container">
 
       {/* ================= HEADER ================= */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 20,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h1>My Cookbook</h1>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
 
-          {/* 👤 USER EMAIL */}
-          {user && (
-            <span style={{ fontSize: 12, opacity: 0.7 }}>
-              {user.email}
-            </span>
-          )}
+          {/* 👤 USER */}
+          {user && <span style={{ fontSize: 12 }}>{user.email}</span>}
 
-          {/* 🔐 LOGIN / LOGOUT */}
+          {/* 🔐 AUTH */}
           {user ? (
             <button className="button" onClick={handleLogout}>
               Logout
@@ -86,26 +74,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 🌍 LANGUAGE TOGGLE */}
+      {/* 🌍 LANGUAGE */}
       <div style={{ display: "flex", gap: 6 }}>
-        <button
-          className="button"
-          onClick={() => setLang("en")}
-          style={{ background: lang === "en" ? "#333" : "transparent" }}
-        >
-          EN
-        </button>
-
-        <button
-          className="button"
-          onClick={() => setLang("de")}
-          style={{ background: lang === "de" ? "#333" : "transparent" }}
-        >
-          DE
-        </button>
+        <button onClick={() => setLang("en")}>EN</button>
+        <button onClick={() => setLang("de")}>DE</button>
       </div>
 
-      {/* ================= SEARCH ================= */}
+      {/* 🔍 SEARCH (safe against null) */}
       <input
         className="input"
         placeholder="Search recipes..."
@@ -113,95 +88,65 @@ export default function Home() {
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      {/* ================= EMPTY ================= */}
-      {recipes.length === 0 && (
-        <p style={{ marginTop: 10 }}>No recipes yet.</p>
-      )}
+      {/* 📭 EMPTY */}
+      {recipes.length === 0 && <p>No recipes yet.</p>}
 
-      {/* ================= LIST ================= */}
-      <div style={{ marginTop: 10 }}>
-        {recipes
-          .filter((r) =>
-            r.title_en.toLowerCase().includes(search.toLowerCase())
-          )
-          .map((recipe) => (
-            <div key={recipe.id} className="card">
+      {/* 📋 LIST */}
+      {recipes
+        .filter((r) =>
+          (r.title_en || "")
+            .toLowerCase()
+            .includes(search.toLowerCase())
+        )
+        .map((recipe) => (
+          <div key={recipe.id} className="card">
 
-              {/* 🔥 TOP ROW = TITLE + ACTIONS (FIXED DESIGN) */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                {/* TITLE */}
-                <Link href={`/recipe/${recipe.id}`}>
-                  <h2 style={{ margin: 0 }}>
-                    {lang === "de"
-                      ? recipe.title_de || recipe.title_en
-                      : recipe.title_en}
-                  </h2>
-                </Link>
+            {/* TITLE + ACTIONS */}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Link href={`/recipe/${recipe.id}`}>
+                <h2>
+                  {lang === "de"
+                    ? recipe.title_de || recipe.title_en
+                    : recipe.title_en}
+                </h2>
+              </Link>
 
-                {/* ACTION BUTTONS (INLINE — FIXES YOUR ISSUE) */}
-                {user?.id === recipe.user_id && (
-                  <div style={{ display: "flex", gap: 8 }}>
+              {user?.id === recipe.user_id && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Link href={`/edit/${recipe.id}`}>
+                    <button className="button">Edit</button>
+                  </Link>
 
-                    <Link href={`/edit/${recipe.id}`}>
-                      <button className="button">Edit</button>
-                    </Link>
+                  <button
+                    className="button"
+                    onClick={async () => {
+                      if (!confirm("Delete?")) return;
 
-                    <button
-                      className="button"
-                      style={{ color: "#ff6b6b" }}
-                      onClick={async () => {
-                        const confirmDelete = confirm("Delete?");
-                        if (!confirmDelete) return;
+                      await supabase
+                        .from("recipes")
+                        .delete()
+                        .eq("id", recipe.id);
 
-                        await supabase
-                          .from("recipes")
-                          .delete()
-                          .eq("id", recipe.id);
-
-                        setRecipes((prev) =>
-                          prev.filter((r) => r.id !== recipe.id)
-                        );
-                      }}
-                    >
-                      Delete
-                    </button>
-
-                  </div>
-                )}
-              </div>
-
-              {/* CATEGORY */}
-              <p style={{ opacity: 0.6, marginTop: 6 }}>
-                {recipe.category}
-              </p>
-
-              {/* TAGS */}
-              <div style={{ marginTop: 6 }}>
-                {recipe.tags?.map((tag: string, i: number) => (
-                  <span
-                    key={i}
-                    style={{
-                      fontSize: 12,
-                      marginRight: 6,
-                      border: "1px solid #666",
-                      padding: "2px 6px",
-                      borderRadius: 6,
+                      setRecipes((prev) =>
+                        prev.filter((r) => r.id !== recipe.id)
+                      );
                     }}
                   >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
-          ))}
-      </div>
+
+            {/* CATEGORY */}
+            <p>{recipe.category}</p>
+
+            {/* TAGS */}
+            {recipe.tags?.map((tag: string, i: number) => (
+              <span key={i}>{tag}</span>
+            ))}
+          </div>
+        ))}
     </main>
   );
 }

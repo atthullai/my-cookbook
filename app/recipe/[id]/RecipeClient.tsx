@@ -3,24 +3,40 @@
 import { useState } from "react";
 
 export default function RecipeClient({ recipe }: any) {
+  // ================= STATE =================
+
+  // 🔢 multiplier for servings
   const [multiplier, setMultiplier] = useState(1);
+
+  // ✅ checked ingredients (for checkbox UI)
   const [checked, setChecked] = useState<string[]>([]);
+
+  // 🌍 language toggle
   const [lang, setLang] = useState<"en" | "de">("en");
 
-  // ✅ SAFE PARSE
+  // ================= HELPERS =================
+
+  // ✅ SAFE PARSE (prevents crashes + supports fractions)
   const parseAmount = (value: any) => {
-    if (value === null || value === undefined) return null;
+    if (value === null || value === undefined || value === "") return null;
 
-    if (!isNaN(Number(value))) return Number(value);
+    const num = Number(value);
+    if (!isNaN(num)) return num;
 
+    // support fractions like "1/2"
     if (typeof value === "string" && value.includes("/")) {
-      const [num, den] = value.split("/");
-      return Number(num) / Number(den);
+      const [n, d] = value.split("/");
+      const num = Number(n);
+      const den = Number(d);
+      if (!isNaN(num) && !isNaN(den) && den !== 0) {
+        return num / den;
+      }
     }
 
     return null;
   };
 
+  // ✅ FORMAT (nice display)
   const formatAmount = (num: number) => {
     if (num === 0.5) return "1/2";
     if (num === 0.25) return "1/4";
@@ -29,67 +45,106 @@ export default function RecipeClient({ recipe }: any) {
     return Number(num.toFixed(2));
   };
 
-  const toggleCheck = (index: string) => {
+  // ✅ toggle checkbox
+  const toggleCheck = (id: string) => {
     setChecked((prev) =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index)
-        : [...prev, index]
+      prev.includes(id)
+        ? prev.filter((i) => i !== id)
+        : [...prev, id]
     );
   };
 
+  // ================= UI =================
+
   return (
     <>
-      {/* HEADER */}
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      {/* ================= HEADER ================= */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        {/* TITLE */}
         <h1>
           {lang === "de"
             ? recipe.title_de || recipe.title_en
             : recipe.title_en}
         </h1>
 
-        <div>
+        {/* LANGUAGE */}
+        <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => setLang("en")}>EN</button>
           <button onClick={() => setLang("de")}>DE</button>
         </div>
       </div>
 
-      {/* SERVINGS */}
-      <div>
-        {[0.5, 1, 2].map((m) => (
-          <button key={m} onClick={() => setMultiplier(m)}>
-            {m}x
-          </button>
-        ))}
+      {/* ================= SERVINGS ================= */}
+      <div style={{ marginBottom: 20 }}>
+        <p>Servings:</p>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          {[0.5, 1, 2].map((m) => (
+            <button key={m} onClick={() => setMultiplier(m)}>
+              {m}x
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* INGREDIENTS */}
-      <div>
+      {/* ================= INGREDIENTS ================= */}
+      <div style={{ marginBottom: 24 }}>
         <h3>Ingredients</h3>
 
         {recipe.ingredients?.map((group: any, gi: number) => (
-          <div key={gi}>
+          <div key={gi} style={{ marginBottom: 12 }}>
+            {/* GROUP TITLE */}
             <h4>{group.group}</h4>
 
+            {/* ITEMS */}
             {group.items.map((ing: any, i: number) => {
-              const index = `${gi}-${i}`;
-              const isChecked = checked.includes(index);
+              const id = `${gi}-${i}`;
 
+              const isChecked = checked.includes(id);
+
+              // ✅ SAFE parse
               const base = parseAmount(ing.amount);
+
+              // ✅ FIXED scaling logic (IMPORTANT)
               const scaled =
                 base !== null ? base * multiplier : null;
 
               return (
                 <div
-                  key={index}
-                  onClick={() => toggleCheck(index)}
+                  key={id}
+                  onClick={() => toggleCheck(id)}
                   style={{
-                    opacity: isChecked ? 0.5 : 1,
                     cursor: "pointer",
+                    opacity: isChecked ? 0.5 : 1,
+                    display: "flex",
+                    gap: 8,
                   }}
                 >
-                  {isChecked ? "☑" : "☐"}{" "}
-                  {scaled !== null ? formatAmount(scaled) : ""}{" "}
-                  {ing.unit} {ing.name}
+                  {/* CHECKBOX */}
+                  <span>{isChecked ? "☑" : "☐"}</span>
+
+                  {/* TEXT */}
+                  <span
+                    style={{
+                      textDecoration: isChecked
+                        ? "line-through"
+                        : "none",
+                    }}
+                  >
+                    {/* ✅ SAFE DISPLAY */}
+                    {scaled !== null
+                      ? formatAmount(scaled)
+                      : ""}
+                    {ing.unit ? ` ${ing.unit}` : ""}{" "}
+                    {ing.name}
+                  </span>
                 </div>
               );
             })}
@@ -97,7 +152,7 @@ export default function RecipeClient({ recipe }: any) {
         ))}
       </div>
 
-      {/* STEPS */}
+      {/* ================= STEPS ================= */}
       <div>
         <h3>Steps</h3>
 
