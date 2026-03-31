@@ -13,6 +13,7 @@ type RecipeClientProps = {
 export default function RecipeClient({ recipe }: RecipeClientProps) {
   const [multiplier, setMultiplier] = useState(1);
   const [checked, setChecked] = useState<string[]>([]);
+  const [checkedEquipment, setCheckedEquipment] = useState<string[]>([]);
   const [lang, setLang] = useState<AppLanguage>("en");
 
   // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
@@ -57,6 +58,14 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       currentChecked.includes(index)
         ? currentChecked.filter((item) => item !== index)
         : [...currentChecked, index]
+    );
+  };
+
+  const toggleEquipmentCheck = (item: string) => {
+    setCheckedEquipment((currentChecked) =>
+      currentChecked.includes(item)
+        ? currentChecked.filter((value) => value !== item)
+        : [...currentChecked, item]
     );
   };
 
@@ -261,11 +270,30 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       {recipe.equipment && recipe.equipment.length > 0 ? (
         <div id="equipment" className="card" style={{ marginBottom: recipeNotes || recipeLinks.length > 0 ? 20 : 0 }}>
           <h3>Equipment</h3>
-          <ul style={{ marginBottom: 0, paddingLeft: "1.2rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {recipe.equipment.map((item) => (
-              <li key={item}>{item}</li>
+              <button
+                key={item}
+                type="button"
+                onClick={() => toggleEquipmentCheck(item)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: 0,
+                  border: 0,
+                  textAlign: "left",
+                  cursor: "pointer",
+                  color: "inherit",
+                }}
+              >
+                <span>{checkedEquipment.includes(item) ? "☑" : "☐"}</span>
+                <span style={{ textDecoration: checkedEquipment.includes(item) ? "line-through" : "none" }}>
+                  {item}
+                </span>
+              </button>
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
 
