@@ -1,10 +1,16 @@
 import type {
   EquipmentDraft,
+  FaqDraft,
   IngredientGroupDraft,
   RecipeEquipmentItem,
+  RecipeFaqItem,
   RecipeIngredient,
   RecipeIngredientGroup,
   RecipeRecord,
+  RecipeStepPhoto,
+  RecipeTroubleshootingItem,
+  StepPhotoDraft,
+  TroubleshootingDraft,
 } from "@/lib/recipe-types";
 import { normalizeRecipe, parseTagInput } from "@/lib/recipe-types";
 
@@ -44,6 +50,39 @@ export function buildEquipmentPayload(equipment: EquipmentDraft[]): RecipeEquipm
     }));
 }
 
+export function buildStepPhotoPayload(stepPhotos: StepPhotoDraft[]): RecipeStepPhoto[] {
+  return stepPhotos
+    .filter((item) => item.image_url.trim())
+    .map((item) => ({
+      step_number: item.step_number.trim(),
+      image_url: item.image_url.trim(),
+      caption_en: item.caption_en.trim(),
+      caption_de: item.caption_de.trim() || item.caption_en.trim(),
+    }));
+}
+
+export function buildFaqPayload(faq: FaqDraft[]): RecipeFaqItem[] {
+  return faq
+    .filter((item) => item.question_en.trim() && item.answer_en.trim())
+    .map((item) => ({
+      question_en: item.question_en.trim(),
+      question_de: item.question_de.trim() || item.question_en.trim(),
+      answer_en: item.answer_en.trim(),
+      answer_de: item.answer_de.trim() || item.answer_en.trim(),
+    }));
+}
+
+export function buildTroubleshootingPayload(items: TroubleshootingDraft[]): RecipeTroubleshootingItem[] {
+  return items
+    .filter((item) => item.issue_en.trim() && item.fix_en.trim())
+    .map((item) => ({
+      issue_en: item.issue_en.trim(),
+      issue_de: item.issue_de.trim() || item.issue_en.trim(),
+      fix_en: item.fix_en.trim(),
+      fix_de: item.fix_de.trim() || item.fix_en.trim(),
+    }));
+}
+
 export function buildRecipePayload(input: {
   slug: string;
   titleEn: string;
@@ -59,6 +98,13 @@ export function buildRecipePayload(input: {
   stepsDe: string;
   notesEn: string;
   notesDe: string;
+  tipsEn: string;
+  tipsDe: string;
+  storageEn: string;
+  storageDe: string;
+  faq: FaqDraft[];
+  troubleshooting: TroubleshootingDraft[];
+  stepPhotos: StepPhotoDraft[];
   sourceUrl: string;
   videoUrl: string;
   servings: string;
@@ -81,6 +127,13 @@ export function buildRecipePayload(input: {
     steps_de: input.stepsDe.trim() || null,
     notes_en: input.notesEn.trim() || null,
     notes_de: input.notesDe.trim() || null,
+    tips_en: input.tipsEn.trim() || null,
+    tips_de: input.tipsDe.trim() || null,
+    storage_en: input.storageEn.trim() || null,
+    storage_de: input.storageDe.trim() || null,
+    faq: buildFaqPayload(input.faq),
+    troubleshooting: buildTroubleshootingPayload(input.troubleshooting),
+    step_photos: buildStepPhotoPayload(input.stepPhotos),
     source_url: input.sourceUrl.trim() || null,
     video_url: input.videoUrl.trim() || null,
     servings: input.servings.trim() ? Number(input.servings) : null,

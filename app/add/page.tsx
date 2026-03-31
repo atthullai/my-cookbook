@@ -5,8 +5,23 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import RecipeForm from "@/components/RecipeForm";
 import { buildRecipePayload } from "@/lib/recipe-db";
-import type { AppUser, EquipmentDraft, IngredientDraft, IngredientGroupDraft } from "@/lib/recipe-types";
-import { EMPTY_EQUIPMENT, EMPTY_INGREDIENT, EMPTY_INGREDIENT_GROUP } from "@/lib/recipe-types";
+import type {
+  AppUser,
+  EquipmentDraft,
+  FaqDraft,
+  IngredientDraft,
+  IngredientGroupDraft,
+  StepPhotoDraft,
+  TroubleshootingDraft,
+} from "@/lib/recipe-types";
+import {
+  EMPTY_EQUIPMENT,
+  EMPTY_FAQ,
+  EMPTY_INGREDIENT,
+  EMPTY_INGREDIENT_GROUP,
+  EMPTY_STEP_PHOTO,
+  EMPTY_TROUBLESHOOTING,
+} from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
 import { translateEnglishToGerman } from "@/lib/translate";
 
@@ -35,6 +50,13 @@ export default function AddRecipe() {
   const [stepsDe, setStepsDe] = useState("");
   const [notesEn, setNotesEn] = useState("");
   const [notesDe, setNotesDe] = useState("");
+  const [tipsEn, setTipsEn] = useState("");
+  const [tipsDe, setTipsDe] = useState("");
+  const [storageEn, setStorageEn] = useState("");
+  const [storageDe, setStorageDe] = useState("");
+  const [faq, setFaq] = useState<FaqDraft[]>([]);
+  const [troubleshooting, setTroubleshooting] = useState<TroubleshootingDraft[]>([]);
+  const [stepPhotos, setStepPhotos] = useState<StepPhotoDraft[]>([]);
   const [sourceUrl, setSourceUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [servings, setServings] = useState("");
@@ -91,6 +113,18 @@ export default function AddRecipe() {
     setEquipment((current) => current.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
+  const updateFaq = (index: number, field: keyof FaqDraft, value: string) => {
+    setFaq((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+
+  const updateTroubleshooting = (index: number, field: keyof TroubleshootingDraft, value: string) => {
+    setTroubleshooting((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+
+  const updateStepPhoto = (index: number, field: keyof StepPhotoDraft, value: string) => {
+    setStepPhotos((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -115,6 +149,8 @@ export default function AddRecipe() {
     const autoDescriptionDe = descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "";
     const autoStepsDe = steps.trim() ? await translateEnglishToGerman(steps) : "";
     const autoNotesDe = notesEn.trim() ? await translateEnglishToGerman(notesEn) : "";
+    const autoTipsDe = tipsEn.trim() ? await translateEnglishToGerman(tipsEn) : "";
+    const autoStorageDe = storageEn.trim() ? await translateEnglishToGerman(storageEn) : "";
 
     // German fields are auto-generated from English on save so the two languages stay in sync.
     const translatedGroups = await Promise.all(
@@ -137,6 +173,31 @@ export default function AddRecipe() {
       }))
     );
 
+    const translatedFaq = await Promise.all(
+      faq.map(async (item) => ({
+        question_en: item.question_en,
+        question_de: item.question_en.trim() ? await translateEnglishToGerman(item.question_en) : "",
+        answer_en: item.answer_en,
+        answer_de: item.answer_en.trim() ? await translateEnglishToGerman(item.answer_en) : "",
+      }))
+    );
+
+    const translatedTroubleshooting = await Promise.all(
+      troubleshooting.map(async (item) => ({
+        issue_en: item.issue_en,
+        issue_de: item.issue_en.trim() ? await translateEnglishToGerman(item.issue_en) : "",
+        fix_en: item.fix_en,
+        fix_de: item.fix_en.trim() ? await translateEnglishToGerman(item.fix_en) : "",
+      }))
+    );
+
+    const translatedStepPhotos = await Promise.all(
+      stepPhotos.map(async (item) => ({
+        ...item,
+        caption_de: item.caption_en.trim() ? await translateEnglishToGerman(item.caption_en) : "",
+      }))
+    );
+
     // Build the final database row in one place so the component stays readable.
     const payload = buildRecipePayload({
       slug: slugify(title),
@@ -153,6 +214,13 @@ export default function AddRecipe() {
       stepsDe: autoStepsDe,
       notesEn,
       notesDe: autoNotesDe,
+      tipsEn,
+      tipsDe: autoTipsDe,
+      storageEn,
+      storageDe: autoStorageDe,
+      faq: translatedFaq,
+      troubleshooting: translatedTroubleshooting,
+      stepPhotos: translatedStepPhotos,
       sourceUrl,
       videoUrl,
       servings,
@@ -193,6 +261,13 @@ export default function AddRecipe() {
         stepsDe={stepsDe}
         notesEn={notesEn}
         notesDe={notesDe}
+        tipsEn={tipsEn}
+        tipsDe={tipsDe}
+        storageEn={storageEn}
+        storageDe={storageDe}
+        faq={faq}
+        troubleshooting={troubleshooting}
+        stepPhotos={stepPhotos}
         sourceUrl={sourceUrl}
         videoUrl={videoUrl}
         servings={servings}
@@ -240,6 +315,27 @@ export default function AddRecipe() {
         onStepsDeChange={setStepsDe}
         onNotesEnChange={setNotesEn}
         onNotesDeChange={setNotesDe}
+        onTipsEnChange={setTipsEn}
+        onTipsDeChange={setTipsDe}
+        onStorageEnChange={setStorageEn}
+        onStorageDeChange={setStorageDe}
+        onFaqAdd={() => setFaq((current) => [...current, { ...EMPTY_FAQ }])}
+        onFaqRemove={(index) =>
+          setFaq((current) => current.filter((_, currentIndex) => currentIndex !== index))
+        }
+        onFaqChange={updateFaq}
+        onTroubleshootingAdd={() =>
+          setTroubleshooting((current) => [...current, { ...EMPTY_TROUBLESHOOTING }])
+        }
+        onTroubleshootingRemove={(index) =>
+          setTroubleshooting((current) => current.filter((_, currentIndex) => currentIndex !== index))
+        }
+        onTroubleshootingChange={updateTroubleshooting}
+        onStepPhotoAdd={() => setStepPhotos((current) => [...current, { ...EMPTY_STEP_PHOTO }])}
+        onStepPhotoRemove={(index) =>
+          setStepPhotos((current) => current.filter((_, currentIndex) => currentIndex !== index))
+        }
+        onStepPhotoChange={updateStepPhoto}
         onSourceUrlChange={setSourceUrl}
         onVideoUrlChange={setVideoUrl}
         onServingsChange={setServings}

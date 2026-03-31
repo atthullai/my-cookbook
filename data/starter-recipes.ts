@@ -118,6 +118,78 @@ export const starterRecipes: StarterRecipe[] = [
       "Best served the same day. Storage from the source page: pastry cream and diplomat cream keep in the fridge up to 3 days, baked empty choux keep 2 days at room temperature or 3 days chilled, and filled choux are best eaten the day they are assembled. The source also notes that unbaked craquelin freezes for 1 month and unbaked piped choux freeze for up to 3 months.",
     notes_de:
       "Am besten am selben Tag servieren. Laut der Vorlage halten Konditorcreme und Diplomatcreme bis zu 3 Tage im Kuhlschrank, leere gebackene Choux 2 Tage bei Raumtemperatur oder 3 Tage gekuhlt, und gefullte Choux sollten am Tag des Fullens gegessen werden. Ungebackenes Craquelin kann etwa 1 Monat und ungebackene aufgespritzte Choux bis zu 3 Monate eingefroren werden.",
+    tips_en:
+      "Weigh everything for consistency. Do not open the oven while the choux are rising. Stop adding egg once the batter falls in a smooth inverted triangle from the spatula. Keep the craquelin cold so it transfers neatly to the piped choux.",
+    tips_de:
+      "Wiege alle Zutaten fur gleichmassige Ergebnisse. Offne den Ofen nicht, wahrend die Choux aufgehen. Horte mit dem Ei auf, sobald der Teig als glattes umgekehrtes Dreieck vom Spatel fallt. Halte das Craquelin kalt, damit es sauber auf die Choux gelegt werden kann.",
+    storage_en:
+      "Pastry cream and diplomat cream keep up to 3 days in the fridge. Baked unfilled choux keep about 2 days at room temperature or 3 days chilled. Filled choux are best the day they are assembled. Unbaked craquelin can be frozen for 1 month, and unbaked piped choux can be frozen up to 3 months.",
+    storage_de:
+      "Konditorcreme und Diplomatcreme halten bis zu 3 Tage im Kuhlschrank. Gebackene ungefullte Choux halten etwa 2 Tage bei Raumtemperatur oder 3 Tage gekuhlt. Gefullte Choux schmecken am besten am Tag des Fullens. Ungebackenes Craquelin kann 1 Monat und ungebackene aufgespritzte Choux bis zu 3 Monate eingefroren werden.",
+    faq: [
+      {
+        question_en: "Why did my choux collapse?",
+        question_de: "Warum sind meine Choux zusammengefallen?",
+        answer_en:
+          "They were usually underbaked, had too much moisture, or the oven door was opened too early. Bake until deeply golden and release steam after baking.",
+        answer_de:
+          "Meistens waren sie unterbacken, zu feucht oder der Ofen wurde zu fruh geoffnet. Backe sie tief goldbraun und lasse nach dem Backen den Dampf entweichen.",
+      },
+      {
+        question_en: "How do I know when the choux batter has enough egg?",
+        question_de: "Woran erkenne ich, dass genug Ei im Brandteig ist?",
+        answer_en:
+          "Lift the batter with a spatula. It should fall in a smooth inverted triangle shape instead of breaking off in clumps.",
+        answer_de:
+          "Heb den Teig mit einem Spatel an. Er sollte als glattes umgekehrtes Dreieck fallen und nicht klumpig abreissen.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The craquelin is sticking and hard to transfer.",
+        issue_de: "Das Craquelin klebt und lasst sich schwer umsetzen.",
+        fix_en: "Chill it longer and cut the discs while the dough is still very cold.",
+        fix_de: "Kuhle es langer und steche die Scheiben aus, wahrend der Teig noch sehr kalt ist.",
+      },
+      {
+        issue_en: "My pastry cream turned lumpy.",
+        issue_de: "Meine Konditorcreme ist klumpig geworden.",
+        fix_en: "Whisk constantly while cooking and strain it through a fine sieve right away.",
+        fix_de: "Ruhre beim Kochen standig mit dem Schneebesen und streiche die Creme sofort durch ein feines Sieb.",
+      },
+    ],
+    step_photos: [
+      {
+        step_number: "1",
+        image_url: "https://www.thebakingspoon.com/wp-content/uploads/2024/01/chouxaucraquelin1.jpg",
+        caption_en: "Start by preparing and chilling the diplomat cream base.",
+        caption_de: "Beginne damit, die Basis der Diplomatcreme zuzubereiten und zu kuhlen.",
+      },
+      {
+        step_number: "2",
+        image_url: "https://www.thebakingspoon.com/wp-content/uploads/2024/01/chouxaucraquelin-5.jpg",
+        caption_en: "Roll the craquelin thin and keep it cold for clean circles.",
+        caption_de: "Rolle das Craquelin dunn aus und halte es kalt, damit saubere Kreise entstehen.",
+      },
+      {
+        step_number: "3",
+        image_url: "https://www.thebakingspoon.com/wp-content/uploads/2024/01/chouxaucraquelin-6.jpg",
+        caption_en: "Pipe the choux batter into even mounds before topping them.",
+        caption_de: "Spritze den Brandteig in gleichmassige Hauben, bevor du sie belegst.",
+      },
+      {
+        step_number: "4",
+        image_url: "https://www.thebakingspoon.com/wp-content/uploads/2024/01/chouxaucraquelin-9.jpg",
+        caption_en: "Bake until the shells are deeply golden and crisp.",
+        caption_de: "Backe, bis die Schalen tief goldbraun und knusprig sind.",
+      },
+      {
+        step_number: "5",
+        image_url: "https://www.thebakingspoon.com/wp-content/uploads/2024/01/chouxaucraquelin-14.jpg",
+        caption_en: "Fill with diplomat cream, berries, and whipped cream before dusting with sugar.",
+        caption_de: "Fulle mit Diplomatcreme, Beeren und Schlagsahne und bestaube danach mit Zucker.",
+      },
+    ],
     source_url: "https://www.thebakingspoon.com/choux-au-craquelin-vanilla-bean-diplomat-cream/",
     video_url: "https://www.instagram.com/reel/C2sZvZ9RC1d/?utm_source=ig_embed&utm_campaign=loading",
     servings: 11,

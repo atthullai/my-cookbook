@@ -1,7 +1,14 @@
 "use client";
 
 import type { FormEvent } from "react";
-import type { EquipmentDraft, IngredientDraft, IngredientGroupDraft } from "@/lib/recipe-types";
+import type {
+  EquipmentDraft,
+  FaqDraft,
+  IngredientDraft,
+  IngredientGroupDraft,
+  StepPhotoDraft,
+  TroubleshootingDraft,
+} from "@/lib/recipe-types";
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -19,6 +26,13 @@ type RecipeFormProps = {
   stepsDe: string;
   notesEn: string;
   notesDe: string;
+  tipsEn: string;
+  tipsDe: string;
+  storageEn: string;
+  storageDe: string;
+  faq: FaqDraft[];
+  troubleshooting: TroubleshootingDraft[];
+  stepPhotos: StepPhotoDraft[];
   sourceUrl: string;
   videoUrl: string;
   servings: string;
@@ -45,6 +59,19 @@ type RecipeFormProps = {
   onStepsDeChange: (value: string) => void;
   onNotesEnChange: (value: string) => void;
   onNotesDeChange: (value: string) => void;
+  onTipsEnChange: (value: string) => void;
+  onTipsDeChange: (value: string) => void;
+  onStorageEnChange: (value: string) => void;
+  onStorageDeChange: (value: string) => void;
+  onFaqAdd: () => void;
+  onFaqRemove: (index: number) => void;
+  onFaqChange: (index: number, field: keyof FaqDraft, value: string) => void;
+  onTroubleshootingAdd: () => void;
+  onTroubleshootingRemove: (index: number) => void;
+  onTroubleshootingChange: (index: number, field: keyof TroubleshootingDraft, value: string) => void;
+  onStepPhotoAdd: () => void;
+  onStepPhotoRemove: (index: number) => void;
+  onStepPhotoChange: (index: number, field: keyof StepPhotoDraft, value: string) => void;
   onSourceUrlChange: (value: string) => void;
   onVideoUrlChange: (value: string) => void;
   onServingsChange: (value: string) => void;
@@ -163,6 +190,52 @@ export default function RecipeForm(props: RecipeFormProps) {
         <textarea className="input" value={props.stepsDe} onChange={(event) => props.onStepsDeChange(event.target.value)} placeholder="1. Zutaten vorbereiten\n2. Sanft kochen\n3. Fertig servieren" />
       </div>
 
+      <div className="card" style={{ marginBottom: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Step-by-Step Photos</h3>
+            <p style={{ marginBottom: 0 }}>Add process photos with captions and optional step numbers.</p>
+          </div>
+          <button className="button" type="button" onClick={props.onStepPhotoAdd}>
+            + Add Step Photo
+          </button>
+        </div>
+
+        {props.stepPhotos.map((item, index) => (
+          <div key={`step-photo-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr auto", gap: 8, marginBottom: 8 }}>
+              <input
+                className="input"
+                value={item.step_number}
+                onChange={(event) => props.onStepPhotoChange(index, "step_number", event.target.value)}
+                placeholder="Step #"
+              />
+              <input
+                className="input"
+                value={item.image_url}
+                onChange={(event) => props.onStepPhotoChange(index, "image_url", event.target.value)}
+                placeholder="Photo URL"
+              />
+              <button className="button" type="button" onClick={() => props.onStepPhotoRemove(index)}>
+                Remove
+              </button>
+            </div>
+            <input
+              className="input"
+              value={item.caption_en}
+              onChange={(event) => props.onStepPhotoChange(index, "caption_en", event.target.value)}
+              placeholder="Caption (EN)"
+            />
+            <input
+              className="input"
+              value={item.caption_de}
+              onChange={(event) => props.onStepPhotoChange(index, "caption_de", event.target.value)}
+              placeholder="Caption (DE)"
+            />
+          </div>
+        ))}
+      </div>
+
       {/* Equipment is bilingual too, which lets the checklist switch cleanly with the language toggle. */}
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Equipment</h3>
@@ -189,6 +262,106 @@ export default function RecipeForm(props: RecipeFormProps) {
         <button className="button" type="button" onClick={props.onEquipmentAdd}>
           + Add Equipment
         </button>
+      </div>
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <h3 style={{ marginBottom: 8 }}>Tips and Tricks</h3>
+        <textarea className="input" value={props.tipsEn} onChange={(event) => props.onTipsEnChange(event.target.value)} placeholder="Tips & Tricks (EN)" />
+        <textarea className="input" value={props.tipsDe} onChange={(event) => props.onTipsDeChange(event.target.value)} placeholder="Tips & Tricks (DE)" />
+      </div>
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <h3 style={{ marginBottom: 8 }}>Storage</h3>
+        <textarea className="input" value={props.storageEn} onChange={(event) => props.onStorageEnChange(event.target.value)} placeholder="Storage Instructions (EN)" />
+        <textarea className="input" value={props.storageDe} onChange={(event) => props.onStorageDeChange(event.target.value)} placeholder="Storage Instructions (DE)" />
+      </div>
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <h3 style={{ marginBottom: 8 }}>FAQ</h3>
+            <p style={{ marginBottom: 0 }}>Add common questions and answers for the recipe.</p>
+          </div>
+          <button className="button" type="button" onClick={props.onFaqAdd}>
+            + Add FAQ
+          </button>
+        </div>
+
+        {props.faq.map((item, index) => (
+          <div key={`faq-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+            <input
+              className="input"
+              value={item.question_en}
+              onChange={(event) => props.onFaqChange(index, "question_en", event.target.value)}
+              placeholder="Question (EN)"
+            />
+            <input
+              className="input"
+              value={item.question_de}
+              onChange={(event) => props.onFaqChange(index, "question_de", event.target.value)}
+              placeholder="Question (DE)"
+            />
+            <textarea
+              className="input"
+              value={item.answer_en}
+              onChange={(event) => props.onFaqChange(index, "answer_en", event.target.value)}
+              placeholder="Answer (EN)"
+            />
+            <textarea
+              className="input"
+              value={item.answer_de}
+              onChange={(event) => props.onFaqChange(index, "answer_de", event.target.value)}
+              placeholder="Answer (DE)"
+            />
+            <button className="button" type="button" onClick={() => props.onFaqRemove(index)}>
+              Remove FAQ
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Troubleshooting</h3>
+            <p style={{ marginBottom: 0 }}>List common problems and how to fix them.</p>
+          </div>
+          <button className="button" type="button" onClick={props.onTroubleshootingAdd}>
+            + Add Issue
+          </button>
+        </div>
+
+        {props.troubleshooting.map((item, index) => (
+          <div key={`troubleshooting-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+            <input
+              className="input"
+              value={item.issue_en}
+              onChange={(event) => props.onTroubleshootingChange(index, "issue_en", event.target.value)}
+              placeholder="Problem (EN)"
+            />
+            <input
+              className="input"
+              value={item.issue_de}
+              onChange={(event) => props.onTroubleshootingChange(index, "issue_de", event.target.value)}
+              placeholder="Problem (DE)"
+            />
+            <textarea
+              className="input"
+              value={item.fix_en}
+              onChange={(event) => props.onTroubleshootingChange(index, "fix_en", event.target.value)}
+              placeholder="Fix (EN)"
+            />
+            <textarea
+              className="input"
+              value={item.fix_de}
+              onChange={(event) => props.onTroubleshootingChange(index, "fix_de", event.target.value)}
+              placeholder="Fix (DE)"
+            />
+            <button className="button" type="button" onClick={() => props.onTroubleshootingRemove(index)}>
+              Remove Issue
+            </button>
+          </div>
+        ))}
       </div>
 
       <textarea className="input" value={props.notesEn} onChange={(event) => props.onNotesEnChange(event.target.value)} placeholder="Notes (EN)" />

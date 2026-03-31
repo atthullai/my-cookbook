@@ -6,8 +6,26 @@ import { useParams, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import RecipeForm from "@/components/RecipeForm";
 import { buildRecipePayload } from "@/lib/recipe-db";
-import type { AppUser, EquipmentDraft, IngredientDraft, IngredientGroupDraft, RecipeRecord } from "@/lib/recipe-types";
-import { EMPTY_EQUIPMENT, EMPTY_INGREDIENT, EMPTY_INGREDIENT_GROUP, normalizeRecipe, parseRecipeId } from "@/lib/recipe-types";
+import type {
+  AppUser,
+  EquipmentDraft,
+  FaqDraft,
+  IngredientDraft,
+  IngredientGroupDraft,
+  RecipeRecord,
+  StepPhotoDraft,
+  TroubleshootingDraft,
+} from "@/lib/recipe-types";
+import {
+  EMPTY_EQUIPMENT,
+  EMPTY_FAQ,
+  EMPTY_INGREDIENT,
+  EMPTY_INGREDIENT_GROUP,
+  EMPTY_STEP_PHOTO,
+  EMPTY_TROUBLESHOOTING,
+  normalizeRecipe,
+  parseRecipeId,
+} from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
 import { translateEnglishToGerman } from "@/lib/translate";
 
@@ -35,6 +53,13 @@ export default function EditRecipe() {
   const [stepsDe, setStepsDe] = useState("");
   const [notesEn, setNotesEn] = useState("");
   const [notesDe, setNotesDe] = useState("");
+  const [tipsEn, setTipsEn] = useState("");
+  const [tipsDe, setTipsDe] = useState("");
+  const [storageEn, setStorageEn] = useState("");
+  const [storageDe, setStorageDe] = useState("");
+  const [faq, setFaq] = useState<FaqDraft[]>([]);
+  const [troubleshooting, setTroubleshooting] = useState<TroubleshootingDraft[]>([]);
+  const [stepPhotos, setStepPhotos] = useState<StepPhotoDraft[]>([]);
   const [sourceUrl, setSourceUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [servings, setServings] = useState("");
@@ -105,6 +130,40 @@ export default function EditRecipe() {
       setStepsDe(normalizedRecipe.steps_de || "");
       setNotesEn(normalizedRecipe.notes_en || "");
       setNotesDe(normalizedRecipe.notes_de || "");
+      setTipsEn(normalizedRecipe.tips_en || "");
+      setTipsDe(normalizedRecipe.tips_de || "");
+      setStorageEn(normalizedRecipe.storage_en || "");
+      setStorageDe(normalizedRecipe.storage_de || "");
+      setFaq(
+        normalizedRecipe.faq?.length
+          ? normalizedRecipe.faq.map((item) => ({
+              question_en: item.question_en,
+              question_de: item.question_de,
+              answer_en: item.answer_en,
+              answer_de: item.answer_de,
+            }))
+          : []
+      );
+      setTroubleshooting(
+        normalizedRecipe.troubleshooting?.length
+          ? normalizedRecipe.troubleshooting.map((item) => ({
+              issue_en: item.issue_en,
+              issue_de: item.issue_de,
+              fix_en: item.fix_en,
+              fix_de: item.fix_de,
+            }))
+          : []
+      );
+      setStepPhotos(
+        normalizedRecipe.step_photos?.length
+          ? normalizedRecipe.step_photos.map((item) => ({
+              step_number: item.step_number,
+              image_url: item.image_url,
+              caption_en: item.caption_en,
+              caption_de: item.caption_de,
+            }))
+          : []
+      );
       setSourceUrl(normalizedRecipe.source_url || "");
       setVideoUrl(normalizedRecipe.video_url || "");
       setServings(normalizedRecipe.servings ? String(normalizedRecipe.servings) : "");
@@ -143,6 +202,15 @@ export default function EditRecipe() {
   const updateEquipment = (index: number, field: keyof EquipmentDraft, value: string) => {
     setEquipment((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
   };
+  const updateFaq = (index: number, field: keyof FaqDraft, value: string) => {
+    setFaq((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+  const updateTroubleshooting = (index: number, field: keyof TroubleshootingDraft, value: string) => {
+    setTroubleshooting((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
+  const updateStepPhoto = (index: number, field: keyof StepPhotoDraft, value: string) => {
+    setStepPhotos((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -157,6 +225,8 @@ export default function EditRecipe() {
     const autoDescriptionDe = descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "";
     const autoStepsDe = steps.trim() ? await translateEnglishToGerman(steps) : "";
     const autoNotesDe = notesEn.trim() ? await translateEnglishToGerman(notesEn) : "";
+    const autoTipsDe = tipsEn.trim() ? await translateEnglishToGerman(tipsEn) : "";
+    const autoStorageDe = storageEn.trim() ? await translateEnglishToGerman(storageEn) : "";
 
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
@@ -178,6 +248,31 @@ export default function EditRecipe() {
       }))
     );
 
+    const translatedFaq = await Promise.all(
+      faq.map(async (item) => ({
+        question_en: item.question_en,
+        question_de: item.question_en.trim() ? await translateEnglishToGerman(item.question_en) : "",
+        answer_en: item.answer_en,
+        answer_de: item.answer_en.trim() ? await translateEnglishToGerman(item.answer_en) : "",
+      }))
+    );
+
+    const translatedTroubleshooting = await Promise.all(
+      troubleshooting.map(async (item) => ({
+        issue_en: item.issue_en,
+        issue_de: item.issue_en.trim() ? await translateEnglishToGerman(item.issue_en) : "",
+        fix_en: item.fix_en,
+        fix_de: item.fix_en.trim() ? await translateEnglishToGerman(item.fix_en) : "",
+      }))
+    );
+
+    const translatedStepPhotos = await Promise.all(
+      stepPhotos.map(async (item) => ({
+        ...item,
+        caption_de: item.caption_en.trim() ? await translateEnglishToGerman(item.caption_en) : "",
+      }))
+    );
+
     // Rebuild the entire recipe payload from the current draft state before updating Supabase.
     const payload = buildRecipePayload({
       slug: recipe.slug,
@@ -194,6 +289,13 @@ export default function EditRecipe() {
       stepsDe: autoStepsDe,
       notesEn,
       notesDe: autoNotesDe,
+      tipsEn,
+      tipsDe: autoTipsDe,
+      storageEn,
+      storageDe: autoStorageDe,
+      faq: translatedFaq,
+      troubleshooting: translatedTroubleshooting,
+      stepPhotos: translatedStepPhotos,
       sourceUrl,
       videoUrl,
       servings,
@@ -234,6 +336,13 @@ export default function EditRecipe() {
         stepsDe={stepsDe}
         notesEn={notesEn}
         notesDe={notesDe}
+        tipsEn={tipsEn}
+        tipsDe={tipsDe}
+        storageEn={storageEn}
+        storageDe={storageDe}
+        faq={faq}
+        troubleshooting={troubleshooting}
+        stepPhotos={stepPhotos}
         sourceUrl={sourceUrl}
         videoUrl={videoUrl}
         servings={servings}
@@ -279,6 +388,23 @@ export default function EditRecipe() {
         onStepsDeChange={setStepsDe}
         onNotesEnChange={setNotesEn}
         onNotesDeChange={setNotesDe}
+        onTipsEnChange={setTipsEn}
+        onTipsDeChange={setTipsDe}
+        onStorageEnChange={setStorageEn}
+        onStorageDeChange={setStorageDe}
+        onFaqAdd={() => setFaq((current) => [...current, { ...EMPTY_FAQ }])}
+        onFaqRemove={(index) => setFaq((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+        onFaqChange={updateFaq}
+        onTroubleshootingAdd={() => setTroubleshooting((current) => [...current, { ...EMPTY_TROUBLESHOOTING }])}
+        onTroubleshootingRemove={(index) =>
+          setTroubleshooting((current) => current.filter((_, currentIndex) => currentIndex !== index))
+        }
+        onTroubleshootingChange={updateTroubleshooting}
+        onStepPhotoAdd={() => setStepPhotos((current) => [...current, { ...EMPTY_STEP_PHOTO }])}
+        onStepPhotoRemove={(index) =>
+          setStepPhotos((current) => current.filter((_, currentIndex) => currentIndex !== index))
+        }
+        onStepPhotoChange={updateStepPhoto}
         onSourceUrlChange={setSourceUrl}
         onVideoUrlChange={setVideoUrl}
         onServingsChange={setServings}

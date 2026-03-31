@@ -5,11 +5,13 @@ import { useState } from "react";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
   getEquipmentLabel,
+  getRecipeStorage,
   getIngredientGroupLabel,
   getIngredientLabel,
   getRecipeDescription,
   getRecipeNotes,
   getRecipeSteps,
+  getRecipeTips,
   getRecipeTitle,
 } from "@/lib/recipe-types";
 import { buildRecipeHighlights, extractLinks, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
@@ -82,10 +84,15 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const recipeTitle = getRecipeTitle(recipe, lang);
   const recipeDescription = getRecipeDescription(recipe, lang);
   const recipeNotes = getRecipeNotes(recipe, lang);
+  const recipeTips = getRecipeTips(recipe, lang);
+  const recipeStorage = getRecipeStorage(recipe, lang);
   const recipeSections = parseInstructionSections(getRecipeSteps(recipe, lang));
   const ingredientGroups: RecipeIngredientGroup[] = recipe.ingredients ?? [];
   const recipeLinks = extractLinks(recipe);
   const highlights = buildRecipeHighlights(recipe);
+  const faqItems = recipe.faq ?? [];
+  const troubleshootingItems = recipe.troubleshooting ?? [];
+  const stepPhotos = recipe.step_photos ?? [];
 
   const handlePrint = () => {
     window.print();
@@ -210,6 +217,31 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
               Notes
             </a>
           ) : null}
+          {recipeTips ? (
+            <a className="button" href="#tips">
+              Tips
+            </a>
+          ) : null}
+          {recipeStorage ? (
+            <a className="button" href="#storage">
+              Storage
+            </a>
+          ) : null}
+          {faqItems.length > 0 ? (
+            <a className="button" href="#faq">
+              FAQ
+            </a>
+          ) : null}
+          {troubleshootingItems.length > 0 ? (
+            <a className="button" href="#troubleshooting">
+              Troubleshooting
+            </a>
+          ) : null}
+          {stepPhotos.length > 0 ? (
+            <a className="button" href="#step-photos">
+              Step Photos
+            </a>
+          ) : null}
           {recipeLinks.length > 0 ? (
             <a className="button" href="#links">
               Links
@@ -323,6 +355,75 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         ))}
       </div>
+
+      {stepPhotos.length > 0 ? (
+        <div id="step-photos" className="card" style={{ marginBottom: 20 }}>
+          <h3>Step-by-Step Photos</h3>
+          <div className="photo-grid">
+            {stepPhotos.map((item, index) => (
+              <div key={`${item.image_url}-${index}`}>
+                <Image
+                  src={item.image_url}
+                  alt={`${recipeTitle} step ${item.step_number || index + 1}`}
+                  className="recipe-photo"
+                  width={1200}
+                  height={800}
+                />
+                <p style={{ marginTop: 8, marginBottom: 0 }}>
+                  {item.step_number ? `Step ${item.step_number}: ` : ""}
+                  {lang === "de" ? item.caption_de || item.caption_en : item.caption_en}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {recipeTips ? (
+        <div id="tips" className="card" style={{ marginBottom: 20 }}>
+          <h3>Tips and Tricks</h3>
+          <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeTips}</p>
+        </div>
+      ) : null}
+
+      {recipeStorage ? (
+        <div id="storage" className="card" style={{ marginBottom: 20 }}>
+          <h3>Storage</h3>
+          <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeStorage}</p>
+        </div>
+      ) : null}
+
+      {faqItems.length > 0 ? (
+        <div id="faq" className="card" style={{ marginBottom: 20 }}>
+          <h3>FAQ</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {faqItems.map((item, index) => (
+              <div key={`${item.question_en}-${index}`}>
+                <h4 style={{ marginBottom: 6 }}>{lang === "de" ? item.question_de || item.question_en : item.question_en}</h4>
+                <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
+                  {lang === "de" ? item.answer_de || item.answer_en : item.answer_en}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {troubleshootingItems.length > 0 ? (
+        <div id="troubleshooting" className="card" style={{ marginBottom: 20 }}>
+          <h3>Troubleshooting</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {troubleshootingItems.map((item, index) => (
+              <div key={`${item.issue_en}-${index}`}>
+                <h4 style={{ marginBottom: 6 }}>{lang === "de" ? item.issue_de || item.issue_en : item.issue_en}</h4>
+                <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
+                  {lang === "de" ? item.fix_de || item.fix_en : item.fix_en}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {recipeNotes ? (
         <div id="notes" className="card" style={{ marginBottom: recipeLinks.length > 0 ? 20 : 0 }}>

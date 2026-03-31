@@ -25,6 +25,27 @@ export type RecipeEquipmentItem = {
   label_de: string;
 };
 
+export type RecipeStepPhoto = {
+  step_number: string;
+  image_url: string;
+  caption_en: string;
+  caption_de: string;
+};
+
+export type RecipeFaqItem = {
+  question_en: string;
+  question_de: string;
+  answer_en: string;
+  answer_de: string;
+};
+
+export type RecipeTroubleshootingItem = {
+  issue_en: string;
+  issue_de: string;
+  fix_en: string;
+  fix_de: string;
+};
+
 export type RecipeRecord = {
   id: number;
   slug: string;
@@ -47,6 +68,13 @@ export type RecipeRecord = {
   servings: number | null;
   equipment: RecipeEquipmentItem[];
   image_urls: string[];
+  tips_en?: string | null;
+  tips_de?: string | null;
+  storage_en?: string | null;
+  storage_de?: string | null;
+  faq?: RecipeFaqItem[];
+  troubleshooting?: RecipeTroubleshootingItem[];
+  step_photos?: RecipeStepPhoto[];
 };
 
 function normalizeString(value: unknown): string {
@@ -119,6 +147,42 @@ function normalizeEquipmentItem(value: unknown): RecipeEquipmentItem {
   };
 }
 
+function normalizeStepPhoto(value: unknown): RecipeStepPhoto {
+  const item = value && typeof value === "object" ? value : {};
+  const raw = item as Record<string, unknown>;
+
+  return {
+    step_number: normalizeString(raw.step_number),
+    image_url: normalizeString(raw.image_url),
+    caption_en: normalizeString(raw.caption_en),
+    caption_de: normalizeString(raw.caption_de) || normalizeString(raw.caption_en),
+  };
+}
+
+function normalizeFaqItem(value: unknown): RecipeFaqItem {
+  const item = value && typeof value === "object" ? value : {};
+  const raw = item as Record<string, unknown>;
+
+  return {
+    question_en: normalizeString(raw.question_en),
+    question_de: normalizeString(raw.question_de) || normalizeString(raw.question_en),
+    answer_en: normalizeString(raw.answer_en),
+    answer_de: normalizeString(raw.answer_de) || normalizeString(raw.answer_en),
+  };
+}
+
+function normalizeTroubleshootingItem(value: unknown): RecipeTroubleshootingItem {
+  const item = value && typeof value === "object" ? value : {};
+  const raw = item as Record<string, unknown>;
+
+  return {
+    issue_en: normalizeString(raw.issue_en),
+    issue_de: normalizeString(raw.issue_de) || normalizeString(raw.issue_en),
+    fix_en: normalizeString(raw.fix_en),
+    fix_de: normalizeString(raw.fix_de) || normalizeString(raw.fix_en),
+  };
+}
+
 export function normalizeRecipe(value: unknown): RecipeRecord {
   const rawValue = value && typeof value === "object" ? value : {};
   const raw = rawValue as Record<string, unknown>;
@@ -155,6 +219,13 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     image_urls: Array.isArray(raw.image_urls)
       ? raw.image_urls.map((item) => normalizeString(item).trim()).filter(Boolean)
       : [],
+    tips_en: normalizeString(raw.tips_en) || null,
+    tips_de: normalizeString(raw.tips_de) || null,
+    storage_en: normalizeString(raw.storage_en) || null,
+    storage_de: normalizeString(raw.storage_de) || null,
+    faq: Array.isArray(raw.faq) ? raw.faq.map(normalizeFaqItem) : [],
+    troubleshooting: Array.isArray(raw.troubleshooting) ? raw.troubleshooting.map(normalizeTroubleshootingItem) : [],
+    step_photos: Array.isArray(raw.step_photos) ? raw.step_photos.map(normalizeStepPhoto) : [],
   };
 }
 
@@ -190,6 +261,22 @@ export function getRecipeNotes(recipe: RecipeRecord, lang: AppLanguage): string 
   }
 
   return recipe.notes_en || "";
+}
+
+export function getRecipeTips(recipe: RecipeRecord, lang: AppLanguage): string {
+  if (lang === "de" && recipe.tips_de) {
+    return recipe.tips_de;
+  }
+
+  return recipe.tips_en || "";
+}
+
+export function getRecipeStorage(recipe: RecipeRecord, lang: AppLanguage): string {
+  if (lang === "de" && recipe.storage_de) {
+    return recipe.storage_de;
+  }
+
+  return recipe.storage_en || "";
 }
 
 export function getIngredientGroupLabel(group: RecipeIngredientGroup, lang: AppLanguage): string {
@@ -263,4 +350,46 @@ export type EquipmentDraft = {
 export const EMPTY_EQUIPMENT: EquipmentDraft = {
   label_en: "",
   label_de: "",
+};
+
+export type StepPhotoDraft = {
+  step_number: string;
+  image_url: string;
+  caption_en: string;
+  caption_de: string;
+};
+
+export const EMPTY_STEP_PHOTO: StepPhotoDraft = {
+  step_number: "",
+  image_url: "",
+  caption_en: "",
+  caption_de: "",
+};
+
+export type FaqDraft = {
+  question_en: string;
+  question_de: string;
+  answer_en: string;
+  answer_de: string;
+};
+
+export const EMPTY_FAQ: FaqDraft = {
+  question_en: "",
+  question_de: "",
+  answer_en: "",
+  answer_de: "",
+};
+
+export type TroubleshootingDraft = {
+  issue_en: string;
+  issue_de: string;
+  fix_en: string;
+  fix_de: string;
+};
+
+export const EMPTY_TROUBLESHOOTING: TroubleshootingDraft = {
+  issue_en: "",
+  issue_de: "",
+  fix_en: "",
+  fix_de: "",
 };
