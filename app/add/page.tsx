@@ -1,129 +1,193 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-
-type Ingredient = {
-  name: string;
-  amount: string;
-  unit: string;
-};
+import type { FormEvent } from "react";
+import RecipeForm from "@/components/RecipeForm";
+import type { AppUser, RecipeIngredient } from "@/lib/recipe-types";
+import { EMPTY_INGREDIENT, parseTagInput } from "@/lib/recipe-types";
+import { supabase } from "@/lib/supabase";
+import type { IngredientDraft } from "@/lib/recipe-types";
 
 export default function AddRecipe() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
+  // Keep the bilingual fields explicit now so DeepL can swap into the same flow later.
   const [title, setTitle] = useState("");
   const [titleDe, setTitleDe] = useState("");
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState("");
-
   const [steps, setSteps] = useState("");
   const [stepsDe, setStepsDe] = useState("");
-
-  const [ingredientsList, setIngredientsList] = useState<Ingredient[]>([
-    { name: "", amount: "", unit: "" },
-  ]);
+  const [ingredientsList, setIngredientsList] = useState<IngredientDraft[]>([{ ...EMPTY_INGREDIENT }]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return (window.location.href = "/login");
-      setUser(user);
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (!currentUser) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setUser(currentUser);
       setLoading(false);
     };
-    checkUser();
+
+    void checkUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // 🌍 translation (SAFE)
+  // Keep translation as a standalone helper so swapping MyMemory for DeepL stays easy.
   const translate = async (text: string) => {
+    if (!text.trim()) {
+      return "";
+    }
+
     try {
-      const res = await fetch(
+      const response = await fetch(
         `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`
       );
-      const data = await res.json();
-      return data.responseData.translatedText;
+      const data = (await response.json()) as {
+        responseData?: { translatedText?: string };
+      };
+
+      return data.responseData?.translatedText?.trim() || text;
     } catch {
       return text;
     }
   };
 
   const addIngredient = () => {
-    setIngredientsList([...ingredientsList, { name: "", amount: "", unit: "" }]);
+    setIngredientsList((currentIngredients) => [...currentIngredients, { ...EMPTY_INGREDIENT }]);
   };
 
-  const updateIngredient = (i: number, field: keyof Ingredient, value: string) => {
-    const updated = [...ingredientsList];
-    updated[i][field] = value;
-    setIngredientsList(updated);
+  const removeIngredient = (index: number) => {
+    setIngredientsList((currentIngredients) => {
+      const nextIngredients = currentIngredients.filter((_, currentIndex) => currentIndex !== index);
+      return nextIngredients.length > 0 ? nextIngredients : [{ ...EMPTY_INGREDIENT }];
+    });
   };
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
+  const updateIngredient = (index: number, field: keyof IngredientDraft, value: string) => {
+    setIngredientsList((currentIngredients) =>
+      currentIngredients.map((ingredient, currentIndex) =>
+        currentIndex === index ? { ...ingredient, [field]: value } : ingredient
+      )
+    );
+  };
 
-    // ✅ CLEAN DATA
-    const cleaned = ingredientsList
-      .filter((i) => i.name.trim() !== "")
-      .map((i) => ({
-        name: i.name.trim(),
-        unit: i.unit || "",
-        amount: i.amount === "" ? null : Number(i.amount),
+  // Normalize ingredient rows before saving so create/edit/view pages all read the same structure.
+  const buildIngredientPayload = (): RecipeIngredient[] =>
+    ingredientsList
+      .filter((ingredient) => ingredient.name.trim())
+      .map((ingredient) => ({
+        name: ingredient.name.trim(),
+        unit: ingredient.unit.trim(),
+        amount: ingredient.amount.trim() ? ingredient.amount.trim() : null,
       }));
 
-    let autoTitleDe = titleDe;
-    let autoStepsDe = stepsDe;
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-    // ⚠️ prevent API crash
-    if (!autoTitleDe) autoTitleDe = await translate(title);
-    if (!autoStepsDe && steps.length < 400)
-      autoStepsDe = await translate(steps);
+    if (!user) {
+      alert("Please log in first.");
+      return;
+    }
 
-    await supabase.from("recipes").insert([
+    if (!title.trim()) {
+      alert("Please add an English title.");
+      return;
+    }
+
+    const cleanedIngredients = buildIngredientPayload();
+
+    if (cleanedIngredients.length === 0) {
+      alert("Please add at least one ingredient.");
+      return;
+    }
+
+    setSaving(true);
+
+    const autoTitleDe = titleDe.trim() || (await translate(title));
+    const autoStepsDe = stepsDe.trim() || (await translate(steps));
+
+    const { error } = await supabase.from("recipes").insert([
       {
         user_id: user.id,
-        title_en: title,
+        title_en: title.trim(),
         title_de: autoTitleDe,
-        category,
-        tags: tags ? tags.split(",").map((t) => t.trim()) : [],
-        ingredients: [{ group: "Main", items: cleaned }],
-        steps_en: steps,
+        category: category.trim(),
+        tags: parseTagInput(tags),
+        ingredients: [
+          {
+            group: "Main",
+            items: cleanedIngredients,
+          },
+        ],
+        steps_en: steps.trim(),
         steps_de: autoStepsDe,
       },
     ]);
 
+    setSaving(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     window.location.href = "/";
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) {
+    return (
+      <main className="container">
+        <p>Checking login...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="container">
       <Link href="/">← Back</Link>
+
       <h1>Add Recipe</h1>
-
-      {/* FORM */}
-      <form onSubmit={handleSubmit}>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input value={titleDe} onChange={(e) => setTitleDe(e.target.value)} />
-
-        <h3>Ingredients</h3>
-
-        {ingredientsList.map((ing, i) => (
-          <div key={i}>
-            <input value={ing.amount} onChange={(e) => updateIngredient(i, "amount", e.target.value)} />
-            <input value={ing.unit} onChange={(e) => updateIngredient(i, "unit", e.target.value)} />
-            <input value={ing.name} onChange={(e) => updateIngredient(i, "name", e.target.value)} />
-          </div>
-        ))}
-
-        <button type="button" onClick={addIngredient}>+ Add</button>
-
-        <textarea value={steps} onChange={(e) => setSteps(e.target.value)} />
-        <textarea value={stepsDe} onChange={(e) => setStepsDe(e.target.value)} />
-
-        <button>Save</button>
-      </form>
+      {/* Add and edit now share the same form component to avoid duplicated UI logic. */}
+      <RecipeForm
+        title={title}
+        titleDe={titleDe}
+        category={category}
+        tags={tags}
+        steps={steps}
+        stepsDe={stepsDe}
+        ingredients={ingredientsList}
+        saving={saving}
+        submitLabel="Save Recipe"
+        onSubmit={handleSubmit}
+        onTitleChange={setTitle}
+        onTitleDeChange={setTitleDe}
+        onCategoryChange={setCategory}
+        onTagsChange={setTags}
+        onStepsChange={setSteps}
+        onStepsDeChange={setStepsDe}
+        onIngredientAdd={addIngredient}
+        onIngredientRemove={removeIngredient}
+        onIngredientChange={updateIngredient}
+      />
     </main>
   );
 }

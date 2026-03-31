@@ -1,149 +1,240 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
+import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
+import { getRecipeDescription, getRecipeNotes, getRecipeSteps, getRecipeTitle } from "@/lib/recipe-types";
+import { buildRecipeHighlights, extractLinks, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
 
-export default function RecipeClient({ recipe }: any) {
-  // ================= STATE =================
+type RecipeClientProps = {
+  recipe: RecipeRecord;
+};
 
-  // 🔢 multiplier for servings
+export default function RecipeClient({ recipe }: RecipeClientProps) {
   const [multiplier, setMultiplier] = useState(1);
-
-  // ✅ checked ingredients (for checkbox UI)
   const [checked, setChecked] = useState<string[]>([]);
+  const [lang, setLang] = useState<AppLanguage>("en");
 
-  // 🌍 language toggle
-  const [lang, setLang] = useState<"en" | "de">("en");
+  // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
+  const parseAmount = (value: RecipeAmount): number | null => {
+    if (value === null || value === "") {
+      return null;
+    }
 
-  // ================= HELPERS =================
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
 
-  // ✅ SAFE PARSE (prevents crashes + supports fractions)
-  const parseAmount = (value: any) => {
-    if (value === null || value === undefined || value === "") return null;
+    const trimmedValue = value.trim();
+    const directNumber = Number(trimmedValue);
 
-    const num = Number(value);
-    if (!isNaN(num)) return num;
+    if (!Number.isNaN(directNumber)) {
+      return directNumber;
+    }
 
-    // support fractions like "1/2"
-    if (typeof value === "string" && value.includes("/")) {
-      const [n, d] = value.split("/");
-      const num = Number(n);
-      const den = Number(d);
-      if (!isNaN(num) && !isNaN(den) && den !== 0) {
-        return num / den;
+    if (trimmedValue.includes("/")) {
+      const [numeratorValue, denominatorValue] = trimmedValue.split("/");
+      const numerator = Number(numeratorValue);
+      const denominator = Number(denominatorValue);
+
+      if (!Number.isNaN(numerator) && !Number.isNaN(denominator) && denominator !== 0) {
+        return numerator / denominator;
       }
     }
 
     return null;
   };
 
-  // ✅ FORMAT (nice display)
-  const formatAmount = (num: number) => {
-    if (num === 0.5) return "1/2";
-    if (num === 0.25) return "1/4";
-    if (num === 0.75) return "3/4";
-
-    return Number(num.toFixed(2));
+  const formatAmount = (value: number) => {
+    if (value === 0.5) return "1/2";
+    if (value === 0.25) return "1/4";
+    if (value === 0.75) return "3/4";
+    return Number(value.toFixed(2)).toString();
   };
 
-  // ✅ toggle checkbox
-  const toggleCheck = (id: string) => {
-    setChecked((prev) =>
-      prev.includes(id)
-        ? prev.filter((i) => i !== id)
-        : [...prev, id]
+  const toggleCheck = (index: string) => {
+    setChecked((currentChecked) =>
+      currentChecked.includes(index)
+        ? currentChecked.filter((item) => item !== index)
+        : [...currentChecked, index]
     );
   };
 
-  // ================= UI =================
+  const recipeTitle = getRecipeTitle(recipe, lang);
+  const recipeDescription = getRecipeDescription(recipe, lang);
+  const recipeNotes = getRecipeNotes(recipe, lang);
+  const recipeSections = parseInstructionSections(getRecipeSteps(recipe, lang));
+  const ingredientGroups: RecipeIngredientGroup[] = recipe.ingredients ?? [];
+  const recipeLinks = extractLinks(recipe);
+  const highlights = buildRecipeHighlights(recipe);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
-    <>
-      {/* ================= HEADER ================= */}
+    <div style={{ marginTop: 16 }}>
+      {/* Keep header controls together because language and serving size both change the same recipe view. */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
+          gap: 16,
+          flexWrap: "wrap",
           marginBottom: 20,
         }}
       >
-        {/* TITLE */}
-        <h1>
-          {lang === "de"
-            ? recipe.title_de || recipe.title_en
-            : recipe.title_en}
-        </h1>
+        <div>
+          <h1>{recipeTitle}</h1>
+          <p style={{ marginBottom: 0 }}>{recipe.category || "Uncategorized"}</p>
+        </div>
 
-        {/* LANGUAGE */}
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setLang("en")}>EN</button>
-          <button onClick={() => setLang("de")}>DE</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="button" type="button" onClick={handlePrint}>
+            Print
+          </button>
+          <button className="button" type="button" onClick={() => setLang("en")}>
+            EN
+          </button>
+          <button className="button" type="button" onClick={() => setLang("de")}>
+            DE
+          </button>
         </div>
       </div>
 
-      {/* ================= SERVINGS ================= */}
-      <div style={{ marginBottom: 20 }}>
-        <p>Servings:</p>
+      {recipeDescription ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 style={{ marginBottom: 8 }}>Description</h3>
+          <p style={{ marginBottom: 0 }}>{recipeDescription}</p>
+        </div>
+      ) : null}
+
+      {recipe.image_urls && recipe.image_urls.length > 0 ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 style={{ marginBottom: 10 }}>Photos</h3>
+          <div className="photo-grid">
+            {recipe.image_urls.map((imageUrl, index) => (
+              <Image
+                key={`${imageUrl}-${index}`}
+                src={imageUrl}
+                alt={`${recipeTitle} photo ${index + 1}`}
+                className="recipe-photo"
+                width={1200}
+                height={800}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {highlights.length > 0 ? (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          {highlights.map((highlight) => (
+            <span key={highlight} className="chip">
+              {highlight}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {recipe.tags.length > 0 ? (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+          {recipe.tags.map((tag) => (
+            <span
+              key={`${recipe.id}-${tag}`}
+              style={{
+                fontSize: 12,
+                border: "1px solid rgba(89, 58, 34, 0.18)",
+                padding: "4px 8px",
+                borderRadius: 999,
+                background: "rgba(255, 250, 241, 0.8)",
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Jump links make longer recipes feel closer to the reference food sites. */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 style={{ marginBottom: 8 }}>Jump To</h3>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a className="button" href="#ingredients">
+            Ingredients
+          </a>
+          <a className="button" href="#instructions">
+            Instructions
+          </a>
+          {hasNotes(recipe, lang) ? (
+            <a className="button" href="#notes">
+              Notes
+            </a>
+          ) : null}
+          {recipe.equipment && recipe.equipment.length > 0 ? (
+            <a className="button" href="#equipment">
+              Equipment
+            </a>
+          ) : null}
+          {recipeLinks.length > 0 ? (
+            <a className="button" href="#links">
+              Links
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <p>Servings</p>
 
         <div style={{ display: "flex", gap: 8 }}>
-          {[0.5, 1, 2].map((m) => (
-            <button key={m} onClick={() => setMultiplier(m)}>
-              {m}x
+          {[0.5, 1, 2].map((value) => (
+            <button
+              key={value}
+              className="button"
+              type="button"
+              onClick={() => setMultiplier(value)}
+              style={{ background: multiplier === value ? "#f0d6c5" : undefined }}
+            >
+              {value}x
             </button>
           ))}
         </div>
       </div>
 
-      {/* ================= INGREDIENTS ================= */}
-      <div style={{ marginBottom: 24 }}>
+      <div id="ingredients" className="card" style={{ marginBottom: 24 }}>
         <h3>Ingredients</h3>
 
-        {recipe.ingredients?.map((group: any, gi: number) => (
-          <div key={gi} style={{ marginBottom: 12 }}>
-            {/* GROUP TITLE */}
+        {ingredientGroups.map((group, groupIndex) => (
+          <div key={`${group.group}-${groupIndex}`} style={{ marginBottom: 16 }}>
             <h4>{group.group}</h4>
 
-            {/* ITEMS */}
-            {group.items.map((ing: any, i: number) => {
-              const id = `${gi}-${i}`;
-
-              const isChecked = checked.includes(id);
-
-              // ✅ SAFE parse
-              const base = parseAmount(ing.amount);
-
-              // ✅ FIXED scaling logic (IMPORTANT)
-              const scaled =
-                base !== null ? base * multiplier : null;
+            {group.items.map((ingredient, ingredientIndex) => {
+              const itemId = `${groupIndex}-${ingredientIndex}`;
+              const isChecked = checked.includes(itemId);
+              const baseAmount = parseAmount(ingredient.amount);
+              const scaledAmount = baseAmount === null ? null : baseAmount * multiplier;
+              const amountLabel = scaledAmount === null ? "" : formatAmount(scaledAmount);
 
               return (
                 <div
-                  key={id}
-                  onClick={() => toggleCheck(id)}
+                  key={itemId}
+                  onClick={() => toggleCheck(itemId)}
                   style={{
                     cursor: "pointer",
-                    opacity: isChecked ? 0.5 : 1,
+                    opacity: isChecked ? 0.55 : 1,
                     display: "flex",
                     gap: 8,
+                    alignItems: "center",
+                    marginBottom: 6,
                   }}
                 >
-                  {/* CHECKBOX */}
                   <span>{isChecked ? "☑" : "☐"}</span>
-
-                  {/* TEXT */}
-                  <span
-                    style={{
-                      textDecoration: isChecked
-                        ? "line-through"
-                        : "none",
-                    }}
-                  >
-                    {/* ✅ SAFE DISPLAY */}
-                    {scaled !== null
-                      ? formatAmount(scaled)
-                      : ""}
-                    {ing.unit ? ` ${ing.unit}` : ""}{" "}
-                    {ing.name}
+                  <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
+                    {amountLabel}
+                    {ingredient.unit ? ` ${ingredient.unit}` : ""}
+                    {ingredient.name ? ` ${ingredient.name}` : ""}
                   </span>
                 </div>
               );
@@ -152,23 +243,51 @@ export default function RecipeClient({ recipe }: any) {
         ))}
       </div>
 
-      {/* ================= STEPS ================= */}
-      <div>
+      <div id="instructions" className="card" style={{ marginBottom: recipeNotes ? 20 : 0 }}>
         <h3>Steps</h3>
 
-        <ol>
-          {(lang === "de"
-            ? recipe.steps_de || recipe.steps_en
-            : recipe.steps_en
-          )
-            ?.split("\n")
-            .map((step: string, i: number) => (
-              <li key={i}>
-                {step.replace(/^\d+\.\s*/, "")}
-              </li>
-            ))}
-        </ol>
+        {recipeSections.map((section) => (
+          <div key={section.title} style={{ marginBottom: 16 }}>
+            <h4>{section.title}</h4>
+            <ol style={{ marginBottom: 0 }}>
+              {section.steps.map((step, index) => (
+                <li key={`${section.title}-${index}`}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        ))}
       </div>
-    </>
+
+      {recipe.equipment && recipe.equipment.length > 0 ? (
+        <div id="equipment" className="card" style={{ marginBottom: recipeNotes || recipeLinks.length > 0 ? 20 : 0 }}>
+          <h3>Equipment</h3>
+          <ul style={{ marginBottom: 0, paddingLeft: "1.2rem" }}>
+            {recipe.equipment.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {recipeNotes ? (
+        <div id="notes" className="card" style={{ marginBottom: recipeLinks.length > 0 ? 20 : 0 }}>
+          <h3>Notes</h3>
+          <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNotes}</p>
+        </div>
+      ) : null}
+
+      {recipeLinks.length > 0 ? (
+        <div id="links" className="card">
+          <h3>Links</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {recipeLinks.map((link) => (
+              <a key={link} href={link} target="_blank" rel="noreferrer">
+                {link}
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

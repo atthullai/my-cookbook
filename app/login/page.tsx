@@ -1,51 +1,59 @@
 "use client";
 
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     });
 
+    setLoading(false);
+
     if (error) {
       alert(error.message);
-    } else {
-      window.location.href = "/";
+      return;
     }
+
+    window.location.href = "/";
   };
 
   return (
-    <main className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl mb-4">Login</h1>
+    <main className="container" style={{ maxWidth: 520 }}>
+      {/* Login stays intentionally simple because it only needs to unlock the private cookbook. */}
+      <h1>Login</h1>
 
-      <input
-        type="email"
-        placeholder="Enter email"
-        className="w-full p-2 border mb-4"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+      <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <input
+          type="email"
+          placeholder="Enter email"
+          className="input"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
 
-      <input
-        type="password"
-        placeholder="Enter password"
-        className="w-full p-2 border mb-4"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+        <input
+          type="password"
+          placeholder="Enter password"
+          className="input"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
 
-      <button
-        onClick={handleLogin}
-        className="px-4 py-2 bg-black text-white"
-      >
-        Login
-      </button>
+        <button className="button button-primary" type="submit" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </form>
     </main>
   );
 }

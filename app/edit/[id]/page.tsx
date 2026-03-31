@@ -1,156 +1,191 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import type { FormEvent } from "react";
+import RecipeForm from "@/components/RecipeForm";
+import type { AppUser, RecipeIngredient, RecipeRecord } from "@/lib/recipe-types";
+import { EMPTY_INGREDIENT, normalizeRecipe, parseRecipeId, parseTagInput } from "@/lib/recipe-types";
+import { supabase } from "@/lib/supabase";
+import type { IngredientDraft } from "@/lib/recipe-types";
 
 export default function EditRecipe() {
   const router = useRouter();
   const params = useParams();
-  const recipeId = Number(params.id);
+  const recipeId = parseRecipeId(params.id);
 
-  const [recipe, setRecipe] = useState<any>(null);
-
-  // ✅ Always store ingredients as simple flat list (UI friendly)
-  const [ingredientsList, setIngredientsList] = useState<any[]>([]);
-
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
+  const [ingredientsList, setIngredientsList] = useState<IngredientDraft[]>([{ ...EMPTY_INGREDIENT }]);
+  const [tagsInput, setTagsInput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // ✅ FETCH RECIPE
   useEffect(() => {
-    const fetchData = async () => {
+    let isMounted = true;
+
+    const fetchRecipe = async () => {
+      if (!recipeId) {
+        router.push("/");
+        return;
+      }
+
       const {
-        data: { user },
+        data: { user: currentUser },
       } = await supabase.auth.getUser();
 
-      if (!user) {
+      if (!isMounted) {
+        return;
+      }
+
+      if (!currentUser) {
         window.location.href = "/login";
         return;
       }
 
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*")
-        .eq("id", recipeId)
-        .single();
+      setUser(currentUser);
+
+      const { data, error } = await supabase.from("recipes").select("*").eq("id", recipeId).single();
+
+      if (!isMounted) {
+        return;
+      }
 
       if (error || !data) {
         router.push("/");
         return;
       }
 
-      if (data.user_id !== user.id) {
+      const normalizedRecipe = normalizeRecipe(data);
+
+      if (normalizedRecipe.user_id !== currentUser.id) {
         router.push("/");
         return;
       }
 
-      setRecipe(data);
+      setRecipe(normalizedRecipe);
+      setTagsInput(normalizedRecipe.tags.join(", "));
 
-      // ✅ IMPORTANT: flatten ingredients for editing
-      const flatIngredients =
-        data.ingredients?.[0]?.items || [];
-
-      setIngredientsList(flatIngredients);
+      const firstGroupItems = normalizedRecipe.ingredients[0]?.items ?? [];
+      setIngredientsList(
+        firstGroupItems.length > 0
+          ? firstGroupItems.map((ingredient) => ({
+              name: ingredient.name,
+              unit: ingredient.unit,
+              amount: ingredient.amount === null ? "" : String(ingredient.amount),
+            }))
+          : [{ ...EMPTY_INGREDIENT }]
+      );
 
       setLoading(false);
     };
 
-    if (recipeId) fetchData();
+    void fetchRecipe();
+
+    return () => {
+      isMounted = false;
+    };
   }, [recipeId, router]);
 
-  // 🌍 TRANSLATE (unchanged)
+  // Keep translation isolated so you can replace this with DeepL without touching page structure.
   const translate = async (text: string) => {
-    if (!text) return "";
+    if (!text.trim()) {
+      return "";
+    }
+
     try {
-      const res = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-          text
-        )}&langpair=en|de`
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`
       );
-      const data = await res.json();
-      return data.responseData.translatedText;
+      const data = (await response.json()) as {
+        responseData?: { translatedText?: string };
+      };
+
+      return data.responseData?.translatedText?.trim() || text;
     } catch {
       return text;
     }
   };
 
-  // ✅ UPDATE INGREDIENT
-  const updateIngredient = (
-    index: number,
-    field: "amount" | "unit" | "name",
-    value: string
-  ) => {
-    const updated = [...ingredientsList];
-    updated[index][field] = value;
-    setIngredientsList(updated);
-  };
-
-  // ✅ ADD
-  const addIngredient = () => {
-    setIngredientsList([
-      ...ingredientsList,
-      { amount: "", unit: "", name: "" },
-    ]);
-  };
-
-  // ✅ DELETE
-  const removeIngredient = (index: number) => {
-    setIngredientsList(
-      ingredientsList.filter((_, i) => i !== index)
+  const updateIngredient = (index: number, field: keyof IngredientDraft, value: string) => {
+    setIngredientsList((currentIngredients) =>
+      currentIngredients.map((ingredient, currentIndex) =>
+        currentIndex === index ? { ...ingredient, [field]: value } : ingredient
+      )
     );
   };
 
-  // ✅ SAVE
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
+  const addIngredient = () => {
+    setIngredientsList((currentIngredients) => [...currentIngredients, { ...EMPTY_INGREDIENT }]);
+  };
 
-    const autoTitleDe =
-      recipe.title_de || (await translate(recipe.title_en));
+  const removeIngredient = (index: number) => {
+    setIngredientsList((currentIngredients) => {
+      const nextIngredients = currentIngredients.filter((_, currentIndex) => currentIndex !== index);
+      return nextIngredients.length > 0 ? nextIngredients : [{ ...EMPTY_INGREDIENT }];
+    });
+  };
 
-    const autoStepsDe =
-      recipe.steps_de || (await translate(recipe.steps_en));
+  const buildIngredientPayload = (): RecipeIngredient[] =>
+    ingredientsList
+      .filter((ingredient) => ingredient.name.trim())
+      .map((ingredient) => ({
+        name: ingredient.name.trim(),
+        unit: ingredient.unit.trim(),
+        amount: ingredient.amount.trim() ? ingredient.amount.trim() : null,
+      }));
 
-    // ✅ CLEAN INGREDIENTS (THIS FIXES NaN)
-    const cleanIngredients = ingredientsList.map((i) => ({
-      name: i.name || "",
-      unit: i.unit || "",
-      amount:
-        i.amount === "" || i.amount === null
-          ? null
-          : Number(i.amount),
-    }));
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!recipe || !recipeId || !user) {
+      alert("Recipe is not ready to save yet.");
+      return;
+    }
+
+    const cleanedIngredients = buildIngredientPayload();
+
+    if (cleanedIngredients.length === 0) {
+      alert("Please keep at least one ingredient.");
+      return;
+    }
+
+    setSaving(true);
+
+    const autoTitleDe = recipe.title_de?.trim() || (await translate(recipe.title_en));
+    const autoStepsDe = recipe.steps_de?.trim() || (await translate(recipe.steps_en));
 
     const { error } = await supabase
       .from("recipes")
       .update({
-        title_en: recipe.title_en,
+        title_en: recipe.title_en.trim(),
         title_de: autoTitleDe,
-        category: recipe.category,
-        tags: recipe.tags,
-
-        // ✅ ALWAYS SAVE STRUCTURED
+        category: recipe.category?.trim() ?? "",
+        tags: parseTagInput(tagsInput),
         ingredients: [
           {
-            group: "Main",
-            items: cleanIngredients,
+            group: recipe.ingredients[0]?.group || "Main",
+            items: cleanedIngredients,
           },
         ],
-
-        steps_en: recipe.steps_en,
+        steps_en: recipe.steps_en.trim(),
         steps_de: autoStepsDe,
       })
-      .eq("id", recipeId);
+      .eq("id", recipeId)
+      .eq("user_id", user.id);
+
+    setSaving(false);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    router.push("/");
+    router.push(`/recipe/${recipeId}`);
   };
 
-  if (loading) {
+  if (loading || !recipe) {
     return (
       <main className="container">
         <p>Loading recipe...</p>
@@ -163,120 +198,28 @@ export default function EditRecipe() {
       <Link href="/">← Back</Link>
 
       <h1>Edit Recipe</h1>
-
-      <form
+      {/* The shared form keeps add/edit aligned as the recipe model grows. */}
+      <RecipeForm
+        title={recipe.title_en}
+        titleDe={recipe.title_de ?? ""}
+        category={recipe.category ?? ""}
+        tags={tagsInput}
+        steps={recipe.steps_en}
+        stepsDe={recipe.steps_de ?? ""}
+        ingredients={ingredientsList}
+        saving={saving}
+        submitLabel="Save Changes"
         onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 12 }}
-      >
-        {/* TITLE */}
-        <input
-          className="input"
-          value={recipe.title_en}
-          onChange={(e) =>
-            setRecipe({ ...recipe, title_en: e.target.value })
-          }
-        />
-
-        <input
-          className="input"
-          value={recipe.title_de || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, title_de: e.target.value })
-          }
-        />
-
-        {/* CATEGORY */}
-        <input
-          className="input"
-          value={recipe.category || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, category: e.target.value })
-          }
-        />
-
-        {/* TAGS */}
-        <input
-          className="input"
-          value={(recipe.tags || []).join(", ")}
-          onChange={(e) =>
-            setRecipe({
-              ...recipe,
-              tags: e.target.value.split(",").map((t) => t.trim()),
-            })
-          }
-        />
-
-        {/* INGREDIENTS */}
-        <div>
-          <h3>Ingredients</h3>
-
-          {ingredientsList.map((ing, i) => (
-            <div
-              key={i}
-              style={{ display: "flex", gap: 6, marginBottom: 6 }}
-            >
-              <input
-                className="input"
-                placeholder="Amount"
-                value={ing.amount}
-                onChange={(e) =>
-                  updateIngredient(i, "amount", e.target.value)
-                }
-              />
-
-              <input
-                className="input"
-                placeholder="Unit"
-                value={ing.unit}
-                onChange={(e) =>
-                  updateIngredient(i, "unit", e.target.value)
-                }
-              />
-
-              <input
-                className="input"
-                placeholder="Name"
-                value={ing.name}
-                onChange={(e) =>
-                  updateIngredient(i, "name", e.target.value)
-                }
-              />
-
-              <button
-                type="button"
-                onClick={() => removeIngredient(i)}
-              >
-                ❌
-              </button>
-            </div>
-          ))}
-
-          <button type="button" onClick={addIngredient}>
-            + Add Ingredient
-          </button>
-        </div>
-
-        {/* STEPS */}
-        <textarea
-          className="input"
-          value={recipe.steps_en}
-          onChange={(e) =>
-            setRecipe({ ...recipe, steps_en: e.target.value })
-          }
-        />
-
-        <textarea
-          className="input"
-          value={recipe.steps_de || ""}
-          onChange={(e) =>
-            setRecipe({ ...recipe, steps_de: e.target.value })
-          }
-        />
-
-        <button className="button button-primary">
-          Save Changes
-        </button>
-      </form>
+        onTitleChange={(value) => setRecipe((currentRecipe) => currentRecipe && { ...currentRecipe, title_en: value })}
+        onTitleDeChange={(value) => setRecipe((currentRecipe) => currentRecipe && { ...currentRecipe, title_de: value })}
+        onCategoryChange={(value) => setRecipe((currentRecipe) => currentRecipe && { ...currentRecipe, category: value })}
+        onTagsChange={setTagsInput}
+        onStepsChange={(value) => setRecipe((currentRecipe) => currentRecipe && { ...currentRecipe, steps_en: value })}
+        onStepsDeChange={(value) => setRecipe((currentRecipe) => currentRecipe && { ...currentRecipe, steps_de: value })}
+        onIngredientAdd={addIngredient}
+        onIngredientRemove={removeIngredient}
+        onIngredientChange={updateIngredient}
+      />
     </main>
   );
 }
