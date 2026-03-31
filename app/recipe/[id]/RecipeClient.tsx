@@ -5,6 +5,31 @@ import { useState } from "react";
 export default function RecipeClient({ recipe }: any) {
   const [multiplier, setMultiplier] = useState(1);
 
+  // ✅ convert fractions to numbers
+  const parseAmount = (value: string | number) => {
+    if (!value) return 0;
+
+    // already number
+    if (!isNaN(Number(value))) return Number(value);
+
+    // fraction (e.g. 1/2)
+    if (typeof value === "string" && value.includes("/")) {
+      const [num, den] = value.split("/");
+      return Number(num) / Number(den);
+    }
+
+    return 0;
+  };
+
+  // ✅ convert back to nice fraction (optional)
+  const formatAmount = (num: number) => {
+    if (num === 0.5) return "1/2";
+    if (num === 0.25) return "1/4";
+    if (num === 0.75) return "3/4";
+
+    return Number(num.toFixed(2));
+  };
+
   // ✅ checklist state
   const [checked, setChecked] = useState<number[]>([]);
 
@@ -84,43 +109,40 @@ export default function RecipeClient({ recipe }: any) {
 
         {recipe.ingredients && recipe.ingredients.length > 0 ? (
           recipe.ingredients.map((ing: any, i: number) => {
+            // ✅ checklist state
             const isChecked = checked.includes(i);
 
-            // ✅ safe scaling
-            const scaledAmount =
-              ing.amount && !isNaN(Number(ing.amount))
-                ? Number(ing.amount) * multiplier
-                : ing.amount;
+            // ✅ SAFE parse (fix TS issue)
+            const base = parseAmount(String(ing.amount));
+            const scaled = base * multiplier;
 
             return (
               <div
                 key={i}
                 onClick={() => toggleCheck(i)}
-                className="ingredient-item"
                 style={{
                   display: "flex",
-                  gap: 10,
-                  padding: "6px 0",
-                  cursor: "pointer",
+                  gap: 8,
                   opacity: isChecked ? 0.5 : 1,
+                  cursor: "pointer",
                 }}
               >
+                {/* checkbox */}
                 <span>{isChecked ? "☑" : "☐"}</span>
 
+                {/* ingredient text */}
                 <span
                   style={{
                     textDecoration: isChecked ? "line-through" : "none",
                   }}
                 >
-                  {scaledAmount} {ing.unit} {ing.name}
+                  {formatAmount(scaled)} {ing.unit} {ing.name}
                 </span>
               </div>
             );
           })
         ) : (
-          <p style={{ opacity: 0.6 }}>
-            No structured ingredients available
-          </p>
+          <p style={{ opacity: 0.6 }}>No structured ingredients available</p>
         )}
       </div>
 
