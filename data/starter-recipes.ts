@@ -6,7 +6,7 @@ const ownerName = "Saran";
 // That means they become editable instead of living as special hard-coded demo content.
 type StarterRecipe = Omit<RecipeRecord, "id" | "user_id">;
 
-export const starterRecipes: StarterRecipe[] = [
+const rawStarterRecipes: StarterRecipe[] = [
   {
     slug: "choux-au-craquelin",
     title_en: "Choux Au Craquelin (Cream Puff)",
@@ -751,6 +751,498 @@ export const starterRecipes: StarterRecipe[] = [
     image_urls: [],
   },
 ];
+
+const starterRecipeEnhancements: Record<string, Partial<StarterRecipe>> = {
+  "palakkura-pappu": {
+    tips_en:
+      "Cook the dal until it is completely soft so it blends naturally into the spinach. Add the tempering at the very end for the brightest garlic flavor.",
+    tips_de:
+      "Koche das Dal wirklich weich, damit es sich naturlich mit dem Spinat verbindet. Gib die Temperierung erst ganz am Ende dazu, damit der Knoblauch frisch schmeckt.",
+    storage_en:
+      "Refrigerate for up to 2 days. Reheat with a splash of water because spinach dal thickens as it rests.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank aufbewahren. Beim Aufwarmen etwas Wasser zugeben, weil das Spinat-Dal beim Stehen eindickt.",
+    nutrition: {
+      calories_kcal: "220",
+      fat_g: "5",
+      saturated_fat_g: "1",
+      carbs_g: "29",
+      fiber_g: "8",
+      sugar_g: "4",
+      protein_g: "12",
+      sodium_mg: "340",
+      note_en: "Approximate nutrition per serving for a home-style spinach dal with tempering.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur ein hausgemachtes Spinat-Dal mit Temperierung.",
+    },
+    faq: [
+      {
+        question_en: "Can I use frozen spinach?",
+        question_de: "Kann ich TK-Spinat verwenden?",
+        answer_en: "Yes. Thaw and squeeze out extra water first so the dal does not become watery.",
+        answer_de: "Ja. Taue ihn vorher auf und drucke uberschussiges Wasser aus, damit das Dal nicht zu dunn wird.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The dal tastes flat.",
+        issue_de: "Das Dal schmeckt flach.",
+        fix_en: "Add a little more salt, a spoon of ghee, or a sharper tempering with garlic and chili.",
+        fix_de: "Gib etwas mehr Salz, einen Loffel Ghee oder eine kraftigere Temperierung mit Knoblauch und Chili dazu.",
+      },
+    ],
+  },
+  "chidambaram-gosthu": {
+    tips_en:
+      "Keep the texture slightly loose so it coats pongal or idli well. Brinjal should turn soft but still hold a little shape.",
+    tips_de:
+      "Halte die Konsistenz eher locker, damit sie Pongal oder Idli gut umhullt. Die Aubergine soll weich sein, aber noch etwas Form behalten.",
+    storage_en: "Refrigerate for up to 2 days and reheat gently. Add hot water if it thickens too much.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern und sanft erwarmen. Bei zu starker Dicke etwas heisses Wasser zugeben.",
+    nutrition: {
+      calories_kcal: "115",
+      fat_g: "4",
+      saturated_fat_g: "0.5",
+      carbs_g: "18",
+      fiber_g: "5",
+      sugar_g: "7",
+      protein_g: "3",
+      sodium_mg: "310",
+      note_en: "Approximate nutrition per serving for a light brinjal-tamarind side dish.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur eine leichte Auberginen-Tamarinden-Beilage.",
+    },
+    faq: [
+      {
+        question_en: "Can I make gosthu thicker?",
+        question_de: "Kann ich Gosthu dicker kochen?",
+        answer_en: "Yes, but it is traditionally served fairly loose so it pairs better with pongal and tiffin dishes.",
+        answer_de: "Ja, aber traditionell wird es eher locker serviert, damit es besser zu Pongal und Tiffin-Gerichten passt.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The tamarind flavor is too sharp.",
+        issue_de: "Der Tamarindengeschmack ist zu scharf.",
+        fix_en: "Simmer a little longer and balance it with a pinch of jaggery.",
+        fix_de: "Lass es etwas langer kochen und gleiche es mit einer Prise Jaggery aus.",
+      },
+    ],
+  },
+  "tiffin-sambar": {
+    tips_en:
+      "Tiffin sambar should be softer and slightly sweeter than regular lunch sambar. A thinner texture helps it soak beautifully into idli.",
+    tips_de:
+      "Tiffin-Sambar sollte milder und leicht susser sein als Mittags-Sambar. Eine dunnere Konsistenz hilft, damit es wunderbar in Idli einzieht.",
+    storage_en: "Refrigerate for up to 3 days. Thin with hot water after chilling if needed.",
+    storage_de:
+      "Bis zu 3 Tage im Kuhlschrank aufbewahren. Nach dem Kuhlen bei Bedarf mit heissem Wasser verdunnen.",
+    nutrition: {
+      calories_kcal: "145",
+      fat_g: "4",
+      saturated_fat_g: "0.6",
+      carbs_g: "22",
+      fiber_g: "6",
+      sugar_g: "6",
+      protein_g: "6",
+      sodium_mg: "360",
+      note_en: "Approximate nutrition per serving for hotel-style tiffin sambar.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur Tiffin-Sambar im Hotelstil.",
+    },
+    faq: [
+      {
+        question_en: "Why is my tiffin sambar not tasting like hotel sambar?",
+        question_de: "Warum schmeckt mein Tiffin-Sambar nicht wie im Hotel?",
+        answer_en: "It is often because the texture is too thick or the onion-tomato base is undercooked.",
+        answer_de: "Oft liegt es daran, dass die Konsistenz zu dick ist oder die Zwiebel-Tomaten-Basis nicht genug gekocht wurde.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The sambar is too thick for idli.",
+        issue_de: "Das Sambar ist zu dick fur Idli.",
+        fix_en: "Add hot water little by little and simmer briefly after each addition.",
+        fix_de: "Gib nach und nach heisses Wasser dazu und lass es nach jeder Zugabe kurz aufkochen.",
+      },
+    ],
+  },
+  "cooker-pav-bhaji": {
+    tips_en:
+      "Mash the vegetables while they are hot for the smoothest bhaji. Finish with butter and lemon at the end for the classic street-food taste.",
+    tips_de:
+      "Stampfe das Gemuse im heissen Zustand fur die glatteste Bhaji. Gib Butter und Zitrone erst am Ende dazu fur den typischen Street-Food-Geschmack.",
+    storage_en: "Refrigerate the bhaji for up to 3 days. Toast fresh pav only when serving.",
+    storage_de: "Die Bhaji bis zu 3 Tage im Kuhlschrank lagern. Pav erst frisch vor dem Servieren anrosten.",
+    nutrition: {
+      calories_kcal: "255",
+      fat_g: "10",
+      saturated_fat_g: "4",
+      carbs_g: "35",
+      fiber_g: "8",
+      sugar_g: "8",
+      protein_g: "6",
+      sodium_mg: "480",
+      note_en: "Approximate nutrition per serving for the bhaji only, without buttered pav.",
+      note_de: "Ungefahrer Nahrwert pro Portion nur fur die Bhaji, ohne gebuttertes Pav.",
+    },
+    faq: [
+      {
+        question_en: "Can I make pav bhaji without a pressure cooker?",
+        question_de: "Kann ich Pav Bhaji ohne Schnellkochtopf machen?",
+        answer_en: "Yes. Cook the vegetables covered on the stovetop until very soft, then mash as usual.",
+        answer_de: "Ja. Koche das Gemuse abgedeckt auf dem Herd sehr weich und stampfe es dann wie gewohnt.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The bhaji tastes dull.",
+        issue_de: "Die Bhaji schmeckt langweilig.",
+        fix_en: "Add more pav bhaji masala, butter, salt, and a squeeze of lemon.",
+        fix_de: "Gib mehr Pav-Bhaji-Masala, Butter, Salz und etwas Zitronensaft dazu.",
+      },
+    ],
+  },
+  "mor-kuzhambu": {
+    tips_en:
+      "Heat it gently and never let it boil aggressively once curd is added. Sour curd gives the best balanced flavor.",
+    tips_de:
+      "Erhitze es sanft und lasse es nach dem Zugeben des Joghurts nicht stark kochen. Saurer Joghurt sorgt fur den besten ausgewogenen Geschmack.",
+    storage_en: "Refrigerate for up to 2 days. Reheat slowly over low heat to keep it smooth.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. Langsam bei niedriger Hitze erwarmen, damit es glatt bleibt.",
+    nutrition: {
+      calories_kcal: "165",
+      fat_g: "11",
+      saturated_fat_g: "7",
+      carbs_g: "10",
+      fiber_g: "1",
+      sugar_g: "5",
+      protein_g: "6",
+      sodium_mg: "290",
+      note_en: "Approximate nutrition per serving for a yogurt-coconut mor kuzhambu.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur ein Mor Kuzhambu mit Joghurt und Kokos.",
+    },
+    faq: [
+      {
+        question_en: "Why did my mor kuzhambu split?",
+        question_de: "Warum hat sich mein Mor Kuzhambu getrennt?",
+        answer_en: "The heat was too high or it boiled too hard after the yogurt mixture was added.",
+        answer_de: "Die Hitze war zu hoch oder es hat nach dem Joghurtgemisch zu stark gekocht.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The curry is too sour.",
+        issue_de: "Das Curry ist zu sauer.",
+        fix_en: "Balance it with a little more ground coconut paste or serve it with plain rice and a milder side.",
+        fix_de: "Gleiche es mit etwas mehr Kokospaste aus oder serviere es mit schlichtem Reis und einer milden Beilage.",
+      },
+    ],
+  },
+  "tomato-pappu": {
+    tips_en:
+      "Use ripe tomatoes for the best balance of sweetness and tang. Mash only lightly if you want some texture left in the dal.",
+    tips_de:
+      "Verwende reife Tomaten fur die beste Balance aus Suss und Saure. Stampfe nur leicht, wenn etwas Struktur im Dal bleiben soll.",
+    storage_en: "Refrigerate for up to 3 days. Add hot water while reheating if the dal has thickened.",
+    storage_de:
+      "Bis zu 3 Tage im Kuhlschrank lagern. Beim Aufwarmen heisses Wasser zugeben, wenn das Dal eingedickt ist.",
+    nutrition: {
+      calories_kcal: "205",
+      fat_g: "5",
+      saturated_fat_g: "0.8",
+      carbs_g: "29",
+      fiber_g: "7",
+      sugar_g: "5",
+      protein_g: "10",
+      sodium_mg: "330",
+      note_en: "Approximate nutrition per serving for a simple Andhra-style tomato dal.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur ein einfaches Tomaten-Dal nach Andhra-Art.",
+    },
+    faq: [
+      {
+        question_en: "Can I use only tomatoes without onion?",
+        question_de: "Kann ich nur Tomaten ohne Zwiebel verwenden?",
+        answer_en: "Yes. The dal will still work well and taste brighter and more tomato-forward.",
+        answer_de: "Ja. Das Dal funktioniert trotzdem gut und schmeckt dann noch tomatiger und frischer.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The dal is too sour.",
+        issue_de: "Das Dal ist zu sauer.",
+        fix_en: "Add a little more cooked dal or a small spoon of ghee to soften the acidity.",
+        fix_de: "Gib etwas mehr gekochtes Dal oder einen kleinen Loffel Ghee dazu, um die Saure abzumildern.",
+      },
+    ],
+  },
+  "dhaba-dal-tadka": {
+    tips_en:
+      "Let the dal simmer after combining so it turns creamy and restaurant-like. Pour the ghee tadka over just before serving for maximum aroma.",
+    tips_de:
+      "Lass das Dal nach dem Vermengen sanft kochen, damit es cremig und restaurantartig wird. Gib das Ghee-Tadka erst kurz vor dem Servieren daruber fur maximales Aroma.",
+    storage_en: "Refrigerate for up to 3 days. Store extra tadka separately if you want the freshest finish.",
+    storage_de:
+      "Bis zu 3 Tage im Kuhlschrank aufbewahren. Extra Tadka separat lagern, wenn du das frischeste Finish mochtest.",
+    nutrition: {
+      calories_kcal: "240",
+      fat_g: "9",
+      saturated_fat_g: "3",
+      carbs_g: "28",
+      fiber_g: "8",
+      sugar_g: "4",
+      protein_g: "12",
+      sodium_mg: "390",
+      note_en: "Approximate nutrition per serving for dhaba-style dal tadka.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur Dal Tadka im Dhaba-Stil.",
+    },
+    faq: [
+      {
+        question_en: "Which dal ratio gives the best texture?",
+        question_de: "Welches Dal-Verhaltnis gibt die beste Konsistenz?",
+        answer_en: "A mix of toor and moong gives both body and softness, which is why this combination works so well.",
+        answer_de: "Eine Mischung aus Toor und Moong liefert sowohl Korper als auch Weichheit, deshalb funktioniert diese Kombination so gut.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The tadka tastes burnt.",
+        issue_de: "Das Tadka schmeckt verbrannt.",
+        fix_en: "Lower the heat and add the garlic only after the fat is hot but not smoking.",
+        fix_de: "Reduziere die Hitze und gib den Knoblauch erst hinein, wenn das Fett heiss, aber nicht rauchend ist.",
+      },
+    ],
+  },
+  "green-moong-dal-sabzi": {
+    tips_en:
+      "Cook the soaked moong only until just tender so it holds shape. Keep the final sabzi fairly dry for the best texture.",
+    tips_de:
+      "Koche das eingeweichte Moong nur bis es gerade weich ist, damit es Form behalt. Halte die Sabzi am Ende eher trocken fur die beste Konsistenz.",
+    storage_en: "Refrigerate for up to 2 days. Reheat in a skillet so excess moisture can evaporate.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. In einer Pfanne aufwarmen, damit uberflussige Feuchtigkeit verdampfen kann.",
+    nutrition: {
+      calories_kcal: "175",
+      fat_g: "4",
+      saturated_fat_g: "0.5",
+      carbs_g: "24",
+      fiber_g: "7",
+      sugar_g: "5",
+      protein_g: "8",
+      sodium_mg: "250",
+      note_en: "Approximate nutrition per serving for a dry vegetable sabzi with green moong.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur eine trockene Gemuse-Sabzi mit grunem Moong.",
+    },
+    faq: [
+      {
+        question_en: "Can I use sprouted moong here?",
+        question_de: "Kann ich hier gekeimtes Moong verwenden?",
+        answer_en: "Yes. Reduce the cooking time slightly so the sprouts stay pleasantly firm.",
+        answer_de: "Ja. Verkurze die Garzeit etwas, damit die Sprossen angenehm bissfest bleiben.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The sabzi turned wet.",
+        issue_de: "Die Sabzi ist zu nass geworden.",
+        fix_en: "Cook uncovered for a few minutes at the end and avoid overcooking the vegetables.",
+        fix_de: "Koche am Ende einige Minuten ohne Deckel und gare das Gemuse nicht zu lange.",
+      },
+    ],
+  },
+  "paneer-butter-masala": {
+    tips_en:
+      "Blend the gravy fully smooth for the most restaurant-style finish. Add paneer only at the end so it stays soft.",
+    tips_de:
+      "Mixe die Sauce ganz glatt fur das restaurantahnlichste Ergebnis. Gib den Paneer erst am Ende dazu, damit er weich bleibt.",
+    storage_en: "Refrigerate for up to 2 days. Reheat gently and add a splash of cream or water if needed.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. Sanft erwarmen und bei Bedarf etwas Sahne oder Wasser zugeben.",
+    nutrition: {
+      calories_kcal: "305",
+      fat_g: "23",
+      saturated_fat_g: "12",
+      carbs_g: "11",
+      fiber_g: "2",
+      sugar_g: "6",
+      protein_g: "13",
+      sodium_mg: "430",
+      note_en: "Approximate nutrition per serving for paneer butter masala gravy with paneer.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur Paneer Butter Masala mit Sauce und Paneer.",
+    },
+    faq: [
+      {
+        question_en: "Can I skip cream?",
+        question_de: "Kann ich die Sahne weglassen?",
+        answer_en: "Yes, but the gravy will taste less rich. A little cashew paste is a good substitute.",
+        answer_de: "Ja, aber die Sauce schmeckt dann weniger reichhaltig. Etwas Cashewpaste ist ein guter Ersatz.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The paneer became rubbery.",
+        issue_de: "Der Paneer ist gummiartig geworden.",
+        fix_en: "Add it only at the end and simmer very briefly, or soak it in warm water before using.",
+        fix_de: "Gib ihn erst am Ende dazu und lasse ihn nur kurz ziehen, oder weiche ihn vorher in warmem Wasser ein.",
+      },
+    ],
+  },
+  "avarakkai-poricha-kuzhambu": {
+    tips_en:
+      "Grind the coconut paste smooth for the best mouthfeel. Resting the kuzhambu for a short while helps the flavors settle beautifully.",
+    tips_de:
+      "Mixe die Kokospaste ganz fein fur das beste Mundgefuhl. Eine kurze Ruhezeit hilft dem Kuzhambu, damit sich die Aromen schon verbinden.",
+    storage_en: "Refrigerate for up to 2 days. Reheat gently so the coconut base stays smooth.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. Sanft erwarmen, damit die Kokosbasis glatt bleibt.",
+    nutrition: {
+      calories_kcal: "190",
+      fat_g: "10",
+      saturated_fat_g: "7",
+      carbs_g: "20",
+      fiber_g: "6",
+      sugar_g: "4",
+      protein_g: "6",
+      sodium_mg: "260",
+      note_en: "Approximate nutrition per serving for avarakkai poricha kuzhambu.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur Avarakkai Poricha Kuzhambu.",
+    },
+    faq: [
+      {
+        question_en: "Can I use frozen field beans?",
+        question_de: "Kann ich gefrorene Feldbohnen verwenden?",
+        answer_en: "Yes, but reduce the cooking time because they soften faster than fresh beans.",
+        answer_de: "Ja, aber verkuerze die Garzeit, weil sie schneller weich werden als frische Bohnen.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The coconut paste feels raw.",
+        issue_de: "Die Kokospaste schmeckt roh.",
+        fix_en: "Let the kuzhambu simmer gently for a little longer after adding the ground paste.",
+        fix_de: "Lass das Kuzhambu nach dem Zugeben der gemahlenen Paste noch etwas langer sanft kochen.",
+      },
+    ],
+  },
+  "paneer-biryani": {
+    tips_en:
+      "Marinate the paneer ahead so it absorbs flavor without needing long cooking. Season the liquid a touch stronger than usual because the rice will mellow everything.",
+    tips_de:
+      "Mariniere den Paneer im Voraus, damit er Geschmack aufnimmt, ohne lange gekocht werden zu mussen. Wurze die Flussigkeit etwas kraftiger, weil der Reis alles mildert.",
+    storage_en:
+      "Refrigerate for up to 2 days. Reheat gently with a spoon of water in a covered pan so the rice stays soft.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. Mit einem Loffel Wasser in einer abgedeckten Pfanne sanft aufwarmen, damit der Reis weich bleibt.",
+    nutrition: {
+      calories_kcal: "430",
+      fat_g: "16",
+      saturated_fat_g: "6",
+      carbs_g: "56",
+      fiber_g: "3",
+      sugar_g: "4",
+      protein_g: "15",
+      sodium_mg: "470",
+      note_en: "Approximate nutrition per serving for pressure cooker paneer biryani.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur Paneer-Biryani aus dem Schnellkochtopf.",
+    },
+    faq: [
+      {
+        question_en: "Can I make this without saffron?",
+        question_de: "Kann ich das ohne Safran machen?",
+        answer_en: "Yes. It will still taste good; saffron mainly adds aroma and a festive touch.",
+        answer_de: "Ja. Es schmeckt trotzdem gut; Safran sorgt vor allem fur Aroma und einen festlichen Charakter.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The rice turned mushy.",
+        issue_de: "Der Reis ist matschig geworden.",
+        fix_en: "Reduce the water slightly next time and release the pressure naturally without extra cooking time.",
+        fix_de: "Reduziere beim nachsten Mal das Wasser etwas und lasse den Druck naturlich abfallen, ohne zusatzliche Garzeit.",
+      },
+    ],
+  },
+  "vegetable-biryani-pressure-cooker": {
+    tips_en:
+      "Keep the rice soaking time moderate and measure the water carefully. Grinding the mint paste fine helps the flavor spread evenly through the rice.",
+    tips_de:
+      "Halte die Einweichzeit des Reises moderat und miss das Wasser genau ab. Eine fein gemahlene Minzpaste verteilt den Geschmack gleichmassig im Reis.",
+    storage_en:
+      "Refrigerate for up to 2 days. Reheat covered with a splash of water so the rice stays fluffy.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. Abgedeckt mit einem Spritzer Wasser aufwarmen, damit der Reis locker bleibt.",
+    nutrition: {
+      calories_kcal: "345",
+      fat_g: "10",
+      saturated_fat_g: "2",
+      carbs_g: "57",
+      fiber_g: "5",
+      sugar_g: "5",
+      protein_g: "8",
+      sodium_mg: "410",
+      note_en: "Approximate nutrition per serving for quick vegetable biryani.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur schnelles Gemuse-Biryani.",
+    },
+    faq: [
+      {
+        question_en: "Is this good for lunch boxes?",
+        question_de: "Eignet sich das fur Lunchboxen?",
+        answer_en: "Yes. It was designed as a fast one-pot biryani that packs and reheats well.",
+        answer_de: "Ja. Es wurde als schnelles One-Pot-Biryani gedacht, das sich gut einpacken und aufwarmen lasst.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The biryani lacks flavor.",
+        issue_de: "Das Biryani hat zu wenig Geschmack.",
+        fix_en: "Add a little more mint paste, salt, or biryani masala before pressure cooking.",
+        fix_de: "Gib vor dem Druckgaren etwas mehr Minzpaste, Salz oder Biryani-Masala dazu.",
+      },
+    ],
+  },
+  "vegetable-biryani-without-onion-garlic": {
+    tips_en:
+      "The separate capsicum and cauliflower step is worth doing because it protects their texture. Grind the herb paste very smooth so the biryani still tastes layered without onion or garlic.",
+    tips_de:
+      "Der separate Schritt fur Paprika und Blumenkohl lohnt sich, weil ihre Struktur dadurch erhalten bleibt. Mahle die Krauterpaste sehr fein, damit das Biryani auch ohne Zwiebel und Knoblauch vielschichtig schmeckt.",
+    storage_en:
+      "Refrigerate for up to 2 days. Reheat gently and fold the rice rather than stirring hard.",
+    storage_de:
+      "Bis zu 2 Tage im Kuhlschrank lagern. Sanft erwarmen und den Reis eher locker unterheben als stark zu ruhren.",
+    nutrition: {
+      calories_kcal: "360",
+      fat_g: "11",
+      saturated_fat_g: "2.5",
+      carbs_g: "58",
+      fiber_g: "5",
+      sugar_g: "4",
+      protein_g: "7",
+      sodium_mg: "395",
+      note_en: "Approximate nutrition per serving for no-onion no-garlic vegetable biryani.",
+      note_de: "Ungefahrer Nahrwert pro Portion fur Gemuse-Biryani ohne Zwiebel und Knoblauch.",
+    },
+    faq: [
+      {
+        question_en: "Will it still taste like biryani without onion and garlic?",
+        question_de: "Schmeckt es auch ohne Zwiebel und Knoblauch nach Biryani?",
+        answer_en: "Yes. The herb paste, whole spices, and careful vegetable handling give it plenty of character.",
+        answer_de: "Ja. Die Krauterpaste, die ganzen Gewurze und der sorgsame Umgang mit dem Gemuse geben ihm viel Charakter.",
+      },
+    ],
+    troubleshooting: [
+      {
+        issue_en: "The vegetables turned too soft.",
+        issue_de: "Das Gemuse ist zu weich geworden.",
+        fix_en: "Keep the cauliflower and capsicum separate until the end as the source method suggests.",
+        fix_de: "Halte Blumenkohl und Paprika bis zum Ende getrennt, so wie es die Vorlage empfiehlt.",
+      },
+    ],
+  },
+};
+
+export const starterRecipes: StarterRecipe[] = rawStarterRecipes.map((recipe) => ({
+  ...recipe,
+  ...(starterRecipeEnhancements[recipe.slug] ?? {}),
+}));
 
 export function buildStarterRecipeRows(userId: string) {
   // We inject the current user's id at install time so each recipe belongs to that user account.

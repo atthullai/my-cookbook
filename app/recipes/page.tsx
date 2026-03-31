@@ -11,7 +11,7 @@ export default function RecipeIndexPage() {
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const chouxTemplate = starterRecipes.find((recipe) => recipe.slug === "choux-au-craquelin");
+  const starterRecipeBySlug = new Map(starterRecipes.map((recipe) => [recipe.slug, recipe]));
 
   const loadRecipes = useEffectEvent(async () => {
     const {
@@ -38,60 +38,81 @@ export default function RecipeIndexPage() {
       setRecipes([]);
     } else {
       const normalizedRecipes = mapRecipeRows(data ?? []);
-      const staleChouxRecipes = normalizedRecipes.filter(
-        (recipe) =>
-          recipe.slug === "choux-au-craquelin" &&
-          chouxTemplate &&
-          (recipe.image_urls.length < chouxTemplate.image_urls.length ||
-            !recipe.video_url ||
-            recipe.servings !== chouxTemplate.servings)
-      );
+      const staleStarterRecipes = normalizedRecipes.filter((recipe) => {
+        const starterTemplate = starterRecipeBySlug.get(recipe.slug);
 
-      if (chouxTemplate && staleChouxRecipes.length > 0) {
+        if (!starterTemplate) {
+          return false;
+        }
+
+        return (
+          (!recipe.tips_en && !!starterTemplate.tips_en) ||
+          (!recipe.storage_en && !!starterTemplate.storage_en) ||
+          ((recipe.faq?.length ?? 0) < (starterTemplate.faq?.length ?? 0)) ||
+          ((recipe.troubleshooting?.length ?? 0) < (starterTemplate.troubleshooting?.length ?? 0)) ||
+          ((recipe.step_photos?.length ?? 0) < (starterTemplate.step_photos?.length ?? 0)) ||
+          (!recipe.nutrition && !!starterTemplate.nutrition) ||
+          recipe.image_urls.length < starterTemplate.image_urls.length ||
+          (!recipe.video_url && !!starterTemplate.video_url) ||
+          recipe.equipment.length < starterTemplate.equipment.length ||
+          recipe.servings !== starterTemplate.servings
+        );
+      });
+
+      if (staleStarterRecipes.length > 0) {
         await Promise.all(
-          staleChouxRecipes.map((recipe) =>
-            supabase
+          staleStarterRecipes.map((recipe) => {
+            const starterTemplate = starterRecipeBySlug.get(recipe.slug);
+
+            if (!starterTemplate) {
+              return Promise.resolve();
+            }
+
+            return supabase
               .from("recipes")
               .update({
-                title_en: chouxTemplate.title_en,
-                title_de: chouxTemplate.title_de,
-                author_name: chouxTemplate.author_name,
-                learned_from: chouxTemplate.learned_from,
-                description_en: chouxTemplate.description_en,
-                description_de: chouxTemplate.description_de,
-                category: chouxTemplate.category,
-                tags: chouxTemplate.tags,
-                ingredients: chouxTemplate.ingredients,
-                steps_en: chouxTemplate.steps_en,
-                steps_de: chouxTemplate.steps_de,
-                notes_en: chouxTemplate.notes_en,
-                notes_de: chouxTemplate.notes_de,
-                tips_en: chouxTemplate.tips_en,
-                tips_de: chouxTemplate.tips_de,
-                storage_en: chouxTemplate.storage_en,
-                storage_de: chouxTemplate.storage_de,
-                faq: chouxTemplate.faq,
-                troubleshooting: chouxTemplate.troubleshooting,
-                step_photos: chouxTemplate.step_photos,
-                source_url: chouxTemplate.source_url,
-                video_url: chouxTemplate.video_url,
-                servings: chouxTemplate.servings,
-                equipment: chouxTemplate.equipment,
-                image_urls: chouxTemplate.image_urls,
+                title_en: starterTemplate.title_en,
+                title_de: starterTemplate.title_de,
+                author_name: starterTemplate.author_name,
+                learned_from: starterTemplate.learned_from,
+                description_en: starterTemplate.description_en,
+                description_de: starterTemplate.description_de,
+                category: starterTemplate.category,
+                tags: starterTemplate.tags,
+                ingredients: starterTemplate.ingredients,
+                steps_en: starterTemplate.steps_en,
+                steps_de: starterTemplate.steps_de,
+                notes_en: starterTemplate.notes_en,
+                notes_de: starterTemplate.notes_de,
+                tips_en: starterTemplate.tips_en,
+                tips_de: starterTemplate.tips_de,
+                storage_en: starterTemplate.storage_en,
+                storage_de: starterTemplate.storage_de,
+                nutrition: starterTemplate.nutrition,
+                faq: starterTemplate.faq,
+                troubleshooting: starterTemplate.troubleshooting,
+                step_photos: starterTemplate.step_photos,
+                source_url: starterTemplate.source_url,
+                video_url: starterTemplate.video_url,
+                servings: starterTemplate.servings,
+                equipment: starterTemplate.equipment,
+                image_urls: starterTemplate.image_urls,
               })
               .eq("id", recipe.id)
-          )
+          })
         );
 
         setRecipes(
-          normalizedRecipes.map((recipe) =>
-            recipe.slug === "choux-au-craquelin"
+          normalizedRecipes.map((recipe) => {
+            const starterTemplate = starterRecipeBySlug.get(recipe.slug);
+
+            return starterTemplate && staleStarterRecipes.some((item) => item.id === recipe.id)
               ? {
                   ...recipe,
-                  ...chouxTemplate,
+                  ...starterTemplate,
                 }
-              : recipe
-          )
+              : recipe;
+          })
         );
       } else {
         setRecipes(normalizedRecipes);

@@ -464,13 +464,21 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       <div className="card" style={{ marginTop: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            <h3 style={{ marginBottom: 8 }}>Nutrition Facts</h3>
+            <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Nahrwerte" : "Nutrition Facts"}</h3>
             <p style={{ marginBottom: 0 }}>
-              Calculated from the ingredient list and current servings when nutrition is enabled.
+              {lang === "de"
+                ? "Die Nahrwerte werden fur dieses Rezept manuell eingetragen und pro Portion angezeigt."
+                : "Nutrition values are entered manually for this recipe and shown per serving."}
             </p>
           </div>
           <button className="button button-primary" type="button" onClick={() => setShowNutrition((current) => !current)}>
-            {showNutrition ? "Hide Nutrition" : "Show Nutrition"}
+            {lang === "de"
+              ? showNutrition
+                ? "Nahrwerte ausblenden"
+                : "Nahrwerte anzeigen"
+              : showNutrition
+                ? "Hide Nutrition"
+                : "Show Nutrition"}
           </button>
         </div>
 
