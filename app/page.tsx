@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
 import { getRecipeTitle, normalizeRecipe } from "@/lib/recipe-types";
-import { applySampleRecipePreset, buildSampleRecipe } from "@/lib/sample-recipes";
+import { curatedRecipes } from "@/data/curated-recipes";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
@@ -13,7 +13,6 @@ export default function Home() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [lang, setLang] = useState<AppLanguage>("en");
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,7 +53,11 @@ export default function Home() {
         alert(error.message);
         setRecipes([]);
       } else {
-        setRecipes((data ?? []).map(normalizeRecipe).map(applySampleRecipePreset));
+        setRecipes(
+          (data ?? [])
+            .map(normalizeRecipe)
+            .filter((recipe) => recipe.title_en !== "Choux Au Craquelin (Cream Puff)")
+        );
       }
 
       setLoading(false);
@@ -67,17 +70,11 @@ export default function Home() {
     };
   }, []);
 
-  // Search both languages so switching language never hides a known recipe unexpectedly.
-  const categories = ["All", ...new Set(recipes.map((recipe) => recipe.category?.trim()).filter(Boolean) as string[])];
+  // Home shows both curated cookbook entries and your own personal recipes.
+  const allRecipes = [...curatedRecipes, ...recipes];
 
-  const filteredRecipes = recipes.filter((recipe) => {
+  const filteredRecipes = allRecipes.filter((recipe) => {
     const searchValue = search.trim().toLowerCase();
-    const categoryMatches =
-      selectedCategory === "All" || (recipe.category ?? "").toLowerCase() === selectedCategory.toLowerCase();
-
-    if (!categoryMatches) {
-      return false;
-    }
 
     if (!searchValue) {
       return true;
@@ -117,36 +114,33 @@ export default function Home() {
     setRecipes((currentRecipes) => currentRecipes.filter((recipe) => recipe.id !== recipeId));
   };
 
-  const handleImportSampleRecipe = async () => {
+  const handleDeleteAllRecipes = async () => {
     if (!user) {
       alert("Please log in first.");
       return;
     }
 
-    const hasRecipeAlready = recipes.some((recipe) => recipe.title_en === "Choux Au Craquelin (Cream Puff)");
+    const confirmed = window.confirm("Delete all your saved recipes? This only affects your own recipes, not the built-in cookbook collection.");
 
-    if (hasRecipeAlready) {
-      alert("The sample recipe is already in your cookbook.");
+    if (!confirmed) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("recipes")
-      .insert([buildSampleRecipe(user.id)])
-      .select()
-      .single();
+    const { error } = await supabase.from("recipes").delete().eq("user_id", user.id);
 
-    if (error || !data) {
-      alert(error?.message || "Could not import the sample recipe.");
+    if (error) {
+      alert(error.message);
       return;
     }
 
-    setRecipes((currentRecipes) => [applySampleRecipePreset(normalizeRecipe(data)), ...currentRecipes]);
+    setRecipes([]);
   };
+
+  const latestRecipes = filteredRecipes.slice(0, 6);
 
   return (
     <main className="container">
-      {/* Header actions stay at the top so login and recipe creation are always reachable. */}
+      {/* Home works as an editorial landing page with quick access to the newest recipes. */}
       <div
         style={{
           display: "flex",
@@ -159,7 +153,9 @@ export default function Home() {
       >
         <div>
           <h1>My Cookbook</h1>
-          <p style={{ marginBottom: 0 }}>Private bilingual recipes, easy to search and edit.</p>
+          <p style={{ marginBottom: 0 }}>
+            A private family cookbook with bilingual recipes, personal notes, and the stories behind who taught them to me.
+          </p>
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -182,8 +178,8 @@ export default function Home() {
           </Link>
 
           {user ? (
-            <button className="button" type="button" onClick={() => void handleImportSampleRecipe()}>
-              Import Sample Recipe
+            <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
+              Delete My Recipes
             </button>
           ) : null}
         </div>
@@ -210,39 +206,39 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Search is intentionally broad so it catches titles, categories, and tags. */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
+        <p style={{ marginBottom: 12 }}>
+          Home shows the newest highlights. For the full structured collection, use the recipe index.
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link href="/recipes" className="button">
+            Open Recipe Index
+          </Link>
+          <Link href="/about" className="button">
+            About Me
+          </Link>
+        </div>
+      </div>
+
       <input
         className="input"
-        placeholder="Search recipes, categories, or tags..."
+        placeholder="Search all recipes, categories, or tags..."
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
 
-      {/* Category chips start moving the homepage toward a proper recipe index. */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-        {categories.map((category) => (
-          <button
-            key={category}
-            className="button"
-            type="button"
-            onClick={() => setSelectedCategory(category)}
-            style={{ background: selectedCategory === category ? "#f0d6c5" : undefined }}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-
       {loading ? <p style={{ marginTop: 12 }}>Loading recipes...</p> : null}
 
       {!loading && filteredRecipes.length === 0 ? (
-        <p style={{ marginTop: 12 }}>{recipes.length === 0 ? "No recipes yet." : "No recipes match your search."}</p>
+        <p style={{ marginTop: 12 }}>No recipes match your search.</p>
       ) : null}
 
-      <div style={{ marginTop: 16 }}>
-        {filteredRecipes.map((recipe) => (
+      <div style={{ marginTop: 18 }}>
+        <h2 style={{ marginBottom: 10 }}>Newest Recipes</h2>
+
+        {latestRecipes.map((recipe) => (
           <div key={recipe.id} className="card">
-            {/* Each card keeps actions local so edit/delete live with the recipe they affect. */}
             <div
               style={{
                 display: "flex",
@@ -253,13 +249,17 @@ export default function Home() {
               }}
             >
               <div>
-                <Link href={`/recipe/${recipe.id}`}>
+                <Link href={`/recipe/${recipe.slug}`}>
                   <h2 style={{ marginBottom: 6 }}>{getRecipeTitle(recipe, lang)}</h2>
                 </Link>
                 <p style={{ marginBottom: 0, opacity: 0.75 }}>{recipe.category || "Uncategorized"}</p>
+                <p style={{ marginTop: 8, marginBottom: 0 }}>
+                  By {recipe.author_name || "Saran"}
+                  {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
+                </p>
               </div>
 
-              {user?.id === recipe.user_id ? (
+              {!recipe.is_curated && typeof recipe.id === "number" && user?.id === recipe.user_id ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Link href={`/edit/${recipe.id}`} className="button">
                     Edit
@@ -268,7 +268,7 @@ export default function Home() {
                   <button
                     className="button button-danger"
                     type="button"
-                    onClick={() => void handleDelete(recipe.id)}
+                    onClick={() => void handleDelete(recipe.id as number)}
                   >
                     Delete
                   </button>

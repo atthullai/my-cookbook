@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { RecipeRecord } from "@/lib/recipe-types";
+import { getCuratedRecipeBySlug } from "@/data/curated-recipes";
 import { normalizeRecipe, parseRecipeId } from "@/lib/recipe-types";
-import { applySampleRecipePreset } from "@/lib/sample-recipes";
 import { supabase } from "@/lib/supabase";
 import RecipeClient from "./RecipeClient";
 
 export default function RecipePage() {
   const params = useParams();
-  const recipeId = parseRecipeId(params.id);
+  const rawRecipeId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const recipeId = parseRecipeId(rawRecipeId);
 
   const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,14 @@ export default function RecipePage() {
     let isMounted = true;
 
     const fetchRecipe = async () => {
+      const curatedRecipe = rawRecipeId ? getCuratedRecipeBySlug(rawRecipeId) : null;
+
+      if (curatedRecipe) {
+        setRecipe(curatedRecipe);
+        setLoading(false);
+        return;
+      }
+
       if (!recipeId) {
         setLoading(false);
         return;
@@ -34,7 +43,8 @@ export default function RecipePage() {
       if (error || !data) {
         setRecipe(null);
       } else {
-        setRecipe(applySampleRecipePreset(normalizeRecipe(data)));
+        const normalizedRecipe = normalizeRecipe(data);
+        setRecipe(normalizedRecipe.title_en === "Choux Au Craquelin (Cream Puff)" ? null : normalizedRecipe);
       }
 
       setLoading(false);
@@ -45,7 +55,7 @@ export default function RecipePage() {
     return () => {
       isMounted = false;
     };
-  }, [recipeId]);
+  }, [rawRecipeId, recipeId]);
 
   if (loading) {
     return (

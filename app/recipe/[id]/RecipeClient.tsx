@@ -97,6 +97,10 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div>
           <h1>{recipeTitle}</h1>
           <p style={{ marginBottom: 0 }}>{recipe.category || "Uncategorized"}</p>
+          <p style={{ marginTop: 8, marginBottom: 0 }}>
+            By {recipe.author_name || "Saran"}
+            {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
+          </p>
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

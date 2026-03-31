@@ -17,10 +17,13 @@ export type RecipeIngredientGroup = {
 };
 
 export type RecipeRecord = {
-  id: number;
+  id: number | string;
+  slug: string;
   user_id: string;
   title_en: string;
   title_de: string | null;
+  author_name?: string | null;
+  learned_from?: string | null;
   description_en?: string | null;
   description_de?: string | null;
   category: string | null;
@@ -35,6 +38,7 @@ export type RecipeRecord = {
   servings?: number | null;
   equipment?: string[];
   image_urls?: string[];
+  is_curated?: boolean;
 };
 
 function normalizeString(value: unknown): string {
@@ -83,9 +87,12 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
 
   return {
     id: typeof raw.id === "number" ? raw.id : Number(raw.id ?? 0),
+    slug: normalizeString(raw.slug) || normalizeString(raw.id) || crypto.randomUUID(),
     user_id: normalizeString(raw.user_id),
     title_en: normalizeString(raw.title_en),
     title_de: normalizeString(raw.title_de) || null,
+    author_name: normalizeString(raw.author_name) || "Saran",
+    learned_from: normalizeString(raw.learned_from) || null,
     description_en: normalizeString(raw.description_en) || null,
     description_de: normalizeString(raw.description_de) || null,
     category: normalizeString(raw.category) || null,
@@ -115,6 +122,7 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     image_urls: Array.isArray(raw.image_urls)
       ? raw.image_urls.map((item) => normalizeString(item).trim()).filter(Boolean)
       : [],
+    is_curated: Boolean(raw.is_curated),
   };
 }
 

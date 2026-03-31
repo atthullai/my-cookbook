@@ -30,6 +30,26 @@ body {
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
 }
 
+.site-shell {
+  padding: 20px 20px 0;
+}
+
+.site-nav {
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  border: 1px solid var(--border);
+  background: rgba(255, 250, 241, 0.72);
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(78, 49, 28, 0.08);
+}
+
 a {
   color: inherit;
   text-decoration: none;
