@@ -3,14 +3,14 @@
 
 update public.recipes
 set
-  image_urls = '[
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/03/8F349275-0C27-49E9-9354-00ADCE137B29.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/03/48970508-2529-485E-B5AE-6F6B6368C9A4-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/03/IMG_5295_jpg-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/03/image-476.png",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/03/image-477.png",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/03/image-478.png"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/03/8F349275-0C27-49E9-9354-00ADCE137B29.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/03/48970508-2529-485E-B5AE-6F6B6368C9A4-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/03/IMG_5295_jpg-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/03/image-476.png',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/03/image-477.png',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/03/image-478.png'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -42,14 +42,14 @@ where slug = 'palakkura-pappu';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-6.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-1.png",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-10.png",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-11.png",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-12.png",
-    "https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-13.png"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-6.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-1.png',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-10.png',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-11.png',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-12.png',
+    'https://traditionallymodernfood.com/wp-content/uploads/2025/01/chidambaram-gosthu-chidambaram-goshtu-13.png'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -81,12 +81,12 @@ where slug = 'chidambaram-gosthu';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-66-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-62.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-63.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-65.jpeg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-66-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-62.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-63.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2022/01/tiffin-sambar-hotel-style-idli-sambar-65.jpeg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -118,14 +118,14 @@ where slug = 'tiffin-sambar';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-1-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-10-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-11-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-12-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-13-scaled.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-16-scaled.jpeg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-1-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-10-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-11-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-12-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-13-scaled.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2024/04/cooker-pav-bhaji-pav-bhaji-in-cooker-pressure-cooker-pav-bhaji-16-scaled.jpeg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -163,13 +163,13 @@ where slug = 'cooker-pav-bhaji';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-22.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-10.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-12.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-16.jpeg",
-    "https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-19.jpeg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-22.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-10.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-12.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-16.jpeg',
+    'https://traditionallymodernfood.com/wp-content/uploads/2015/09/vendakkai-mor-kuzhambu-mor-kulambu-19.jpeg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -201,9 +201,9 @@ where slug = 'mor-kuzhambu';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://traditionallymodernfood.com/wp-content/uploads/2023/03/andhra-style-tomato-pappu-tomato-dal-50-scaled.jpeg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://traditionallymodernfood.com/wp-content/uploads/2023/03/andhra-style-tomato-pappu-tomato-dal-50-scaled.jpeg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -217,13 +217,13 @@ where slug = 'tomato-pappu';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2015/08/dhaba-style-dal-tadka.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/19716967504_f531644b82_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/19718628053_9c7de0328b_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/20151546150_a67ed624ee_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/20151546630_9702f2eaa3_z.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2015/08/dhaba-style-dal-tadka.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/19716967504_f531644b82_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/19718628053_9c7de0328b_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/20151546150_a67ed624ee_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/20151546630_9702f2eaa3_z.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -255,9 +255,9 @@ where slug = 'dhaba-dal-tadka';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2009/10/green-moong-dal-subzi-recipe.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2009/10/green-moong-dal-subzi-recipe.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -271,13 +271,13 @@ where slug = 'green-moong-dal-sabzi';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2013/08/paneer-recipes.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/21830142675_34622b0d44_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/21839715411_4b57950104_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/27828932234_6dd2c6c8ec_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/27828932644_9f35c3f644_z.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2013/08/paneer-recipes.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/21830142675_34622b0d44_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/21839715411_4b57950104_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/27828932234_6dd2c6c8ec_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/27828932644_9f35c3f644_z.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -309,13 +309,13 @@ where slug = 'paneer-butter-masala';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2012/06/avarakkai-poricha-kuzhambhu.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3723.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3725.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3733.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3737.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2012/06/avarakkai-poricha-kuzhambhu.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3723.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3725.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3733.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/02/IMG_3737.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -346,10 +346,10 @@ where slug = 'avarakkai-poricha-kuzhambu';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2018/04/paneer-biryani.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2018/04/IMG_7407-1.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2018/04/paneer-biryani.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2018/04/IMG_7407-1.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -368,13 +368,13 @@ where slug = 'paneer-biryani';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2013/10/vegetable-biryani-in-pressure.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326903924_6456642828_z.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326904934_f847f4e9f5_m.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326907044_59b91bc1de_m.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326907714_4c5dd04750_m.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2013/10/vegetable-biryani-in-pressure.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326903924_6456642828_z.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326904934_f847f4e9f5_m.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326907044_59b91bc1de_m.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2022/04/10326907714_4c5dd04750_m.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
@@ -406,13 +406,13 @@ where slug = 'vegetable-biryani-pressure-cooker';
 
 update public.recipes
 set
-  image_urls = '[
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/Veg-biryani-1.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6723.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6732.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6737.jpg",
-    "https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6740.jpg"
-  ]'::jsonb,
+  image_urls = ARRAY[
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/Veg-biryani-1.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6723.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6732.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6737.jpg',
+    'https://www.jeyashriskitchen.com/wp-content/uploads/2009/09/IMG_6740.jpg'
+  ]::text[],
   step_photos = '[
     {
       "step_number": "1",
