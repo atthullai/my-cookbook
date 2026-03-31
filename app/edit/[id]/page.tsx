@@ -10,10 +10,9 @@ export default function EditRecipe() {
   const params = useParams();
   const recipeId = Number(params.id);
 
-  // ✅ MAIN RECIPE STATE
   const [recipe, setRecipe] = useState<any>(null);
 
-  // ✅ NEW: structured ingredients (THIS is what we care about)
+  // ✅ Always store ingredients as simple flat list (UI friendly)
   const [ingredientsList, setIngredientsList] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -48,8 +47,11 @@ export default function EditRecipe() {
 
       setRecipe(data);
 
-      // ✅ IMPORTANT: load structured ingredients
-      setIngredientsList(data.ingredients || []);
+      // ✅ IMPORTANT: flatten ingredients for editing
+      const flatIngredients =
+        data.ingredients?.[0]?.items || [];
+
+      setIngredientsList(flatIngredients);
 
       setLoading(false);
     };
@@ -57,7 +59,7 @@ export default function EditRecipe() {
     if (recipeId) fetchData();
   }, [recipeId, router]);
 
-  // 🌍 TRANSLATE (we keep it for now)
+  // 🌍 TRANSLATE (unchanged)
   const translate = async (text: string) => {
     if (!text) return "";
     try {
@@ -73,7 +75,7 @@ export default function EditRecipe() {
     }
   };
 
-  // ✅ UPDATE INGREDIENT FIELD (FIXED TYPE SAFE)
+  // ✅ UPDATE INGREDIENT
   const updateIngredient = (
     index: number,
     field: "amount" | "unit" | "name",
@@ -84,7 +86,7 @@ export default function EditRecipe() {
     setIngredientsList(updated);
   };
 
-  // ✅ ADD NEW INGREDIENT
+  // ✅ ADD
   const addIngredient = () => {
     setIngredientsList([
       ...ingredientsList,
@@ -92,9 +94,11 @@ export default function EditRecipe() {
     ]);
   };
 
-  // ✅ DELETE INGREDIENT
+  // ✅ DELETE
   const removeIngredient = (index: number) => {
-    setIngredientsList(ingredientsList.filter((_, i) => i !== index));
+    setIngredientsList(
+      ingredientsList.filter((_, i) => i !== index)
+    );
   };
 
   // ✅ SAVE
@@ -107,6 +111,16 @@ export default function EditRecipe() {
     const autoStepsDe =
       recipe.steps_de || (await translate(recipe.steps_en));
 
+    // ✅ CLEAN INGREDIENTS (THIS FIXES NaN)
+    const cleanIngredients = ingredientsList.map((i) => ({
+      name: i.name || "",
+      unit: i.unit || "",
+      amount:
+        i.amount === "" || i.amount === null
+          ? null
+          : Number(i.amount),
+    }));
+
     const { error } = await supabase
       .from("recipes")
       .update({
@@ -115,11 +129,11 @@ export default function EditRecipe() {
         category: recipe.category,
         tags: recipe.tags,
 
-        // ✅ Upgraded Ingredients List
+        // ✅ ALWAYS SAVE STRUCTURED
         ingredients: [
           {
             group: "Main",
-            items: ingredientsList,
+            items: cleanIngredients,
           },
         ],
 
@@ -161,7 +175,6 @@ export default function EditRecipe() {
           onChange={(e) =>
             setRecipe({ ...recipe, title_en: e.target.value })
           }
-          placeholder="Title EN"
         />
 
         <input
@@ -170,7 +183,6 @@ export default function EditRecipe() {
           onChange={(e) =>
             setRecipe({ ...recipe, title_de: e.target.value })
           }
-          placeholder="Title DE"
         />
 
         {/* CATEGORY */}
@@ -180,7 +192,6 @@ export default function EditRecipe() {
           onChange={(e) =>
             setRecipe({ ...recipe, category: e.target.value })
           }
-          placeholder="Category"
         />
 
         {/* TAGS */}
@@ -193,10 +204,9 @@ export default function EditRecipe() {
               tags: e.target.value.split(",").map((t) => t.trim()),
             })
           }
-          placeholder="Tags"
         />
 
-        {/* ✅ INGREDIENTS (STRUCTURED) */}
+        {/* INGREDIENTS */}
         <div>
           <h3>Ingredients</h3>
 
@@ -253,7 +263,6 @@ export default function EditRecipe() {
           onChange={(e) =>
             setRecipe({ ...recipe, steps_en: e.target.value })
           }
-          placeholder="Steps EN"
         />
 
         <textarea
@@ -262,7 +271,6 @@ export default function EditRecipe() {
           onChange={(e) =>
             setRecipe({ ...recipe, steps_de: e.target.value })
           }
-          placeholder="Steps DE"
         />
 
         <button className="button button-primary">
