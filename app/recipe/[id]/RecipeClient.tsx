@@ -111,6 +111,21 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         { label_en: "Sugar", label_de: "Zucker", value: recipe.nutrition.sugar_g, unit: "g" },
         { label_en: "Protein", label_de: "Protein", value: recipe.nutrition.protein_g, unit: "g" },
         { label_en: "Sodium", label_de: "Natrium", value: recipe.nutrition.sodium_mg, unit: "mg" },
+        { label_en: "Cholesterol", label_de: "Cholesterin", value: recipe.nutrition.cholesterol_mg, unit: "mg" },
+        { label_en: "Potassium", label_de: "Kalium", value: recipe.nutrition.potassium_mg, unit: "mg" },
+        { label_en: "Calcium", label_de: "Kalzium", value: recipe.nutrition.calcium_mg, unit: "mg" },
+        { label_en: "Iron", label_de: "Eisen", value: recipe.nutrition.iron_mg, unit: "mg" },
+        { label_en: "Magnesium", label_de: "Magnesium", value: recipe.nutrition.magnesium_mg, unit: "mg" },
+        { label_en: "Phosphorus", label_de: "Phosphor", value: recipe.nutrition.phosphorus_mg, unit: "mg" },
+        { label_en: "Zinc", label_de: "Zink", value: recipe.nutrition.zinc_mg, unit: "mg" },
+        { label_en: "Vitamin A", label_de: "Vitamin A", value: recipe.nutrition.vitamin_a_mcg, unit: "mcg" },
+        { label_en: "Vitamin C", label_de: "Vitamin C", value: recipe.nutrition.vitamin_c_mg, unit: "mg" },
+        { label_en: "Vitamin D", label_de: "Vitamin D", value: recipe.nutrition.vitamin_d_mcg, unit: "mcg" },
+        { label_en: "Vitamin E", label_de: "Vitamin E", value: recipe.nutrition.vitamin_e_mg, unit: "mg" },
+        { label_en: "Vitamin K", label_de: "Vitamin K", value: recipe.nutrition.vitamin_k_mcg, unit: "mcg" },
+        { label_en: "Vitamin B6", label_de: "Vitamin B6", value: recipe.nutrition.vitamin_b6_mg, unit: "mg" },
+        { label_en: "Vitamin B12", label_de: "Vitamin B12", value: recipe.nutrition.vitamin_b12_mcg, unit: "mcg" },
+        { label_en: "Folate", label_de: "Folat", value: recipe.nutrition.folate_mcg, unit: "mcg" },
       ].filter((item) => item.value.trim())
     : [];
 

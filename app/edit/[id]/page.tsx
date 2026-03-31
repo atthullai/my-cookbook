@@ -137,22 +137,7 @@ export default function EditRecipe() {
       setTipsDe(normalizedRecipe.tips_de || "");
       setStorageEn(normalizedRecipe.storage_en || "");
       setStorageDe(normalizedRecipe.storage_de || "");
-      setNutrition(
-        normalizedRecipe.nutrition
-          ? {
-              calories_kcal: normalizedRecipe.nutrition.calories_kcal,
-              fat_g: normalizedRecipe.nutrition.fat_g,
-              saturated_fat_g: normalizedRecipe.nutrition.saturated_fat_g,
-              carbs_g: normalizedRecipe.nutrition.carbs_g,
-              fiber_g: normalizedRecipe.nutrition.fiber_g,
-              sugar_g: normalizedRecipe.nutrition.sugar_g,
-              protein_g: normalizedRecipe.nutrition.protein_g,
-              sodium_mg: normalizedRecipe.nutrition.sodium_mg,
-              note_en: normalizedRecipe.nutrition.note_en,
-              note_de: normalizedRecipe.nutrition.note_de,
-            }
-          : { ...EMPTY_NUTRITION }
-      );
+      setNutrition(normalizedRecipe.nutrition ? { ...EMPTY_NUTRITION, ...normalizedRecipe.nutrition } : { ...EMPTY_NUTRITION });
       setFaq(
         normalizedRecipe.faq?.length
           ? normalizedRecipe.faq.map((item) => ({

@@ -55,6 +55,21 @@ export type RecipeNutritionFacts = {
   sugar_g: string;
   protein_g: string;
   sodium_mg: string;
+  cholesterol_mg: string;
+  potassium_mg: string;
+  calcium_mg: string;
+  iron_mg: string;
+  magnesium_mg: string;
+  phosphorus_mg: string;
+  zinc_mg: string;
+  vitamin_a_mcg: string;
+  vitamin_c_mg: string;
+  vitamin_d_mcg: string;
+  vitamin_e_mg: string;
+  vitamin_k_mcg: string;
+  vitamin_b6_mg: string;
+  vitamin_b12_mcg: string;
+  folate_mcg: string;
   note_en: string;
   note_de: string;
 };
@@ -213,6 +228,21 @@ function normalizeNutrition(value: unknown): RecipeNutritionFacts | null {
     sugar_g: normalizeString(raw.sugar_g),
     protein_g: normalizeString(raw.protein_g),
     sodium_mg: normalizeString(raw.sodium_mg),
+    cholesterol_mg: normalizeString(raw.cholesterol_mg),
+    potassium_mg: normalizeString(raw.potassium_mg),
+    calcium_mg: normalizeString(raw.calcium_mg),
+    iron_mg: normalizeString(raw.iron_mg),
+    magnesium_mg: normalizeString(raw.magnesium_mg),
+    phosphorus_mg: normalizeString(raw.phosphorus_mg),
+    zinc_mg: normalizeString(raw.zinc_mg),
+    vitamin_a_mcg: normalizeString(raw.vitamin_a_mcg),
+    vitamin_c_mg: normalizeString(raw.vitamin_c_mg),
+    vitamin_d_mcg: normalizeString(raw.vitamin_d_mcg),
+    vitamin_e_mg: normalizeString(raw.vitamin_e_mg),
+    vitamin_k_mcg: normalizeString(raw.vitamin_k_mcg),
+    vitamin_b6_mg: normalizeString(raw.vitamin_b6_mg),
+    vitamin_b12_mcg: normalizeString(raw.vitamin_b12_mcg),
+    folate_mcg: normalizeString(raw.folate_mcg),
     note_en: normalizeString(raw.note_en),
     note_de: normalizeString(raw.note_de) || normalizeString(raw.note_en),
   };
@@ -451,6 +481,21 @@ export type NutritionDraft = {
   sugar_g: string;
   protein_g: string;
   sodium_mg: string;
+  cholesterol_mg: string;
+  potassium_mg: string;
+  calcium_mg: string;
+  iron_mg: string;
+  magnesium_mg: string;
+  phosphorus_mg: string;
+  zinc_mg: string;
+  vitamin_a_mcg: string;
+  vitamin_c_mg: string;
+  vitamin_d_mcg: string;
+  vitamin_e_mg: string;
+  vitamin_k_mcg: string;
+  vitamin_b6_mg: string;
+  vitamin_b12_mcg: string;
+  folate_mcg: string;
   note_en: string;
   note_de: string;
 };
@@ -464,6 +509,21 @@ export const EMPTY_NUTRITION: NutritionDraft = {
   sugar_g: "",
   protein_g: "",
   sodium_mg: "",
+  cholesterol_mg: "",
+  potassium_mg: "",
+  calcium_mg: "",
+  iron_mg: "",
+  magnesium_mg: "",
+  phosphorus_mg: "",
+  zinc_mg: "",
+  vitamin_a_mcg: "",
+  vitamin_c_mg: "",
+  vitamin_d_mcg: "",
+  vitamin_e_mg: "",
+  vitamin_k_mcg: "",
+  vitamin_b6_mg: "",
+  vitamin_b12_mcg: "",
+  folate_mcg: "",
   note_en: "",
   note_de: "",
 };

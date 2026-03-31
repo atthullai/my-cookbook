@@ -291,6 +291,21 @@ export default function RecipeForm(props: RecipeFormProps) {
           <input className="input" value={props.nutrition.sugar_g} onChange={(event) => props.onNutritionChange("sugar_g", event.target.value)} placeholder="Sugar (g)" />
           <input className="input" value={props.nutrition.protein_g} onChange={(event) => props.onNutritionChange("protein_g", event.target.value)} placeholder="Protein (g)" />
           <input className="input" value={props.nutrition.sodium_mg} onChange={(event) => props.onNutritionChange("sodium_mg", event.target.value)} placeholder="Sodium (mg)" />
+          <input className="input" value={props.nutrition.cholesterol_mg} onChange={(event) => props.onNutritionChange("cholesterol_mg", event.target.value)} placeholder="Cholesterol (mg)" />
+          <input className="input" value={props.nutrition.potassium_mg} onChange={(event) => props.onNutritionChange("potassium_mg", event.target.value)} placeholder="Potassium (mg)" />
+          <input className="input" value={props.nutrition.calcium_mg} onChange={(event) => props.onNutritionChange("calcium_mg", event.target.value)} placeholder="Calcium (mg)" />
+          <input className="input" value={props.nutrition.iron_mg} onChange={(event) => props.onNutritionChange("iron_mg", event.target.value)} placeholder="Iron (mg)" />
+          <input className="input" value={props.nutrition.magnesium_mg} onChange={(event) => props.onNutritionChange("magnesium_mg", event.target.value)} placeholder="Magnesium (mg)" />
+          <input className="input" value={props.nutrition.phosphorus_mg} onChange={(event) => props.onNutritionChange("phosphorus_mg", event.target.value)} placeholder="Phosphorus (mg)" />
+          <input className="input" value={props.nutrition.zinc_mg} onChange={(event) => props.onNutritionChange("zinc_mg", event.target.value)} placeholder="Zinc (mg)" />
+          <input className="input" value={props.nutrition.vitamin_a_mcg} onChange={(event) => props.onNutritionChange("vitamin_a_mcg", event.target.value)} placeholder="Vitamin A (mcg)" />
+          <input className="input" value={props.nutrition.vitamin_c_mg} onChange={(event) => props.onNutritionChange("vitamin_c_mg", event.target.value)} placeholder="Vitamin C (mg)" />
+          <input className="input" value={props.nutrition.vitamin_d_mcg} onChange={(event) => props.onNutritionChange("vitamin_d_mcg", event.target.value)} placeholder="Vitamin D (mcg)" />
+          <input className="input" value={props.nutrition.vitamin_e_mg} onChange={(event) => props.onNutritionChange("vitamin_e_mg", event.target.value)} placeholder="Vitamin E (mg)" />
+          <input className="input" value={props.nutrition.vitamin_k_mcg} onChange={(event) => props.onNutritionChange("vitamin_k_mcg", event.target.value)} placeholder="Vitamin K (mcg)" />
+          <input className="input" value={props.nutrition.vitamin_b6_mg} onChange={(event) => props.onNutritionChange("vitamin_b6_mg", event.target.value)} placeholder="Vitamin B6 (mg)" />
+          <input className="input" value={props.nutrition.vitamin_b12_mcg} onChange={(event) => props.onNutritionChange("vitamin_b12_mcg", event.target.value)} placeholder="Vitamin B12 (mcg)" />
+          <input className="input" value={props.nutrition.folate_mcg} onChange={(event) => props.onNutritionChange("folate_mcg", event.target.value)} placeholder="Folate (mcg)" />
         </div>
         <textarea className="input" value={props.nutrition.note_en} onChange={(event) => props.onNutritionChange("note_en", event.target.value)} placeholder="Nutrition note (EN)" />
         <textarea className="input" value={props.nutrition.note_de} onChange={(event) => props.onNutritionChange("note_de", event.target.value)} placeholder="Nutrition note (DE)" />
