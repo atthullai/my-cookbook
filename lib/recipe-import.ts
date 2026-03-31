@@ -94,6 +94,94 @@ function extractJsonLdRecipe(html: string): JsonLdValue | null {
   return null;
 }
 
+function stripHtml(value: string): string {
+  return decodeHtmlEntities(value)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractMetaContent(html: string, name: string): string {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escapedName}["'][^>]+content=["']([^"']+)["']`, "i"));
+  return match ? decodeHtmlEntities(match[1]).trim() : "";
+}
+
+function extractHeadingText(html: string): string {
+  const match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  return match ? stripHtml(match[1]) : "";
+}
+
+function extractLegacyIngredients(html: string): string[] {
+  const matches = [...html.matchAll(/<span[^>]*class=["'][^"']*inglist[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)];
+  return matches.map((match) => stripHtml(match[1])).filter((line) => line && !/^[\s\u00a0]*$/.test(line));
+}
+
+function extractLegacyServings(html: string): string {
+  const match = html.match(/serves<\/b>\s*:\s*([^|<]+)/i);
+  return match ? stripHtml(match[1]).match(/\d+(\.\d+)?/)?.[0] || stripHtml(match[1]) : "";
+}
+
+function extractLegacyDescription(html: string): string {
+  const ogDescription = extractMetaContent(html, "og:description");
+  if (ogDescription) return ogDescription;
+
+  const firstParagraph = html.match(/<div[^>]*class=["'][^"']*tdb-block-inner[^"']*["'][^>]*>[\s\S]*?<div[^>]*>([\s\S]*?)<p><\/p>/i);
+  return firstParagraph ? stripHtml(firstParagraph[1]) : "";
+}
+
+function extractLegacyMethodSteps(html: string): string[] {
+  const stepWiseSection = html.match(/Method with step wise pictures:([\s\S]*?)(?:<\/div>\s*<\/div>\s*<\/div>|<div id="respond"|$)/i);
+  const methodSection = stepWiseSection?.[1] || html.match(/<h2>Method:?<\/h2>([\s\S]*?)(?:<h2>Method with step wise pictures:|<div id="respond"|$)/i)?.[1] || "";
+
+  const steps = [...methodSection.matchAll(/<li>([\s\S]*?)<\/li>/gi)]
+    .map((match) => stripHtml(match[1]))
+    .filter(Boolean);
+
+  return steps;
+}
+
+function extractLegacyStepPhotos(html: string, fallbackSteps: string[]) {
+  const stepWiseSection = html.match(/Method with step wise pictures:([\s\S]*?)(?:<\/div>\s*<\/div>\s*<\/div>|<div id="respond"|$)/i)?.[1] || "";
+  const imageMatches = [...stepWiseSection.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)]
+    .map((match) => decodeHtmlEntities(match[1]))
+    .filter((image) => /wp-content\/uploads/i.test(image));
+
+  return imageMatches.slice(0, 8).map((imageUrl, index) => ({
+    step_number: String(index + 1),
+    image_url: imageUrl,
+    caption_en: fallbackSteps[index] || `Process photo ${index + 1}`,
+  }));
+}
+
+function extractLegacyRecipe(html: string, sourceUrl: URL): JsonLdValue | null {
+  const ingredients = extractLegacyIngredients(html);
+  const instructions = extractLegacyMethodSteps(html);
+  const title = extractHeadingText(html) || extractMetaContent(html, "og:title");
+
+  if (!title || ingredients.length === 0 || instructions.length === 0) {
+    return null;
+  }
+
+  return {
+    "@type": "Recipe",
+    name: title,
+    description: extractLegacyDescription(html),
+    author: extractMetaContent(html, "author") || getHostLabel(sourceUrl),
+    recipeYield: extractLegacyServings(html),
+    recipeIngredient: ingredients,
+    recipeInstructions: instructions,
+    recipeCategory: extractMetaContent(html, "article:section"),
+    keywords: extractMetaContent(html, "article:tag"),
+    image: [...new Set([extractMetaContent(html, "og:image"), ...extractImageUrls(html, {})])].filter(Boolean),
+    video: extractVideoUrl(html, {}),
+    _legacyStepPhotos: extractLegacyStepPhotos(html, instructions),
+  };
+}
+
 function normalizeText(value: unknown): string {
   return typeof value === "string" ? decodeHtmlEntities(value).replace(/\s+/g, " ").trim() : "";
 }
@@ -332,7 +420,7 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
   }
 
   const html = await response.text();
-  const recipe = extractJsonLdRecipe(html);
+  const recipe = extractJsonLdRecipe(html) || extractLegacyRecipe(html, url);
 
   if (!recipe) {
     throw new Error("I could not find recipe data on that page yet.");
@@ -340,6 +428,12 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
 
   const imageUrls = extractImageUrls(html, recipe);
   const steps = buildStepText(recipe);
+
+  const legacyStepPhotos =
+    Array.isArray(recipe._legacyStepPhotos) &&
+    recipe._legacyStepPhotos.every((item) => item && typeof item === "object")
+      ? (recipe._legacyStepPhotos as ImportedRecipeDraft["stepPhotos"])
+      : [];
 
   return {
     sourceUrl: url.toString(),
@@ -353,7 +447,7 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
     steps,
     notesEn: extractNotes(recipe),
     imageUrls,
-    stepPhotos: buildStepPhotos(steps, imageUrls),
+    stepPhotos: legacyStepPhotos.length > 0 ? legacyStepPhotos : buildStepPhotos(steps, imageUrls),
     videoUrl: extractVideoUrl(html, recipe),
   };
 }
