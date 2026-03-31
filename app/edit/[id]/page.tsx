@@ -115,10 +115,14 @@ export default function EditRecipe() {
         category: recipe.category,
         tags: recipe.tags,
 
-        // ✅ IMPORTANT: save structured ingredients
-        ingredients: ingredientsList,
+        // ✅ Upgraded Ingredients List
+        ingredients: [
+          {
+            group: "Main",
+            items: ingredientsList,
+          },
+        ],
 
-        // ❌ we STOP relying on old string fields
         steps_en: recipe.steps_en,
         steps_de: autoStepsDe,
       })

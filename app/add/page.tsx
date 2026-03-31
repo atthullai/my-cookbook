@@ -108,8 +108,13 @@ export default function AddRecipe() {
         category,
         tags: tags ? tags.split(",").map((t) => t.trim()) : [],
 
-        // ✅ STRUCTURED INGREDIENTS
-        ingredients: cleanedIngredients,
+        // ✅ New Structured Ingredients
+        ingredients: [
+          {
+            group: "Main",
+            items: ingredientsList,
+          },
+        ],
 
         steps_en: steps,
         steps_de: autoStepsDe,
