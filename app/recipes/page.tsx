@@ -73,13 +73,20 @@ export default function RecipeIndexPage() {
       return;
     }
 
-    const confirmed = window.confirm("Replace your current recipes with the built-in recipe collection?");
+    const confirmed = window.confirm("Add the built-in recipe collection without deleting your current recipes?");
     if (!confirmed) return;
 
     setSyncing(true);
 
-    const rows = buildStarterRecipeRows(user.id);
-    await supabase.from("recipes").delete().eq("user_id", user.id);
+    // Only add built-in recipes whose slugs are not already present in this user's cookbook.
+    const existingSlugs = new Set(recipes.map((recipe) => recipe.slug));
+    const rows = buildStarterRecipeRows(user.id).filter((recipe) => !existingSlugs.has(recipe.slug));
+
+    if (rows.length === 0) {
+      setSyncing(false);
+      alert("All built-in recipes are already in your cookbook.");
+      return;
+    }
 
     const { error } = await supabase.from("recipes").insert(rows);
     if (error) {
@@ -101,7 +108,7 @@ export default function RecipeIndexPage() {
         <div className="card" style={{ marginTop: 20, marginBottom: 20 }}>
           <h2 style={{ marginBottom: 8 }}>Collection Tools</h2>
           <p style={{ marginBottom: 12 }}>
-            Use this only when you want to replace your current cookbook with the built-in recipe collection.
+            Add the built-in recipes to your cookbook without deleting anything you already created.
           </p>
           <button
             className="button button-primary"
@@ -109,7 +116,7 @@ export default function RecipeIndexPage() {
             onClick={() => void handleSyncCollection()}
             disabled={syncing}
           >
-            {syncing ? "Syncing..." : "Sync Built-In Recipe Collection"}
+            {syncing ? "Adding..." : "Add Built-In Recipes"}
           </button>
         </div>
       ) : null}
