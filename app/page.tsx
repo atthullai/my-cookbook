@@ -125,10 +125,9 @@ export default function Home() {
     setSyncing(true);
 
     const rows = buildStarterRecipeRows(user.id);
-    const starterSlugs = rows.map((recipe) => recipe.slug);
 
-    // Remove any old starter copies first so repeated installs stay clean.
-    await supabase.from("recipes").delete().eq("user_id", user.id).in("slug", starterSlugs);
+    // Replace everything so the starter cookbook becomes the clean baseline.
+    await supabase.from("recipes").delete().eq("user_id", user.id);
 
     const { error } = await supabase.from("recipes").insert(rows);
     if (error) {
@@ -179,7 +178,7 @@ export default function Home() {
 
           {user ? (
             <button className="button" type="button" onClick={() => void handleInstallStarterCookbook()}>
-              {syncing ? "Installing..." : "Install Starter Cookbook"}
+              {syncing ? "Replacing..." : "Replace With Starter Cookbook"}
             </button>
           ) : null}
 

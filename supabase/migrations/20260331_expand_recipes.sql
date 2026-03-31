@@ -20,3 +20,10 @@ set slug = lower(regexp_replace(coalesce(title_en, id::text), '[^a-zA-Z0-9]+', '
 where slug is null or slug = '';
 
 create unique index if not exists recipes_user_slug_idx on public.recipes (user_id, slug);
+
+create table if not exists public.user_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  display_name text default 'Saran',
+  about_me_en text,
+  about_me_de text
+);

@@ -232,6 +232,18 @@ export const EMPTY_INGREDIENT: IngredientDraft = {
   unit: "",
 };
 
+export type IngredientGroupDraft = {
+  group_en: string;
+  group_de: string;
+  items: IngredientDraft[];
+};
+
+export const EMPTY_INGREDIENT_GROUP: IngredientGroupDraft = {
+  group_en: "Main",
+  group_de: "Hauptteil",
+  items: [{ ...EMPTY_INGREDIENT }],
+};
+
 export type EquipmentDraft = {
   label_en: string;
   label_de: string;

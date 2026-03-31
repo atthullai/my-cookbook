@@ -6,6 +6,77 @@ type StarterRecipe = Omit<RecipeRecord, "id" | "user_id">;
 
 export const starterRecipes: StarterRecipe[] = [
   {
+    slug: "choux-au-craquelin",
+    title_en: "Choux Au Craquelin (Cream Puff)",
+    title_de: "Choux au Craquelin mit Vanille-Diplomatcreme",
+    author_name: ownerName,
+    learned_from: "The Baking Spoon",
+    description_en: "A crisp-topped cream puff with vanilla diplomat cream and fresh berries.",
+    description_de: "Ein knuspriges Choux mit Vanille-Diplomatcreme und frischen Beeren.",
+    category: "Dessert",
+    tags: ["french pastry", "cream puff", "berries", "baking"],
+    ingredients: [
+      {
+        group_en: "Vanilla Diplomat Cream",
+        group_de: "Vanille-Diplomatcreme",
+        items: [
+          { amount: "3", unit: "", name_en: "egg yolks", name_de: "Eigelb" },
+          { amount: "45", unit: "g", name_en: "granulated sugar", name_de: "Zucker" },
+          { amount: "25", unit: "g", name_en: "cornstarch", name_de: "Speisestarke" },
+          { amount: "250", unit: "g", name_en: "milk", name_de: "Milch" },
+          { amount: "22", unit: "g", name_en: "unsalted butter", name_de: "ungesalzene Butter" },
+        ],
+      },
+      {
+        group_en: "Craquelin",
+        group_de: "Craquelin",
+        items: [
+          { amount: "50", unit: "g", name_en: "unsalted butter", name_de: "ungesalzene Butter" },
+          { amount: "60", unit: "g", name_en: "brown sugar", name_de: "brauner Zucker" },
+          { amount: "60", unit: "g", name_en: "all-purpose flour", name_de: "Mehl" },
+        ],
+      },
+      {
+        group_en: "Choux Pastry",
+        group_de: "Brandteig",
+        items: [
+          { amount: "62", unit: "g", name_en: "water", name_de: "Wasser" },
+          { amount: "62", unit: "g", name_en: "milk", name_de: "Milch" },
+          { amount: "55", unit: "g", name_en: "unsalted butter", name_de: "ungesalzene Butter" },
+          { amount: "75", unit: "g", name_en: "all-purpose flour", name_de: "Mehl" },
+          { amount: "100-120", unit: "g", name_en: "eggs, lightly beaten", name_de: "leicht verquirlte Eier" },
+          { amount: "", unit: "", name_en: "berries and powdered sugar", name_de: "Beeren und Puderzucker" },
+        ],
+      },
+    ],
+    steps_en: [
+      "1. Make the diplomat cream and chill it completely.",
+      "2. Mix and chill the craquelin dough, then cut small rounds.",
+      "3. Cook the choux base, add eggs gradually, and pipe rounds.",
+      "4. Top with craquelin and bake until deeply golden.",
+      "5. Cool, fill with diplomat cream and berries, then dust with powdered sugar.",
+    ].join("\n"),
+    steps_de: [
+      "1. Zuerst die Diplomatcreme kochen und komplett kalt stellen.",
+      "2. Craquelin-Teig mischen, kühlen und kleine Kreise ausstechen.",
+      "3. Den Brandteig kochen, Eier nach und nach einarbeiten und aufspritzen.",
+      "4. Mit Craquelin belegen und goldbraun backen.",
+      "5. Abkuhlen, mit Creme und Beeren fullen und mit Puderzucker servieren.",
+    ].join("\n"),
+    notes_en: "Best served the same day for the lightest shell and cream texture.",
+    notes_de: "Am besten am selben Tag servieren, damit Schale und Creme perfekt bleiben.",
+    source_url: "https://www.thebakingspoon.com/choux-au-craquelin-vanilla-bean-diplomat-cream/",
+    video_url: null,
+    servings: 10,
+    equipment: [
+      { label_en: "Saucepan", label_de: "Topf" },
+      { label_en: "Mixer", label_de: "Mixer" },
+      { label_en: "Piping bag", label_de: "Spritzbeutel" },
+      { label_en: "Baking tray", label_de: "Backblech" },
+    ],
+    image_urls: [],
+  },
+  {
     slug: "palakkura-pappu",
     title_en: "Nagarjuna-Style Palakkura Pappu",
     title_de: "Palakkura Pappu nach Nagarjuna-Art",

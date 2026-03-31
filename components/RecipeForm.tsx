@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import type { EquipmentDraft, IngredientDraft } from "@/lib/recipe-types";
+import type { EquipmentDraft, IngredientDraft, IngredientGroupDraft } from "@/lib/recipe-types";
 
 type RecipeFormProps = {
   title: string;
@@ -12,9 +12,7 @@ type RecipeFormProps = {
   descriptionDe: string;
   category: string;
   tags: string;
-  ingredientGroupEn: string;
-  ingredientGroupDe: string;
-  ingredients: IngredientDraft[];
+  ingredientGroups: IngredientGroupDraft[];
   steps: string;
   stepsDe: string;
   notesEn: string;
@@ -35,11 +33,12 @@ type RecipeFormProps = {
   onDescriptionDeChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onTagsChange: (value: string) => void;
-  onIngredientGroupEnChange: (value: string) => void;
-  onIngredientGroupDeChange: (value: string) => void;
-  onIngredientAdd: () => void;
-  onIngredientRemove: (index: number) => void;
-  onIngredientChange: (index: number, field: keyof IngredientDraft, value: string) => void;
+  onIngredientGroupAdd: () => void;
+  onIngredientGroupRemove: (groupIndex: number) => void;
+  onIngredientGroupChange: (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => void;
+  onIngredientAdd: (groupIndex: number) => void;
+  onIngredientRemove: (groupIndex: number, ingredientIndex: number) => void;
+  onIngredientChange: (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string) => void;
   onStepsChange: (value: string) => void;
   onStepsDeChange: (value: string) => void;
   onNotesEnChange: (value: string) => void;
@@ -56,7 +55,6 @@ type RecipeFormProps = {
 export default function RecipeForm(props: RecipeFormProps) {
   return (
     <form onSubmit={props.onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-      {/* These top-level fields define who owns the recipe and where it came from. */}
       <input className="input" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="Title (EN)" />
       <input className="input" value={props.titleDe} onChange={(event) => props.onTitleDeChange(event.target.value)} placeholder="Title (DE)" />
       <input className="input" value={props.authorName} onChange={(event) => props.onAuthorNameChange(event.target.value)} placeholder="Author name" />
@@ -75,80 +73,89 @@ export default function RecipeForm(props: RecipeFormProps) {
       <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
 
       <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 8 }}>Ingredient Section</h3>
-        <p style={{ marginBottom: 12 }}>Everything is bilingual now, so the `DE` button can switch ingredients too.</p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-          <input
-            className="input"
-            value={props.ingredientGroupEn}
-            onChange={(event) => props.onIngredientGroupEnChange(event.target.value)}
-            placeholder="Section title (EN)"
-          />
-          <input
-            className="input"
-            value={props.ingredientGroupDe}
-            onChange={(event) => props.onIngredientGroupDeChange(event.target.value)}
-            placeholder="Section title (DE)"
-          />
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Ingredient Sections</h3>
+            <p style={{ marginBottom: 0 }}>Use as many sections as you want: dough, filling, tempering, garnish, and so on.</p>
+          </div>
+          <button className="button" type="button" onClick={props.onIngredientGroupAdd}>
+            + Add Section
+          </button>
         </div>
 
-        {props.ingredients.map((ingredient, index) => (
-          <div
-            key={`ingredient-${index}`}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "110px 110px 1fr 1fr auto",
-              gap: 8,
-              marginBottom: 8,
-              alignItems: "center",
-            }}
-          >
-            <input
-              className="input"
-              placeholder="Amount"
-              value={ingredient.amount}
-              onChange={(event) => props.onIngredientChange(index, "amount", event.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="Unit"
-              value={ingredient.unit}
-              onChange={(event) => props.onIngredientChange(index, "unit", event.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="Ingredient (EN)"
-              value={ingredient.name_en}
-              onChange={(event) => props.onIngredientChange(index, "name_en", event.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="Ingredient (DE)"
-              value={ingredient.name_de}
-              onChange={(event) => props.onIngredientChange(index, "name_de", event.target.value)}
-            />
-            <button className="button" type="button" onClick={() => props.onIngredientRemove(index)}>
-              Remove
+        {props.ingredientGroups.map((group, groupIndex) => (
+          <div key={`group-${groupIndex}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 10 }}>
+              <input
+                className="input"
+                value={group.group_en}
+                onChange={(event) => props.onIngredientGroupChange(groupIndex, "group_en", event.target.value)}
+                placeholder="Section title (EN)"
+              />
+              <input
+                className="input"
+                value={group.group_de}
+                onChange={(event) => props.onIngredientGroupChange(groupIndex, "group_de", event.target.value)}
+                placeholder="Section title (DE)"
+              />
+              <button className="button" type="button" onClick={() => props.onIngredientGroupRemove(groupIndex)}>
+                Remove Section
+              </button>
+            </div>
+
+            {group.items.map((ingredient, ingredientIndex) => (
+              <div
+                key={`ingredient-${groupIndex}-${ingredientIndex}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "110px 110px 1fr 1fr auto",
+                  gap: 8,
+                  marginBottom: 8,
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  className="input"
+                  placeholder="Amount"
+                  value={ingredient.amount}
+                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "amount", event.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Unit"
+                  value={ingredient.unit}
+                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "unit", event.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Ingredient (EN)"
+                  value={ingredient.name_en}
+                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", event.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Ingredient (DE)"
+                  value={ingredient.name_de}
+                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_de", event.target.value)}
+                />
+                <button className="button" type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}>
+                  Remove
+                </button>
+              </div>
+            ))}
+
+            <button className="button" type="button" onClick={() => props.onIngredientAdd(groupIndex)}>
+              + Add Ingredient
             </button>
           </div>
         ))}
-
-        <button className="button" type="button" onClick={props.onIngredientAdd}>
-          + Add Ingredient
-        </button>
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Instructions</h3>
-        <p style={{ marginBottom: 12 }}>Use `##` headings to keep long recipes beautifully sectioned.</p>
-        <textarea
-          className="input"
-          value={props.steps}
-          onChange={(event) => props.onStepsChange(event.target.value)}
-          placeholder={"Steps (EN)\n\n## Base\n1. Prep ingredients\n2. Cook gently"}
-        />
-        <textarea className="input" value={props.stepsDe} onChange={(event) => props.onStepsDeChange(event.target.value)} placeholder="Steps (DE)" />
+        <p style={{ marginBottom: 12 }}>Write normal numbered instructions. One step per line is fine.</p>
+        <textarea className="input" value={props.steps} onChange={(event) => props.onStepsChange(event.target.value)} placeholder={"1. Prep ingredients\n2. Cook gently\n3. Finish and serve"} />
+        <textarea className="input" value={props.stepsDe} onChange={(event) => props.onStepsDeChange(event.target.value)} placeholder="1. Zutaten vorbereiten\n2. Sanft kochen\n3. Fertig servieren" />
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
@@ -180,15 +187,9 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       <textarea className="input" value={props.notesEn} onChange={(event) => props.onNotesEnChange(event.target.value)} placeholder="Notes (EN)" />
       <textarea className="input" value={props.notesDe} onChange={(event) => props.onNotesDeChange(event.target.value)} placeholder="Notes (DE)" />
-
       <input className="input" value={props.sourceUrl} onChange={(event) => props.onSourceUrlChange(event.target.value)} placeholder="Source URL" />
       <input className="input" value={props.videoUrl} onChange={(event) => props.onVideoUrlChange(event.target.value)} placeholder="Video URL" />
-      <textarea
-        className="input"
-        value={props.imageUrls}
-        onChange={(event) => props.onImageUrlsChange(event.target.value)}
-        placeholder={"Photo URLs (one per line)\nhttps://..."}
-      />
+      <textarea className="input" value={props.imageUrls} onChange={(event) => props.onImageUrlsChange(event.target.value)} placeholder={"Photo URLs (one per line)\nhttps://..."} />
 
       <button className="button button-primary" type="submit" disabled={props.saving}>
         {props.saving ? "Saving..." : props.submitLabel}

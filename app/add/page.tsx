@@ -5,16 +5,12 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import RecipeForm from "@/components/RecipeForm";
 import { buildRecipePayload } from "@/lib/recipe-db";
-import type { AppUser, EquipmentDraft, IngredientDraft } from "@/lib/recipe-types";
-import { EMPTY_EQUIPMENT, EMPTY_INGREDIENT } from "@/lib/recipe-types";
+import type { AppUser, EquipmentDraft, IngredientDraft, IngredientGroupDraft } from "@/lib/recipe-types";
+import { EMPTY_EQUIPMENT, EMPTY_INGREDIENT, EMPTY_INGREDIENT_GROUP } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
 
 function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
 export default function AddRecipe() {
@@ -30,9 +26,7 @@ export default function AddRecipe() {
   const [descriptionDe, setDescriptionDe] = useState("");
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState("");
-  const [ingredientGroupEn, setIngredientGroupEn] = useState("Main");
-  const [ingredientGroupDe, setIngredientGroupDe] = useState("Hauptteil");
-  const [ingredientsList, setIngredientsList] = useState<IngredientDraft[]>([{ ...EMPTY_INGREDIENT }]);
+  const [ingredientGroups, setIngredientGroups] = useState<IngredientGroupDraft[]>([{ ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }]);
   const [steps, setSteps] = useState("");
   const [stepsDe, setStepsDe] = useState("");
   const [notesEn, setNotesEn] = useState("");
@@ -52,7 +46,6 @@ export default function AddRecipe() {
       } = await supabase.auth.getUser();
 
       if (!isMounted) return;
-
       if (!currentUser) {
         window.location.href = "/login";
         return;
@@ -63,7 +56,6 @@ export default function AddRecipe() {
     };
 
     void checkUser();
-
     return () => {
       isMounted = false;
     };
@@ -71,11 +63,8 @@ export default function AddRecipe() {
 
   const translate = async (text: string) => {
     if (!text.trim()) return "";
-
     try {
-      const response = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`
-      );
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`);
       const data = (await response.json()) as { responseData?: { translatedText?: string } };
       return data.responseData?.translatedText?.trim() || text;
     } catch {
@@ -83,8 +72,23 @@ export default function AddRecipe() {
     }
   };
 
-  const updateIngredient = (index: number, field: keyof IngredientDraft, value: string) => {
-    setIngredientsList((current) => current.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
+  const updateIngredientGroup = (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => {
+    setIngredientGroups((current) => current.map((group, index) => (index === groupIndex ? { ...group, [field]: value } : group)));
+  };
+
+  const updateIngredient = (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string) => {
+    setIngredientGroups((current) =>
+      current.map((group, currentGroupIndex) =>
+        currentGroupIndex === groupIndex
+          ? {
+              ...group,
+              items: group.items.map((ingredient, currentIngredientIndex) =>
+                currentIngredientIndex === ingredientIndex ? { ...ingredient, [field]: value } : ingredient
+              ),
+            }
+          : group
+      )
+    );
   };
 
   const updateEquipment = (index: number, field: keyof EquipmentDraft, value: string) => {
@@ -104,7 +108,7 @@ export default function AddRecipe() {
       return;
     }
 
-    if (!ingredientsList.some((ingredient) => ingredient.name_en.trim())) {
+    if (!ingredientGroups.some((group) => group.items.some((ingredient) => ingredient.name_en.trim()))) {
       alert("Please add at least one ingredient.");
       return;
     }
@@ -115,16 +119,24 @@ export default function AddRecipe() {
     const autoDescriptionDe = descriptionDe.trim() || (descriptionEn.trim() ? await translate(descriptionEn) : "");
     const autoStepsDe = stepsDe.trim() || (await translate(steps));
     const autoNotesDe = notesDe.trim() || (notesEn.trim() ? await translate(notesEn) : "");
+
+    const translatedGroups = await Promise.all(
+      ingredientGroups.map(async (group) => ({
+        group_en: group.group_en,
+        group_de: group.group_de.trim() || (group.group_en.trim() ? await translate(group.group_en) : ""),
+        items: await Promise.all(
+          group.items.map(async (ingredient) => ({
+            ...ingredient,
+            name_de: ingredient.name_de.trim() || (ingredient.name_en.trim() ? await translate(ingredient.name_en) : ""),
+          }))
+        ),
+      }))
+    );
+
     const translatedEquipment = await Promise.all(
       equipment.map(async (item) => ({
         label_en: item.label_en,
         label_de: item.label_de.trim() || (item.label_en.trim() ? await translate(item.label_en) : ""),
-      }))
-    );
-    const translatedIngredients = await Promise.all(
-      ingredientsList.map(async (item) => ({
-        ...item,
-        name_de: item.name_de.trim() || (item.name_en.trim() ? await translate(item.name_en) : ""),
       }))
     );
 
@@ -138,9 +150,7 @@ export default function AddRecipe() {
       descriptionDe: autoDescriptionDe,
       category,
       tags,
-      ingredients: translatedIngredients,
-      ingredientGroupEn,
-      ingredientGroupDe,
+      ingredientGroups: translatedGroups,
       stepsEn: steps,
       stepsDe: autoStepsDe,
       notesEn,
@@ -153,7 +163,6 @@ export default function AddRecipe() {
     });
 
     const { error } = await supabase.from("recipes").insert([{ ...payload, user_id: user.id }]);
-
     setSaving(false);
 
     if (error) {
@@ -164,13 +173,7 @@ export default function AddRecipe() {
     window.location.href = "/";
   };
 
-  if (loading) {
-    return (
-      <main className="container">
-        <p>Checking login...</p>
-      </main>
-    );
-  }
+  if (loading) return <main className="container"><p>Checking login...</p></main>;
 
   return (
     <main className="container">
@@ -186,9 +189,7 @@ export default function AddRecipe() {
         descriptionDe={descriptionDe}
         category={category}
         tags={tags}
-        ingredientGroupEn={ingredientGroupEn}
-        ingredientGroupDe={ingredientGroupDe}
-        ingredients={ingredientsList}
+        ingredientGroups={ingredientGroups}
         steps={steps}
         stepsDe={stepsDe}
         notesEn={notesEn}
@@ -209,14 +210,31 @@ export default function AddRecipe() {
         onDescriptionDeChange={setDescriptionDe}
         onCategoryChange={setCategory}
         onTagsChange={setTags}
-        onIngredientGroupEnChange={setIngredientGroupEn}
-        onIngredientGroupDeChange={setIngredientGroupDe}
-        onIngredientAdd={() => setIngredientsList((current) => [...current, { ...EMPTY_INGREDIENT }])}
-        onIngredientRemove={(index) =>
-          setIngredientsList((current) => {
-            const next = current.filter((_, i) => i !== index);
-            return next.length > 0 ? next : [{ ...EMPTY_INGREDIENT }];
+        onIngredientGroupAdd={() =>
+          setIngredientGroups((current) => [...current, { ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }])
+        }
+        onIngredientGroupRemove={(groupIndex) =>
+          setIngredientGroups((current) => {
+            const next = current.filter((_, index) => index !== groupIndex);
+            return next.length > 0 ? next : [{ ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }];
           })
+        }
+        onIngredientGroupChange={updateIngredientGroup}
+        onIngredientAdd={(groupIndex) =>
+          setIngredientGroups((current) =>
+            current.map((group, index) =>
+              index === groupIndex ? { ...group, items: [...group.items, { ...EMPTY_INGREDIENT }] } : group
+            )
+          )
+        }
+        onIngredientRemove={(groupIndex, ingredientIndex) =>
+          setIngredientGroups((current) =>
+            current.map((group, index) => {
+              if (index !== groupIndex) return group;
+              const nextItems = group.items.filter((_, currentIndex) => currentIndex !== ingredientIndex);
+              return { ...group, items: nextItems.length > 0 ? nextItems : [{ ...EMPTY_INGREDIENT }] };
+            })
+          )
         }
         onIngredientChange={updateIngredient}
         onStepsChange={setSteps}

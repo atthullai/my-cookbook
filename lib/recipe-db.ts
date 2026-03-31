@@ -1,27 +1,36 @@
-import type { EquipmentDraft, IngredientDraft, RecipeEquipmentItem, RecipeIngredient, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
+import type {
+  EquipmentDraft,
+  IngredientGroupDraft,
+  RecipeEquipmentItem,
+  RecipeIngredient,
+  RecipeIngredientGroup,
+  RecipeRecord,
+} from "@/lib/recipe-types";
 import { normalizeRecipe, parseTagInput } from "@/lib/recipe-types";
 
 export function mapRecipeRows(rows: unknown[]): RecipeRecord[] {
   return rows.map(normalizeRecipe);
 }
 
-export function buildIngredientPayload(groupNameEn: string, groupNameDe: string, ingredients: IngredientDraft[]): RecipeIngredientGroup[] {
-  const items: RecipeIngredient[] = ingredients
-    .filter((ingredient) => ingredient.name_en.trim())
-    .map((ingredient) => ({
-      name_en: ingredient.name_en.trim(),
-      name_de: ingredient.name_de.trim() || ingredient.name_en.trim(),
-      amount: ingredient.amount.trim() ? ingredient.amount.trim() : null,
-      unit: ingredient.unit.trim(),
-    }));
+export function buildIngredientPayload(groups: IngredientGroupDraft[]): RecipeIngredientGroup[] {
+  return groups
+    .map((group) => {
+      const items: RecipeIngredient[] = group.items
+        .filter((ingredient) => ingredient.name_en.trim())
+        .map((ingredient) => ({
+          name_en: ingredient.name_en.trim(),
+          name_de: ingredient.name_de.trim() || ingredient.name_en.trim(),
+          amount: ingredient.amount.trim() ? ingredient.amount.trim() : null,
+          unit: ingredient.unit.trim(),
+        }));
 
-  return [
-    {
-      group_en: groupNameEn.trim() || "Main",
-      group_de: groupNameDe.trim() || groupNameEn.trim() || "Main",
-      items,
-    },
-  ];
+      return {
+        group_en: group.group_en.trim() || "Main",
+        group_de: group.group_de.trim() || group.group_en.trim() || "Main",
+        items,
+      };
+    })
+    .filter((group) => group.items.length > 0);
 }
 
 export function buildEquipmentPayload(equipment: EquipmentDraft[]): RecipeEquipmentItem[] {
@@ -43,9 +52,7 @@ export function buildRecipePayload(input: {
   descriptionDe: string;
   category: string;
   tags: string;
-  ingredients: IngredientDraft[];
-  ingredientGroupEn: string;
-  ingredientGroupDe: string;
+  ingredientGroups: IngredientGroupDraft[];
   stepsEn: string;
   stepsDe: string;
   notesEn: string;
@@ -66,7 +73,7 @@ export function buildRecipePayload(input: {
     description_de: input.descriptionDe.trim() || null,
     category: input.category.trim() || null,
     tags: parseTagInput(input.tags),
-    ingredients: buildIngredientPayload(input.ingredientGroupEn, input.ingredientGroupDe, input.ingredients),
+    ingredients: buildIngredientPayload(input.ingredientGroups),
     steps_en: input.stepsEn.trim(),
     steps_de: input.stepsDe.trim() || null,
     notes_en: input.notesEn.trim() || null,
