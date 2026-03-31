@@ -1,12 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow remote demo photos from the reference recipe while keeping the host list tight.
+  // Recipe pages render source photos from the recipe blogs we import from.
   images: {
     remotePatterns: [
       {
         protocol: "https",
         hostname: "www.thebakingspoon.com",
+        pathname: "/wp-content/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "traditionallymodernfood.com",
+        pathname: "/wp-content/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.jeyashriskitchen.com",
         pathname: "/wp-content/uploads/**",
       },
     ],

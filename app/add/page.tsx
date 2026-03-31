@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import RecipeForm from "@/components/RecipeForm";
 import { buildRecipePayload } from "@/lib/recipe-db";
+import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import type {
   AppUser,
   EquipmentDraft,
@@ -38,6 +39,8 @@ export default function AddRecipe() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const [title, setTitle] = useState("");
   const [titleDe, setTitleDe] = useState("");
@@ -65,6 +68,55 @@ export default function AddRecipe() {
   const [servings, setServings] = useState("");
   const [equipment, setEquipment] = useState<EquipmentDraft[]>([{ ...EMPTY_EQUIPMENT }]);
   const [imageUrls, setImageUrls] = useState("");
+
+  const applyImportedRecipe = (recipe: ImportedRecipeDraft) => {
+    // Importing fills the same editor fields you already use manually, so the source recipe
+    // becomes an editable draft instead of a separate opaque object.
+    setTitle(recipe.title);
+    setTitleDe("");
+    setAuthorName("Saran");
+    setLearnedFrom(recipe.learnedFrom);
+    setDescriptionEn(recipe.description);
+    setDescriptionDe("");
+    setCategory(recipe.category);
+    setTags(recipe.tags);
+    setIngredientGroups(
+      recipe.ingredients.length
+        ? recipe.ingredients.map((group) => ({
+            group_en: group.group_en,
+            group_de: "",
+            items: group.items.map((item) => ({
+              amount: item.amount,
+              unit: item.unit,
+              name_en: item.name_en,
+              name_de: "",
+            })),
+          }))
+        : [{ ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }]
+    );
+    setSteps(recipe.steps);
+    setStepsDe("");
+    setNotesEn(recipe.notesEn);
+    setNotesDe("");
+    setTipsEn("");
+    setTipsDe("");
+    setStorageEn("");
+    setStorageDe("");
+    setFaq([]);
+    setTroubleshooting([]);
+    setNutrition({ ...EMPTY_NUTRITION });
+    setStepPhotos(
+      recipe.stepPhotos.map((item) => ({
+        ...item,
+        caption_de: "",
+      }))
+    );
+    setSourceUrl(recipe.sourceUrl);
+    setVideoUrl(recipe.videoUrl);
+    setServings(recipe.servings);
+    setEquipment([{ ...EMPTY_EQUIPMENT }]);
+    setImageUrls(recipe.imageUrls.join("\n"));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -253,6 +305,64 @@ export default function AddRecipe() {
     <main className="container">
       <Link href="/">← Back</Link>
       <h1>Add Recipe</h1>
+
+      <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+        <h3 style={{ marginBottom: 8 }}>Import From Source URL</h3>
+        <p style={{ marginBottom: 12 }}>
+          Paste a recipe link from a source page and I will prefill the editor with the title, ingredients, instructions, photos, and any video I can find.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            className="input"
+            style={{ flex: "1 1 460px" }}
+            value={importUrl}
+            onChange={(event) => setImportUrl(event.target.value)}
+            placeholder="https://example.com/recipe-page"
+          />
+          <button
+            className="button"
+            type="button"
+            disabled={importing}
+            onClick={async () => {
+              if (!importUrl.trim()) {
+                alert("Please paste a recipe URL first.");
+                return;
+              }
+
+              setImporting(true);
+
+              try {
+                const response = await fetch("/api/import-recipe", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    url: importUrl,
+                  }),
+                });
+
+                const data = (await response.json()) as {
+                  recipe?: ImportedRecipeDraft;
+                  error?: string;
+                };
+
+                if (!response.ok || !data.recipe) {
+                  throw new Error(data.error || "Recipe import failed.");
+                }
+
+                applyImportedRecipe(data.recipe);
+              } catch (error) {
+                alert(error instanceof Error ? error.message : "Recipe import failed.");
+              } finally {
+                setImporting(false);
+              }
+            }}
+          >
+            {importing ? "Importing..." : "Import Recipe"}
+          </button>
+        </div>
+      </div>
 
       {/* The form component handles the large UI; this page focuses on data flow and save behavior. */}
       <RecipeForm
