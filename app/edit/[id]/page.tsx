@@ -9,8 +9,10 @@ import { buildRecipePayload } from "@/lib/recipe-db";
 import type { AppUser, EquipmentDraft, IngredientDraft, IngredientGroupDraft, RecipeRecord } from "@/lib/recipe-types";
 import { EMPTY_EQUIPMENT, EMPTY_INGREDIENT, EMPTY_INGREDIENT_GROUP, normalizeRecipe, parseRecipeId } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
+import { translateEnglishToGerman } from "@/lib/translate";
 
 export default function EditRecipe() {
+  // Edit keeps a draft copy of every field so users can make many changes before saving once.
   const router = useRouter();
   const params = useParams();
   const recipeId = parseRecipeId(params.id);
@@ -67,6 +69,7 @@ export default function EditRecipe() {
         return;
       }
 
+      // Normalize the database row into the app's richer bilingual shape before filling the form.
       const normalizedRecipe = normalizeRecipe(data);
       if (normalizedRecipe.user_id !== currentUser.id) {
         router.push("/");
@@ -120,17 +123,6 @@ export default function EditRecipe() {
     };
   }, [recipeId, router]);
 
-  const translate = async (text: string) => {
-    if (!text.trim()) return "";
-    try {
-      const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`);
-      const data = (await response.json()) as { responseData?: { translatedText?: string } };
-      return data.responseData?.translatedText?.trim() || text;
-    } catch {
-      return text;
-    }
-  };
-
   const updateIngredientGroup = (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => {
     setIngredientGroups((current) => current.map((group, index) => (index === groupIndex ? { ...group, [field]: value } : group)));
   };
@@ -161,19 +153,19 @@ export default function EditRecipe() {
 
     setSaving(true);
 
-    const autoTitleDe = titleDe.trim() || (await translate(title));
-    const autoDescriptionDe = descriptionDe.trim() || (descriptionEn.trim() ? await translate(descriptionEn) : "");
-    const autoStepsDe = stepsDe.trim() || (await translate(steps));
-    const autoNotesDe = notesDe.trim() || (notesEn.trim() ? await translate(notesEn) : "");
+    const autoTitleDe = titleDe.trim() || (await translateEnglishToGerman(title));
+    const autoDescriptionDe = descriptionDe.trim() || (descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "");
+    const autoStepsDe = stepsDe.trim() || (await translateEnglishToGerman(steps));
+    const autoNotesDe = notesDe.trim() || (notesEn.trim() ? await translateEnglishToGerman(notesEn) : "");
 
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
         group_en: group.group_en,
-        group_de: group.group_de.trim() || (group.group_en.trim() ? await translate(group.group_en) : ""),
+        group_de: group.group_de.trim() || (group.group_en.trim() ? await translateEnglishToGerman(group.group_en) : ""),
         items: await Promise.all(
           group.items.map(async (ingredient) => ({
             ...ingredient,
-            name_de: ingredient.name_de.trim() || (ingredient.name_en.trim() ? await translate(ingredient.name_en) : ""),
+            name_de: ingredient.name_de.trim() || (ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : ""),
           }))
         ),
       }))
@@ -182,10 +174,11 @@ export default function EditRecipe() {
     const translatedEquipment = await Promise.all(
       equipment.map(async (item) => ({
         label_en: item.label_en,
-        label_de: item.label_de.trim() || (item.label_en.trim() ? await translate(item.label_en) : ""),
+        label_de: item.label_de.trim() || (item.label_en.trim() ? await translateEnglishToGerman(item.label_en) : ""),
       }))
     );
 
+    // Rebuild the entire recipe payload from the current draft state before updating Supabase.
     const payload = buildRecipePayload({
       slug: recipe.slug,
       titleEn: title,
@@ -226,6 +219,7 @@ export default function EditRecipe() {
       <Link href="/">← Back</Link>
       <h1>Edit Recipe</h1>
 
+      {/* The edit page reuses the same form as create so there is only one editor to maintain. */}
       <RecipeForm
         title={title}
         titleDe={titleDe}

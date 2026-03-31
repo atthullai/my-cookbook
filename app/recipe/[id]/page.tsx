@@ -9,13 +9,16 @@ import { supabase } from "@/lib/supabase";
 import RecipeClient from "./RecipeClient";
 
 export default function RecipePage() {
+  // Read the dynamic route param and normalize it into a numeric recipe id.
   const params = useParams();
   const recipeId = parseRecipeId(params.id);
 
+  // This wrapper fetches the recipe; RecipeClient handles display logic and interactions.
   const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Guard against setting state if the component unmounts before Supabase returns.
     let isMounted = true;
 
     const fetchRecipe = async () => {
@@ -24,6 +27,7 @@ export default function RecipePage() {
         return;
       }
 
+      // Fetch the latest recipe row directly from Supabase so edits show immediately.
       const { data, error } = await supabase.from("recipes").select("*").eq("id", recipeId).single();
 
       if (!isMounted) return;
@@ -31,6 +35,7 @@ export default function RecipePage() {
       if (error || !data) {
         setRecipe(null);
       } else {
+        // Convert the raw DB row into the normalized front-end recipe shape.
         setRecipe(normalizeRecipe(data));
       }
 
@@ -64,6 +69,7 @@ export default function RecipePage() {
   return (
     <main className="container">
       <Link href="/">← Back</Link>
+      {/* The client component renders bilingual text, scaling, checklists, and print layout. */}
       <RecipeClient recipe={recipe} />
     </main>
   );

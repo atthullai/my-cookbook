@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 
+// This metadata is shared by the whole app unless a page overrides part of it.
 export const metadata: Metadata = {
   title: "My Cookbook",
   description: "Save, browse, and cook your favorite recipes.",
@@ -13,7 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Keep the root layout lean so every page inherits the same CSS without hidden app-wide logic.
+    // The root layout wraps every page, so this is the right place for site-wide navigation
+    // and the single global stylesheet import.
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
         <header className="site-shell">

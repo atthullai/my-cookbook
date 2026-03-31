@@ -19,6 +19,7 @@ type RecipeClientProps = {
 };
 
 export default function RecipeClient({ recipe }: RecipeClientProps) {
+  // These local UI states are purely for the reader experience and are not persisted to the database.
   const [multiplier, setMultiplier] = useState(1);
   const [checked, setChecked] = useState<string[]>([]);
   const [checkedEquipment, setCheckedEquipment] = useState<string[]>([]);
@@ -77,6 +78,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     );
   };
 
+  // All language-sensitive labels flow through helpers so the page component stays readable.
   const recipeTitle = getRecipeTitle(recipe, lang);
   const recipeDescription = getRecipeDescription(recipe, lang);
   const recipeNotes = getRecipeNotes(recipe, lang);
@@ -131,6 +133,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
+      {/* Photos are optional. If a recipe has none yet, the rest of the page still works cleanly. */}
       {recipe.image_urls && recipe.image_urls.length > 0 ? (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 style={{ marginBottom: 10 }}>Photos</h3>
@@ -185,17 +188,17 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <a className="button" href="#ingredients">
             Ingredients
           </a>
+          {recipe.equipment && recipe.equipment.length > 0 ? (
+            <a className="button" href="#equipment">
+              Equipment
+            </a>
+          ) : null}
           <a className="button" href="#instructions">
             Instructions
           </a>
           {hasNotes(recipe, lang) ? (
             <a className="button" href="#notes">
               Notes
-            </a>
-          ) : null}
-          {recipe.equipment && recipe.equipment.length > 0 ? (
-            <a className="button" href="#equipment">
-              Equipment
             </a>
           ) : null}
           {recipeLinks.length > 0 ? (
@@ -224,6 +227,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       </div>
 
+      {/* Ingredients and equipment both use checklist-style interactions because they are "work through" sections. */}
       <div id="ingredients" className="card" style={{ marginBottom: 24 }}>
         <h3>Ingredients</h3>
 
@@ -264,21 +268,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         ))}
       </div>
 
-      <div id="instructions" className="card" style={{ marginBottom: recipeNotes ? 20 : 0 }}>
-        <h3>Steps</h3>
-
-        {recipeSections.map((section) => (
-          <div key={section.title} style={{ marginBottom: 16 }}>
-            <h4>{section.title}</h4>
-            <ol style={{ marginBottom: 0 }}>
-              {section.steps.map((step, index) => (
-                <li key={`${section.title}-${index}`}>{step}</li>
-              ))}
-            </ol>
-          </div>
-        ))}
-      </div>
-
       {recipe.equipment && recipe.equipment.length > 0 ? (
         <div id="equipment" className="card" style={{ marginBottom: recipeNotes || recipeLinks.length > 0 ? 20 : 0 }}>
           <h3>Equipment</h3>
@@ -308,6 +297,23 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         </div>
       ) : null}
+
+      <div id="instructions" className="card" style={{ marginBottom: recipeNotes ? 20 : 0 }}>
+        <h3>Instructions</h3>
+
+        {recipeSections.map((section, sectionIndex) => (
+          <div key={`${section.title}-${sectionIndex}`} style={{ marginBottom: 16 }}>
+            {section.title && recipeSections.length > 1 ? <h4>{section.title}</h4> : null}
+            <ol style={{ marginBottom: 0, listStyle: "decimal", paddingLeft: "1.5rem" }}>
+              {section.steps.map((step, index) => (
+                <li key={`${section.title}-${index}`} style={{ listStyle: "decimal" }}>
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+      </div>
 
       {recipeNotes ? (
         <div id="notes" className="card" style={{ marginBottom: recipeLinks.length > 0 ? 20 : 0 }}>

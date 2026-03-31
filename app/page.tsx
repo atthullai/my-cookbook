@@ -4,25 +4,27 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
 import { getRecipeTitle } from "@/lib/recipe-types";
-import { buildStarterRecipeRows } from "@/data/starter-recipes";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
+  // Home only keeps the state needed to show the newest recipes and global actions.
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [user, setUser] = useState<AppUser | null>(null);
   const [lang, setLang] = useState<AppLanguage>("en");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
 
   const fetchRecipes = async (currentUser: AppUser | null) => {
+    // When nobody is logged in, the private cookbook should not show personal recipes.
     if (!currentUser) {
       setRecipes([]);
       setLoading(false);
       return;
     }
 
+    // Recipes are always loaded from Supabase so homepage, recipe index, and edit pages
+    // all read the exact same source of truth.
     const { data, error } = await supabase
       .from("recipes")
       .select("*")
@@ -51,6 +53,7 @@ export default function Home() {
 
       setUser(currentUser);
 
+      // The UI defaults to the browser language, but users can still toggle manually later.
       const browserLang = navigator.language.toLowerCase();
       setLang(browserLang.includes("de") ? "de" : "en");
 
@@ -116,32 +119,9 @@ export default function Home() {
     setRecipes([]);
   };
 
-  const handleInstallStarterCookbook = async () => {
-    if (!user) {
-      alert("Please log in first.");
-      return;
-    }
-
-    setSyncing(true);
-
-    const rows = buildStarterRecipeRows(user.id);
-
-    // Replace everything so the starter cookbook becomes the clean baseline.
-    await supabase.from("recipes").delete().eq("user_id", user.id);
-
-    const { error } = await supabase.from("recipes").insert(rows);
-    if (error) {
-      setSyncing(false);
-      alert(error.message);
-      return;
-    }
-
-    await fetchRecipes(user);
-    setSyncing(false);
-  };
-
   return (
     <main className="container">
+      {/* This top block acts like a dashboard header: identity, auth, and big cookbook actions. */}
       <div
         style={{
           display: "flex",
@@ -175,13 +155,6 @@ export default function Home() {
           <Link href="/add" className="button button-primary">
             + Add Recipe
           </Link>
-
-          {user ? (
-            <button className="button" type="button" onClick={() => void handleInstallStarterCookbook()}>
-              {syncing ? "Replacing..." : "Replace With Starter Cookbook"}
-            </button>
-          ) : null}
-
           {user ? (
             <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
               Delete My Recipes
@@ -190,6 +163,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* These links separate the landing page from the full recipe index and profile content. */}
       <div className="card" style={{ marginTop: 20 }}>
         <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
         <p style={{ marginBottom: 12 }}>
@@ -205,6 +179,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Language toggle changes how bilingual recipe fields are displayed on the homepage cards. */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, marginTop: 16 }}>
         <button className="button" type="button" onClick={() => setLang("en")} style={{ background: lang === "en" ? "#f0d6c5" : undefined }}>
           EN
@@ -224,6 +199,7 @@ export default function Home() {
       {loading ? <p style={{ marginTop: 12 }}>Loading recipes...</p> : null}
       {!loading && filteredRecipes.length === 0 ? <p style={{ marginTop: 12 }}>No recipes found yet.</p> : null}
 
+      {/* Home intentionally shows only a short "latest recipes" slice, not the entire cookbook. */}
       <div style={{ marginTop: 18 }}>
         <h2 style={{ marginBottom: 10 }}>Newest Recipes</h2>
 

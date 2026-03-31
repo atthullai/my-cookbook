@@ -1,3 +1,5 @@
+// Legacy demo data kept only as a small example from the earlier prototype.
+// The live app now reads recipes from Supabase and from the starter cookbook helpers.
 export const recipes = [
   {
     id: 1,

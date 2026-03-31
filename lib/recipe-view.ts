@@ -1,6 +1,8 @@
 import type { RecipeRecord } from "@/lib/recipe-types";
 import { getRecipeNotes, splitRecipeSteps } from "@/lib/recipe-types";
 
+// The recipe page can display instructions either as a simple numbered list
+// or as grouped sections. This type represents those grouped sections.
 export type InstructionSection = {
   title: string;
   steps: string[];
@@ -14,6 +16,9 @@ export function parseInstructionSections(text: string): InstructionSection[] {
   }
 
   const lines = trimmedText.split("\n").map((line) => line.trim());
+  // Older drafts used markdown-style `##` headings to split instruction sections.
+  // We still support them for backward compatibility, but the editor no longer asks
+  // the user to type them manually.
   const hasHeadings = lines.some((line) => line.startsWith("## "));
 
   if (!hasHeadings) {
@@ -75,6 +80,7 @@ export function extractLinks(recipe: RecipeRecord): string[] {
   return Array.from(links);
 }
 
+// Highlights are the small chips shown near the top of the recipe page.
 export function buildRecipeHighlights(recipe: RecipeRecord): string[] {
   const highlights: string[] = [];
 

@@ -1,5 +1,6 @@
--- Run this in Supabase SQL editor.
--- It upgrades recipes into a fully editable bilingual cookbook model.
+-- Run this in the Supabase SQL editor.
+-- It upgrades the app from a simple recipe table into a bilingual cookbook model
+-- with authorship, equipment, image support, and a user-editable About Me profile.
 
 alter table public.recipes
   add column if not exists slug text,

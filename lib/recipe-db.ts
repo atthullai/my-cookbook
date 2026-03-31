@@ -8,6 +8,8 @@ import type {
 } from "@/lib/recipe-types";
 import { normalizeRecipe, parseTagInput } from "@/lib/recipe-types";
 
+// This file is the boundary between form state and database shape.
+// Components talk in drafts; Supabase inserts/updates talk in clean payload objects.
 export function mapRecipeRows(rows: unknown[]): RecipeRecord[] {
   return rows.map(normalizeRecipe);
 }
@@ -63,6 +65,7 @@ export function buildRecipePayload(input: {
   equipment: EquipmentDraft[];
   imageUrls: string;
 }) {
+  // This is the single place where we translate form values into the exact database record shape.
   return {
     slug: input.slug.trim(),
     title_en: input.titleEn.trim(),

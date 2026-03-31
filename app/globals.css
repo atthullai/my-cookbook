@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* Shared design tokens for the cookbook color palette and depth. */
 :root {
   --background: #f4efe4;
   --surface: rgba(255, 252, 246, 0.86);
@@ -12,14 +13,17 @@
   --shadow: 0 20px 50px rgba(78, 49, 28, 0.12);
 }
 
+/* Keep width/height calculations consistent across all elements. */
 * {
   box-sizing: border-box;
 }
 
+/* Allow the page background to extend to the full viewport height. */
 html {
   min-height: 100%;
 }
 
+/* Global page styling: warm background, readable serif type, and full-height layout. */
 body {
   margin: 0;
   min-height: 100vh;
@@ -30,10 +34,12 @@ body {
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
 }
 
+/* Outer shell used by the root layout before individual page containers start. */
 .site-shell {
   padding: 20px 20px 0;
 }
 
+/* Header nav stays centered and wraps on smaller screens. */
 .site-nav {
   max-width: 880px;
   margin: 0 auto;
@@ -42,6 +48,7 @@ body {
   flex-wrap: wrap;
 }
 
+/* Pill-style links for the main navigation. */
 .site-nav a {
   border: 1px solid var(--border);
   background: rgba(255, 250, 241, 0.72);
@@ -50,27 +57,32 @@ body {
   box-shadow: 0 8px 24px rgba(78, 49, 28, 0.08);
 }
 
+/* Links inherit local text color unless a component styles them differently. */
 a {
   color: inherit;
   text-decoration: none;
 }
 
+/* Make native controls use the same font family as the rest of the interface. */
 button,
 input,
 textarea {
   font: inherit;
 }
 
+/* Visual button styling is provided by the reusable classes below. */
 button {
   background: none;
 }
 
+/* Standard content width wrapper used on each page. */
 .container {
   max-width: 880px;
   margin: 0 auto;
   padding: 40px 20px 64px;
 }
 
+/* Remove default top margins so spacing is controlled intentionally in layout code. */
 h1,
 h2,
 h3,
@@ -79,6 +91,7 @@ p {
   margin-top: 0;
 }
 
+/* Main page title styling. */
 h1 {
   font-size: clamp(2.25rem, 5vw, 3.5rem);
   line-height: 1;
@@ -86,16 +99,19 @@ h1 {
   margin-bottom: 0.75rem;
 }
 
+/* Secondary heading styling for cards and recipe sections. */
 h2 {
   font-size: 1.35rem;
   line-height: 1.2;
   margin-bottom: 0.35rem;
 }
 
+/* Default muted paragraph color. */
 p {
   color: var(--muted);
 }
 
+/* Reusable card surface for recipe previews and content sections. */
 .card {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -107,12 +123,14 @@ p {
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
+/* Subtle hover lift so clickable cards feel alive. */
 .card:hover {
   transform: translateY(-1px);
   border-color: rgba(180, 87, 44, 0.3);
   box-shadow: 0 24px 56px rgba(78, 49, 28, 0.18);
 }
 
+/* Shared base button appearance. */
 .button {
   border: 1px solid var(--border);
   background: var(--surface-strong);
@@ -124,22 +142,26 @@ p {
   transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
 }
 
+/* Slight hover feedback for all buttons. */
 .button:hover {
   transform: translateY(-1px);
   border-color: rgba(180, 87, 44, 0.35);
 }
 
+/* Primary action variant for saves and important actions. */
 .button-primary {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
   border-color: transparent;
   color: #fff8f1;
 }
 
+/* Destructive action variant for deletes/resets. */
 .button-danger {
   background: #983f35;
   color: white;
 }
 
+/* Small pill/badge for tags and metadata chips. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -152,6 +174,7 @@ p {
   font-size: 0.9rem;
 }
 
+/* Shared text input appearance. */
 .input {
   width: 100%;
   padding: 0.9rem 1rem;
@@ -162,6 +185,7 @@ p {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
+/* Keep native textareas/selects visually aligned with the app inputs. */
 textarea.input,
 textarea,
 input:not([type="checkbox"]),
@@ -174,11 +198,13 @@ select {
   color: var(--foreground);
 }
 
+/* Softer placeholder color so entered text stays the visual focus. */
 input::placeholder,
 textarea::placeholder {
   color: color-mix(in srgb, var(--muted) 82%, white);
 }
 
+/* Strong visible focus ring for keyboard accessibility. */
 input:focus,
 textarea:focus,
 button:focus-visible,
@@ -187,33 +213,42 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
+/* Give multiline recipe fields a comfortable default height. */
 textarea {
   min-height: 140px;
   resize: vertical;
 }
 
+/* Inline spans often hold chips/metadata, so keep their line height readable. */
 span {
   line-height: 1.4;
 }
 
+/* Ordered recipe steps need consistent number indentation. */
 ol {
+  list-style: decimal;
   padding-left: 1.25rem;
 }
 
+/* Add breathing room between list items. */
 li + li {
   margin-top: 0.55rem;
 }
 
+/* Match unordered list indentation to ordered lists. */
 ul {
+  list-style: disc;
   padding-left: 1.25rem;
 }
 
+/* Responsive image gallery for recipe photos. */
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
+/* Shared treatment for recipe photos. */
 .recipe-photo {
   width: 100%;
   height: 220px;
@@ -223,6 +258,7 @@ ul {
   box-shadow: var(--shadow);
 }
 
+/* Small rhythm helper for direct children inside the page container. */
 main.container > div + div,
 main.container > input,
 main.container > p {

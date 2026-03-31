@@ -1,5 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 
+// Shared app-wide types live here so page components, form components, and helpers all
+// agree on the same recipe shape. This is what prevents "works on one page, breaks on another".
 export type AppLanguage = "en" | "de";
 export type AppUser = User;
 
@@ -51,6 +53,7 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+// Slugs give recipes a readable stable identifier derived from the English title.
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -71,6 +74,8 @@ function normalizeAmount(value: unknown): RecipeAmount {
   return null;
 }
 
+// Old rows may still contain legacy single-language fields. These normalizers upgrade them
+// into the new bilingual shape so the UI can render old and new records safely.
 function normalizeIngredient(value: unknown): RecipeIngredient {
   const item = value && typeof value === "object" ? value : {};
   const raw = item as Record<string, unknown>;
@@ -153,6 +158,8 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
   };
 }
 
+// These helpers keep the React pages simple: the page asks for "the title in the current language"
+// instead of re-implementing fallback logic everywhere.
 export function getRecipeTitle(recipe: RecipeRecord, lang: AppLanguage): string {
   if (lang === "de" && recipe.title_de) {
     return recipe.title_de;
@@ -204,6 +211,7 @@ export function splitRecipeSteps(text: string): string[] {
     .filter(Boolean);
 }
 
+// Route params arrive as strings from the URL. This helper safely converts them into numeric ids.
 export function parseRecipeId(value: string | string[] | undefined): number | null {
   const rawValue = Array.isArray(value) ? value[0] : value;
   const parsedValue = Number(rawValue);
@@ -211,6 +219,7 @@ export function parseRecipeId(value: string | string[] | undefined): number | nu
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
+// Tags are stored as arrays in the database, but users edit them as comma-separated text.
 export function parseTagInput(tags: string): string[] {
   return tags
     .split(",")
@@ -218,6 +227,8 @@ export function parseTagInput(tags: string): string[] {
     .filter(Boolean);
 }
 
+// Draft types are used only while editing forms. They stay string-based so inputs can be controlled
+// without fighting with number parsing or half-typed values like "1/" while the user is typing.
 export type IngredientDraft = {
   name_en: string;
   name_de: string;

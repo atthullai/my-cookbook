@@ -8,12 +8,16 @@ import { buildRecipePayload } from "@/lib/recipe-db";
 import type { AppUser, EquipmentDraft, IngredientDraft, IngredientGroupDraft } from "@/lib/recipe-types";
 import { EMPTY_EQUIPMENT, EMPTY_INGREDIENT, EMPTY_INGREDIENT_GROUP } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
+import { translateEnglishToGerman } from "@/lib/translate";
 
+// New recipes are authored through the same bilingual form shape that edit uses,
+// so create and update stay in sync as the recipe model grows.
 function slugify(text: string) {
   return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
 export default function AddRecipe() {
+  // Each piece of form state mirrors one part of the Supabase recipe record.
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,6 +50,7 @@ export default function AddRecipe() {
       } = await supabase.auth.getUser();
 
       if (!isMounted) return;
+      // Adding recipes is a private action, so anonymous visitors are sent to login.
       if (!currentUser) {
         window.location.href = "/login";
         return;
@@ -61,18 +66,9 @@ export default function AddRecipe() {
     };
   }, []);
 
-  const translate = async (text: string) => {
-    if (!text.trim()) return "";
-    try {
-      const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`);
-      const data = (await response.json()) as { responseData?: { translatedText?: string } };
-      return data.responseData?.translatedText?.trim() || text;
-    } catch {
-      return text;
-    }
-  };
-
   const updateIngredientGroup = (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => {
+    // Group titles are edited separately from ingredient rows because recipes can have
+    // sections like Dough / Filling / Syrup / Garnish.
     setIngredientGroups((current) => current.map((group, index) => (index === groupIndex ? { ...group, [field]: value } : group)));
   };
 
@@ -115,19 +111,20 @@ export default function AddRecipe() {
 
     setSaving(true);
 
-    const autoTitleDe = titleDe.trim() || (await translate(title));
-    const autoDescriptionDe = descriptionDe.trim() || (descriptionEn.trim() ? await translate(descriptionEn) : "");
-    const autoStepsDe = stepsDe.trim() || (await translate(steps));
-    const autoNotesDe = notesDe.trim() || (notesEn.trim() ? await translate(notesEn) : "");
+    const autoTitleDe = titleDe.trim() || (await translateEnglishToGerman(title));
+    const autoDescriptionDe = descriptionDe.trim() || (descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "");
+    const autoStepsDe = stepsDe.trim() || (await translateEnglishToGerman(steps));
+    const autoNotesDe = notesDe.trim() || (notesEn.trim() ? await translateEnglishToGerman(notesEn) : "");
 
+    // German fields are auto-filled only when the user leaves them empty.
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
         group_en: group.group_en,
-        group_de: group.group_de.trim() || (group.group_en.trim() ? await translate(group.group_en) : ""),
+        group_de: group.group_de.trim() || (group.group_en.trim() ? await translateEnglishToGerman(group.group_en) : ""),
         items: await Promise.all(
           group.items.map(async (ingredient) => ({
             ...ingredient,
-            name_de: ingredient.name_de.trim() || (ingredient.name_en.trim() ? await translate(ingredient.name_en) : ""),
+            name_de: ingredient.name_de.trim() || (ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : ""),
           }))
         ),
       }))
@@ -136,10 +133,11 @@ export default function AddRecipe() {
     const translatedEquipment = await Promise.all(
       equipment.map(async (item) => ({
         label_en: item.label_en,
-        label_de: item.label_de.trim() || (item.label_en.trim() ? await translate(item.label_en) : ""),
+        label_de: item.label_de.trim() || (item.label_en.trim() ? await translateEnglishToGerman(item.label_en) : ""),
       }))
     );
 
+    // Build the final database row in one place so the component stays readable.
     const payload = buildRecipePayload({
       slug: slugify(title),
       titleEn: title,
@@ -180,6 +178,7 @@ export default function AddRecipe() {
       <Link href="/">← Back</Link>
       <h1>Add Recipe</h1>
 
+      {/* The form component handles the large UI; this page focuses on data flow and save behavior. */}
       <RecipeForm
         title={title}
         titleDe={titleDe}

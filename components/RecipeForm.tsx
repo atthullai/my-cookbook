@@ -3,6 +3,8 @@
 import type { FormEvent } from "react";
 import type { EquipmentDraft, IngredientDraft, IngredientGroupDraft } from "@/lib/recipe-types";
 
+// This component is intentionally "dumb": it renders the full recipe editor UI,
+// while the pages decide how data is loaded, translated, validated, and saved.
 type RecipeFormProps = {
   title: string;
   titleDe: string;
@@ -55,6 +57,7 @@ type RecipeFormProps = {
 export default function RecipeForm(props: RecipeFormProps) {
   return (
     <form onSubmit={props.onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+      {/* Recipe identity and ownership fields sit first because they shape the whole record. */}
       <input className="input" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="Title (EN)" />
       <input className="input" value={props.titleDe} onChange={(event) => props.onTitleDeChange(event.target.value)} placeholder="Title (DE)" />
       <input className="input" value={props.authorName} onChange={(event) => props.onAuthorNameChange(event.target.value)} placeholder="Author name" />
@@ -72,6 +75,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       <input className="input" value={props.tags} onChange={(event) => props.onTagsChange(event.target.value)} placeholder="Tags (comma separated)" />
       <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
 
+      {/* Ingredient sections are nested so the editor matches the structure shown on the recipe page. */}
       <div className="card" style={{ marginBottom: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
           <div>
@@ -151,6 +155,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         ))}
       </div>
 
+      {/* Instructions stay as plain text so recipe writing remains fast and familiar. */}
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Instructions</h3>
         <p style={{ marginBottom: 12 }}>Write normal numbered instructions. One step per line is fine.</p>
@@ -158,6 +163,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         <textarea className="input" value={props.stepsDe} onChange={(event) => props.onStepsDeChange(event.target.value)} placeholder="1. Zutaten vorbereiten\n2. Sanft kochen\n3. Fertig servieren" />
       </div>
 
+      {/* Equipment is bilingual too, which lets the checklist switch cleanly with the language toggle. */}
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Equipment</h3>
         {props.equipment.map((item, index) => (

@@ -13,6 +13,8 @@ export default function Login() {
     event.preventDefault();
     setLoading(true);
 
+    // Supabase handles the actual authentication; this page just collects credentials
+    // and redirects to the private cookbook once login succeeds.
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
