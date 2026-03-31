@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import Link from "next/link";
+import { starterRecipes } from "@/data/starter-recipes";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { RecipeRecord } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +11,9 @@ export default function RecipeIndexPage() {
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadRecipes = async () => {
+  const chouxTemplate = starterRecipes.find((recipe) => recipe.slug === "choux-au-craquelin");
+
+  const loadRecipes = useEffectEvent(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -34,18 +37,65 @@ export default function RecipeIndexPage() {
       alert(error.message);
       setRecipes([]);
     } else {
-      setRecipes(mapRecipeRows(data ?? []));
+      const normalizedRecipes = mapRecipeRows(data ?? []);
+      const staleChouxRecipes = normalizedRecipes.filter(
+        (recipe) =>
+          recipe.slug === "choux-au-craquelin" &&
+          chouxTemplate &&
+          (recipe.image_urls.length < chouxTemplate.image_urls.length ||
+            !recipe.video_url ||
+            recipe.servings !== chouxTemplate.servings)
+      );
+
+      if (chouxTemplate && staleChouxRecipes.length > 0) {
+        await Promise.all(
+          staleChouxRecipes.map((recipe) =>
+            supabase
+              .from("recipes")
+              .update({
+                title_en: chouxTemplate.title_en,
+                title_de: chouxTemplate.title_de,
+                author_name: chouxTemplate.author_name,
+                learned_from: chouxTemplate.learned_from,
+                description_en: chouxTemplate.description_en,
+                description_de: chouxTemplate.description_de,
+                category: chouxTemplate.category,
+                tags: chouxTemplate.tags,
+                ingredients: chouxTemplate.ingredients,
+                steps_en: chouxTemplate.steps_en,
+                steps_de: chouxTemplate.steps_de,
+                notes_en: chouxTemplate.notes_en,
+                notes_de: chouxTemplate.notes_de,
+                source_url: chouxTemplate.source_url,
+                video_url: chouxTemplate.video_url,
+                servings: chouxTemplate.servings,
+                equipment: chouxTemplate.equipment,
+                image_urls: chouxTemplate.image_urls,
+              })
+              .eq("id", recipe.id)
+          )
+        );
+
+        setRecipes(
+          normalizedRecipes.map((recipe) =>
+            recipe.slug === "choux-au-craquelin"
+              ? {
+                  ...recipe,
+                  ...chouxTemplate,
+                }
+              : recipe
+          )
+        );
+      } else {
+        setRecipes(normalizedRecipes);
+      }
     }
 
     setLoading(false);
-  };
+  });
 
   useEffect(() => {
-    const load = async () => {
-      await loadRecipes();
-    };
-
-    void load();
+    void loadRecipes();
   }, []);
 
   const categories = Array.from(new Set(recipes.map((recipe) => recipe.category).filter(Boolean)));

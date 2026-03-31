@@ -151,6 +151,16 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
+      {recipe.video_url ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 style={{ marginBottom: 8 }}>Video</h3>
+          <p style={{ marginBottom: 12 }}>Open the original reel for the source recipe video.</p>
+          <a className="button button-primary" href={recipe.video_url} target="_blank" rel="noreferrer">
+            Watch Video
+          </a>
+        </div>
+      ) : null}
+
       {highlights.length > 0 ? (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
           {highlights.map((highlight) => (
