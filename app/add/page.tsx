@@ -44,7 +44,7 @@ export default function AddRecipe() {
 
   const [title, setTitle] = useState("");
   const [titleDe, setTitleDe] = useState("");
-  const [authorName, setAuthorName] = useState("Saran");
+  const [authorName, setAuthorName] = useState("Atthullai");
   const [learnedFrom, setLearnedFrom] = useState("");
   const [descriptionEn, setDescriptionEn] = useState("");
   const [descriptionDe, setDescriptionDe] = useState("");
@@ -74,7 +74,7 @@ export default function AddRecipe() {
     // becomes an editable draft instead of a separate opaque object.
     setTitle(recipe.title);
     setTitleDe("");
-    setAuthorName("Saran");
+    setAuthorName("Atthullai");
     setLearnedFrom(recipe.learnedFrom);
     setDescriptionEn(recipe.description);
     setDescriptionDe("");
