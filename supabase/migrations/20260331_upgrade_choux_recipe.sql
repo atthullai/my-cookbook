@@ -6,7 +6,7 @@ update public.recipes
 set
   title_en = 'Choux Au Craquelin (Cream Puff)',
   title_de = 'Choux au Craquelin mit Vanille-Diplomatcreme',
-  author_name = 'Saran',
+  author_name = 'Atthuzhai',
   learned_from = 'The Baking Spoon',
   description_en = 'A crisp-topped cream puff with vanilla bean diplomat cream, whipped cream, and fresh berries, adapted closely from The Baking Spoon reference page.',
   description_de = 'Ein knuspriges Choux mit Vanille-Diplomatcreme, Schlagsahne und frischen Beeren, eng an die Vorlage von The Baking Spoon angelehnt.',

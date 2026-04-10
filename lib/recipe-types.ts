@@ -348,7 +348,7 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     user_id: normalizeString(raw.user_id),
     title_en: titleEn,
     title_de: normalizeString(raw.title_de) || null,
-    author_name: normalizeString(raw.author_name) || "Saran",
+    author_name: normalizeString(raw.author_name) || "Atthuzhai",
     learned_from: normalizeString(raw.learned_from) || null,
     description_en: normalizeString(raw.description_en) || null,
     description_de: normalizeString(raw.description_de) || null,

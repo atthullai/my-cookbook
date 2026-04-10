@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { translateEnglishToGerman } from "@/lib/translate";
 
-const DEFAULT_DISPLAY_NAME = "Saran";
+const DEFAULT_DISPLAY_NAME = "Atthuzhai";
 const DEFAULT_ABOUT_EN =
   "This cookbook is my private, living recipe book. Some recipes are mine, some are family recipes from my mom, dad, or granny, and some are dishes I learned from people whose work taught me something important.";
 const DEFAULT_ABOUT_DE =

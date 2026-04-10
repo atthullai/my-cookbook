@@ -5,7 +5,7 @@ import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { RecipeRecord } from "@/lib/recipe-types";
-import { getRecipeCoverImage } from "@/lib/recipe-view";
+import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
 import { supabase } from "@/lib/supabase";
 
 export default function RecipeIndexPage() {
@@ -50,7 +50,10 @@ export default function RecipeIndexPage() {
 
   const cuisines = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean))) as string[], [recipes]);
   const courses = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.course).filter(Boolean))) as string[], [recipes]);
-  const badges = useMemo(() => Array.from(new Set(recipes.flatMap((recipe) => recipe.badges))).sort(), [recipes]);
+  const badges = useMemo(
+    () => Array.from(new Set(recipes.flatMap((recipe) => [...recipe.badges, ...deriveNutritionClaimTags(recipe)]))).sort(),
+    [recipes]
+  );
 
   const filteredRecipes = recipes.filter((recipe) => {
     const searchValue = search.trim().toLowerCase();
@@ -66,6 +69,7 @@ export default function RecipeIndexPage() {
         recipe.difficulty ?? "",
         recipe.tags.join(" "),
         recipe.badges.join(" "),
+        deriveNutritionClaimTags(recipe).join(" "),
       ]
         .join(" ")
         .toLowerCase()
@@ -73,7 +77,7 @@ export default function RecipeIndexPage() {
 
     const matchesCuisine = !selectedCuisine || recipe.cuisine === selectedCuisine;
     const matchesCourse = !selectedCourse || recipe.course === selectedCourse;
-    const matchesBadge = !selectedBadge || recipe.badges.includes(selectedBadge);
+    const matchesBadge = !selectedBadge || [...recipe.badges, ...deriveNutritionClaimTags(recipe)].includes(selectedBadge);
 
     return matchesSearch && matchesCuisine && matchesCourse && matchesBadge;
   });
@@ -159,9 +163,9 @@ export default function RecipeIndexPage() {
                         {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
                       </p>
 
-                      {recipe.badges.length > 0 ? (
+                      {[...recipe.badges, ...deriveNutritionClaimTags(recipe)].length > 0 ? (
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                          {recipe.badges.map((badge) => (
+                          {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe)])].map((badge) => (
                             <span key={`${recipe.id}-${badge}`} className="chip">
                               {badge}
                             </span>

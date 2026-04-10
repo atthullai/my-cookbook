@@ -77,3 +77,59 @@ export function hasNotes(recipe: RecipeRecord, lang: AppLanguage): boolean {
 export function getRecipeCoverImage(recipe: RecipeRecord): string {
   return recipe.cover_image_url || recipe.image_urls[0] || "";
 }
+
+function parseNutrientValue(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const DAILY_VALUES = {
+  protein_g: 50,
+  fiber_g: 28,
+  calcium_mg: 1300,
+  iron_mg: 18,
+  potassium_mg: 4700,
+  vitamin_d_mcg: 20,
+} as const;
+
+const CLAIM_LABELS = {
+  protein_g: "Protein",
+  fiber_g: "Fiber",
+  calcium_mg: "Calcium",
+  iron_mg: "Iron",
+  potassium_mg: "Potassium",
+  vitamin_d_mcg: "Vitamin D",
+} as const;
+
+// These are display claims, not legal packaging claims. They help your recipe cards communicate
+// nutrition strengths based on manual nutrition values already stored in the app.
+export function deriveNutritionClaimTags(recipe: RecipeRecord): string[] {
+  if (!recipe.nutrition) {
+    return [];
+  }
+
+  return (Object.keys(DAILY_VALUES) as Array<keyof typeof DAILY_VALUES>)
+    .flatMap((key) => {
+      const value = parseNutrientValue(recipe.nutrition?.[key]);
+      if (value === null) {
+        return [];
+      }
+
+      const percentDailyValue = (value / DAILY_VALUES[key]) * 100;
+
+      if (percentDailyValue >= 20) {
+        return [`Excellent ${CLAIM_LABELS[key]}`];
+      }
+
+      if (percentDailyValue >= 10) {
+        return [`Good ${CLAIM_LABELS[key]}`];
+      }
+
+      return [];
+    })
+    .filter(Boolean);
+}

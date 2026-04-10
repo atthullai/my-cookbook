@@ -4,7 +4,7 @@
 
 alter table public.recipes
   add column if not exists slug text,
-  add column if not exists author_name text default 'Saran',
+  add column if not exists author_name text default 'Atthuzhai',
   add column if not exists learned_from text,
   add column if not exists description_en text,
   add column if not exists description_de text,
@@ -24,7 +24,7 @@ create unique index if not exists recipes_user_slug_idx on public.recipes (user_
 
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  display_name text default 'Saran',
+  display_name text default 'Atthuzhai',
   about_me_en text,
   about_me_de text
 );

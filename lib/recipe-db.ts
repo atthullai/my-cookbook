@@ -189,7 +189,7 @@ export function buildRecipePayload(input: {
     slug: input.slug.trim(),
     title_en: input.titleEn.trim(),
     title_de: input.titleDe.trim() || null,
-    author_name: input.authorName.trim() || "Saran",
+    author_name: input.authorName.trim() || "Atthuzhai",
     learned_from: input.learnedFrom.trim() || null,
     description_en: input.descriptionEn.trim() || null,
     description_de: input.descriptionDe.trim() || null,

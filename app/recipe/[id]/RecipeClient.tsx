@@ -14,7 +14,7 @@ import {
   getRecipeTips,
   getRecipeTitle,
 } from "@/lib/recipe-types";
-import { buildRecipeHighlights, extractLinks, getRecipeCoverImage, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
+import { buildRecipeHighlights, deriveNutritionClaimTags, extractLinks, getRecipeCoverImage, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
@@ -97,6 +97,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const stepPhotos = recipe.step_photos ?? [];
   const coverImage = getRecipeCoverImage(recipe);
   const galleryImages = recipe.image_urls.filter((imageUrl) => imageUrl !== coverImage);
+  const displayBadges = [...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe)])];
 
   const handlePrint = () => {
     window.print();
@@ -147,7 +148,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <h1>{recipeTitle}</h1>
           <p style={{ marginBottom: 0 }}>{recipe.category || "Uncategorized"}</p>
           <p style={{ marginTop: 8, marginBottom: 0 }}>
-            By {recipe.author_name || "Saran"}
+            By {recipe.author_name || "Atthuzhai"}
             {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
           </p>
           <p style={{ marginTop: 8, marginBottom: 0 }}>
@@ -191,9 +192,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
-      {recipe.badges.length > 0 ? (
+      {displayBadges.length > 0 ? (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          {recipe.badges.map((badge) => (
+          {displayBadges.map((badge) => (
             <span key={badge} className="chip">
               {badge}
             </span>

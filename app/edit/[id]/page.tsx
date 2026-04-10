@@ -46,7 +46,7 @@ export default function EditRecipe() {
 
   const [title, setTitle] = useState("");
   const [titleDe, setTitleDe] = useState("");
-  const [authorName, setAuthorName] = useState("Saran");
+  const [authorName, setAuthorName] = useState("Atthuzhai");
   const [learnedFrom, setLearnedFrom] = useState("");
   const [descriptionEn, setDescriptionEn] = useState("");
   const [descriptionDe, setDescriptionDe] = useState("");
@@ -116,7 +116,7 @@ export default function EditRecipe() {
       setRecipe(normalizedRecipe);
       setTitle(normalizedRecipe.title_en);
       setTitleDe(normalizedRecipe.title_de || "");
-      setAuthorName(normalizedRecipe.author_name || "Saran");
+      setAuthorName(normalizedRecipe.author_name || "Atthuzhai");
       setLearnedFrom(normalizedRecipe.learned_from || "");
       setDescriptionEn(normalizedRecipe.description_en || "");
       setDescriptionDe(normalizedRecipe.description_de || "");
