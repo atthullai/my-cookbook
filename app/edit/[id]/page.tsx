@@ -52,8 +52,11 @@ export default function EditRecipe() {
   const [descriptionDe, setDescriptionDe] = useState("");
   const [category, setCategory] = useState("");
   const [cuisine, setCuisine] = useState("");
+  const [cuisineDe, setCuisineDe] = useState("");
   const [course, setCourse] = useState("");
+  const [courseDe, setCourseDe] = useState("");
   const [difficulty, setDifficulty] = useState("");
+  const [difficultyDe, setDifficultyDe] = useState("");
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
   const [totalTime, setTotalTime] = useState("");
@@ -122,8 +125,11 @@ export default function EditRecipe() {
       setDescriptionDe(normalizedRecipe.description_de || "");
       setCategory(normalizedRecipe.category || "");
       setCuisine(normalizedRecipe.cuisine || "");
+      setCuisineDe(normalizedRecipe.cuisine_de || "");
       setCourse(normalizedRecipe.course || "");
+      setCourseDe(normalizedRecipe.course_de || "");
       setDifficulty(normalizedRecipe.difficulty || "");
+      setDifficultyDe(normalizedRecipe.difficulty_de || "");
       setPrepTime(normalizedRecipe.prep_time || "");
       setCookTime(normalizedRecipe.cook_time || "");
       setTotalTime(normalizedRecipe.total_time || "");
@@ -264,6 +270,9 @@ export default function EditRecipe() {
     const autoNotesDe = notesEn.trim() ? await translateEnglishToGerman(notesEn) : "";
     const autoTipsDe = tipsEn.trim() ? await translateEnglishToGerman(tipsEn) : "";
     const autoStorageDe = storageEn.trim() ? await translateEnglishToGerman(storageEn) : "";
+    const autoCuisineDe = cuisine.trim() ? await translateEnglishToGerman(cuisine) : "";
+    const autoCourseDe = course.trim() ? await translateEnglishToGerman(course) : "";
+    const autoDifficultyDe = difficulty.trim() ? await translateEnglishToGerman(difficulty) : "";
 
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
@@ -335,8 +344,11 @@ export default function EditRecipe() {
       descriptionDe: autoDescriptionDe,
       category,
       cuisine,
+      cuisineDe: cuisineDe || autoCuisineDe,
       course,
+      courseDe: courseDe || autoCourseDe,
       difficulty,
+      difficultyDe: difficultyDe || autoDifficultyDe,
       prepTime,
       cookTime,
       totalTime,
@@ -396,8 +408,11 @@ export default function EditRecipe() {
         descriptionDe={descriptionDe}
         category={category}
         cuisine={cuisine}
+        cuisineDe={cuisineDe}
         course={course}
+        courseDe={courseDe}
         difficulty={difficulty}
+        difficultyDe={difficultyDe}
         prepTime={prepTime}
         cookTime={cookTime}
         totalTime={totalTime}
@@ -432,8 +447,11 @@ export default function EditRecipe() {
         onDescriptionDeChange={setDescriptionDe}
         onCategoryChange={setCategory}
         onCuisineChange={setCuisine}
+        onCuisineDeChange={setCuisineDe}
         onCourseChange={setCourse}
+        onCourseDeChange={setCourseDe}
         onDifficultyChange={setDifficulty}
+        onDifficultyDeChange={setDifficultyDe}
         onPrepTimeChange={setPrepTime}
         onCookTimeChange={setCookTime}
         onTotalTimeChange={setTotalTime}

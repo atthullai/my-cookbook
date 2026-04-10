@@ -15,6 +15,14 @@ export const DIFFICULTY_OPTIONS = [
   "Expert",
 ] as const;
 
+export const DIFFICULTY_LABELS_DE: Record<(typeof DIFFICULTY_OPTIONS)[number], string> = {
+  Easy: "Einfach",
+  Beginner: "Anfanger",
+  Intermediate: "Mittel",
+  Advanced: "Fortgeschritten",
+  Expert: "Experte",
+};
+
 export const BADGE_OPTIONS = [
   "Veg",
   "Non-Veg",
@@ -29,6 +37,21 @@ export const BADGE_OPTIONS = [
   "Dinner",
   "Dessert",
 ] as const;
+
+export const BADGE_LABELS_DE: Record<(typeof BADGE_OPTIONS)[number], string> = {
+  Veg: "Vegetarisch",
+  "Non-Veg": "Nicht-Vegetarisch",
+  Vegan: "Vegan",
+  Spicy: "Scharf",
+  "High Protein": "Proteinreich",
+  "Quick Meal": "Schnelles Gericht",
+  "One Pot": "One-Pot",
+  Festival: "Festlich",
+  Breakfast: "Fruhstuck",
+  Lunch: "Mittagessen",
+  Dinner: "Abendessen",
+  Dessert: "Dessert",
+};
 
 export type RecipeIngredient = {
   name_en: string;
@@ -116,8 +139,11 @@ export type RecipeRecord = {
   description_de: string | null;
   category: string | null;
   cuisine: string | null;
+  cuisine_de: string | null;
   course: string | null;
+  course_de: string | null;
   difficulty: string | null;
+  difficulty_de: string | null;
   prep_time: string | null;
   cook_time: string | null;
   total_time: string | null;
@@ -354,8 +380,11 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     description_de: normalizeString(raw.description_de) || null,
     category: normalizeString(raw.category) || null,
     cuisine: normalizeString(raw.cuisine) || null,
+    cuisine_de: normalizeString(raw.cuisine_de) || normalizeString(raw.cuisine) || null,
     course: normalizeString(raw.course) || null,
+    course_de: normalizeString(raw.course_de) || normalizeString(raw.course) || null,
     difficulty: normalizeString(raw.difficulty) || null,
+    difficulty_de: normalizeString(raw.difficulty_de) || normalizeString(raw.difficulty) || null,
     prep_time: normalizeString(raw.prep_time) || null,
     cook_time: normalizeString(raw.cook_time) || null,
     total_time: normalizeString(raw.total_time) || null,
@@ -409,6 +438,46 @@ export function getRecipeDescription(recipe: RecipeRecord, lang: AppLanguage): s
   }
 
   return recipe.description_en || "";
+}
+
+export function getLocalizedLabel(englishValue: string | null | undefined, germanValue: string | null | undefined, lang: AppLanguage): string {
+  if (lang === "de" && germanValue) {
+    return germanValue;
+  }
+
+  return englishValue || "";
+}
+
+export function getRecipeCuisine(recipe: RecipeRecord, lang: AppLanguage): string {
+  return getLocalizedLabel(recipe.cuisine, recipe.cuisine_de, lang);
+}
+
+export function getRecipeCourse(recipe: RecipeRecord, lang: AppLanguage): string {
+  return getLocalizedLabel(recipe.course, recipe.course_de, lang);
+}
+
+export function getRecipeDifficulty(recipe: RecipeRecord, lang: AppLanguage): string {
+  return getLocalizedLabel(recipe.difficulty, recipe.difficulty_de, lang);
+}
+
+export function getBadgeLabel(badge: string, lang: AppLanguage): string {
+  if (lang === "en") {
+    return badge;
+  }
+
+  if ((badge as keyof typeof BADGE_LABELS_DE) in BADGE_LABELS_DE) {
+    return BADGE_LABELS_DE[badge as keyof typeof BADGE_LABELS_DE];
+  }
+
+  if (badge.startsWith("Good ")) {
+    return `Gute Quelle fur ${badge.replace(/^Good\s+/, "")}`;
+  }
+
+  if (badge.startsWith("Excellent ")) {
+    return `Sehr gute Quelle fur ${badge.replace(/^Excellent\s+/, "")}`;
+  }
+
+  return badge;
 }
 
 export function getRecipeSteps(recipe: RecipeRecord, lang: AppLanguage): string {

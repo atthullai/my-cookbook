@@ -149,8 +149,11 @@ export function buildRecipePayload(input: {
   descriptionDe: string;
   category: string;
   cuisine: string;
+  cuisineDe: string;
   course: string;
+  courseDe: string;
   difficulty: string;
+  difficultyDe: string;
   prepTime: string;
   cookTime: string;
   totalTime: string;
@@ -195,8 +198,11 @@ export function buildRecipePayload(input: {
     description_de: input.descriptionDe.trim() || null,
     category: input.category.trim() || null,
     cuisine: input.cuisine.trim() || null,
+    cuisine_de: input.cuisineDe.trim() || input.cuisine.trim() || null,
     course: input.course.trim() || null,
+    course_de: input.courseDe.trim() || input.course.trim() || null,
     difficulty: input.difficulty.trim() || null,
+    difficulty_de: input.difficultyDe.trim() || input.difficulty.trim() || null,
     prep_time: input.prepTime.trim() || null,
     cook_time: input.cookTime.trim() || null,
     total_time: input.totalTime.trim() || null,

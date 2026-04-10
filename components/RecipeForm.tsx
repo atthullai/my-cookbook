@@ -24,8 +24,11 @@ type RecipeFormProps = {
   descriptionDe: string;
   category: string;
   cuisine: string;
+  cuisineDe: string;
   course: string;
+  courseDe: string;
   difficulty: string;
+  difficultyDe: string;
   prepTime: string;
   cookTime: string;
   totalTime: string;
@@ -60,8 +63,11 @@ type RecipeFormProps = {
   onDescriptionDeChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onCuisineChange: (value: string) => void;
+  onCuisineDeChange: (value: string) => void;
   onCourseChange: (value: string) => void;
+  onCourseDeChange: (value: string) => void;
   onDifficultyChange: (value: string) => void;
+  onDifficultyDeChange: (value: string) => void;
   onPrepTimeChange: (value: string) => void;
   onCookTimeChange: (value: string) => void;
   onTotalTimeChange: (value: string) => void;
@@ -122,7 +128,9 @@ export default function RecipeForm(props: RecipeFormProps) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
         <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
         <input className="input" value={props.cuisine} onChange={(event) => props.onCuisineChange(event.target.value)} placeholder="Cuisine" />
+        <input className="input" value={props.cuisineDe} onChange={(event) => props.onCuisineDeChange(event.target.value)} placeholder="Cuisine (DE)" />
         <input className="input" value={props.course} onChange={(event) => props.onCourseChange(event.target.value)} placeholder="Course" />
+        <input className="input" value={props.courseDe} onChange={(event) => props.onCourseDeChange(event.target.value)} placeholder="Course (DE)" />
         <select className="input" value={props.difficulty} onChange={(event) => props.onDifficultyChange(event.target.value)}>
           <option value="">Difficulty</option>
           {DIFFICULTY_OPTIONS.map((option) => (
@@ -131,6 +139,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             </option>
           ))}
         </select>
+        <input className="input" value={props.difficultyDe} onChange={(event) => props.onDifficultyDeChange(event.target.value)} placeholder="Difficulty (DE)" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>

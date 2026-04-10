@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
-import { getRecipeTitle } from "@/lib/recipe-types";
+import { getBadgeLabel, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,16 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedBadge, setSelectedBadge] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const recipeLabel = (value: string, field: "cuisine" | "course") => {
+    const recipeMatch = recipes.find((recipe) => recipe[field] === value);
+
+    if (!recipeMatch) {
+      return value;
+    }
+
+    return field === "cuisine" ? getRecipeCuisine(recipeMatch, "de") || value : getRecipeCourse(recipeMatch, "de") || value;
+  };
 
   const fetchRecipes = async (currentUser: AppUser | null) => {
     // When nobody is logged in, the private cookbook should not show personal recipes.
@@ -69,7 +79,7 @@ export default function Home() {
   const cuisines = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean))) as string[], [recipes]);
   const courses = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.course).filter(Boolean))) as string[], [recipes]);
   const badges = useMemo(
-    () => Array.from(new Set(recipes.flatMap((recipe) => [...recipe.badges, ...deriveNutritionClaimTags(recipe)]))).sort(),
+    () => Array.from(new Set(recipes.flatMap((recipe) => [...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")]))).sort(),
     [recipes]
   );
 
@@ -82,10 +92,13 @@ export default function Home() {
         recipe.title_de ?? "",
         recipe.category ?? "",
         recipe.cuisine ?? "",
+        recipe.cuisine_de ?? "",
         recipe.course ?? "",
+        recipe.course_de ?? "",
         recipe.tags.join(" "),
         recipe.badges.join(" "),
-        deriveNutritionClaimTags(recipe).join(" "),
+        deriveNutritionClaimTags(recipe, "en").join(" "),
+        deriveNutritionClaimTags(recipe, "de").join(" "),
       ]
         .join(" ")
         .toLowerCase()
@@ -93,7 +106,7 @@ export default function Home() {
 
     const matchesCuisine = !selectedCuisine || recipe.cuisine === selectedCuisine;
     const matchesCourse = !selectedCourse || recipe.course === selectedCourse;
-    const matchesBadge = !selectedBadge || [...recipe.badges, ...deriveNutritionClaimTags(recipe)].includes(selectedBadge);
+    const matchesBadge = !selectedBadge || [...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].includes(selectedBadge);
 
     return matchesSearch && matchesCuisine && matchesCourse && matchesBadge;
   });
@@ -215,7 +228,7 @@ export default function Home() {
           <option value="">All cuisines</option>
           {cuisines.map((cuisine) => (
             <option key={cuisine} value={cuisine}>
-              {cuisine}
+              {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
             </option>
           ))}
         </select>
@@ -223,7 +236,7 @@ export default function Home() {
           <option value="">All courses</option>
           {courses.map((course) => (
             <option key={course} value={course}>
-              {course}
+              {lang === "de" ? recipeLabel(course, "course") : course}
             </option>
           ))}
         </select>
@@ -236,7 +249,7 @@ export default function Home() {
           </button>
           {badges.map((badge) => (
             <button key={badge} className="button" type="button" onClick={() => setSelectedBadge(badge)} style={{ background: selectedBadge === badge ? "#f0d6c5" : undefined }}>
-              {badge}
+              {getBadgeLabel(badge, lang)}
             </button>
           ))}
         </div>
@@ -270,7 +283,7 @@ export default function Home() {
                     <Link href={`/recipe/${recipe.id}`}>
                       <h2 style={{ marginBottom: 6 }}>{getRecipeTitle(recipe, lang)}</h2>
                     </Link>
-                    <p style={{ marginBottom: 6 }}>{[recipe.cuisine, recipe.course, recipe.difficulty].filter(Boolean).join(" • ")}</p>
+                    <p style={{ marginBottom: 6 }}>{[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).join(" • ")}</p>
                     <p style={{ marginBottom: 6 }}>{[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).join(" • ")}</p>
                     <p style={{ marginTop: 8, marginBottom: 0 }}>
                       By {recipe.author_name}
@@ -290,11 +303,11 @@ export default function Home() {
                   ) : null}
                 </div>
 
-                {[...recipe.badges, ...deriveNutritionClaimTags(recipe)].length > 0 ? (
+                {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-                    {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe)])].map((badge) => (
+                    {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
                       <span key={`${recipe.id}-${badge}`} className="chip">
-                        {badge}
+                        {getBadgeLabel(badge, lang)}
                       </span>
                     ))}
                   </div>

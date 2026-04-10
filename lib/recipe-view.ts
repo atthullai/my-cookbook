@@ -1,5 +1,5 @@
 import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
-import { getInstructionSections, getRecipeNotes } from "@/lib/recipe-types";
+import { getBadgeLabel, getInstructionSections, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeNotes } from "@/lib/recipe-types";
 
 // The recipe page renders normalized instruction sections, regardless of whether the row
 // came from the new structured editor or an older text-only recipe.
@@ -31,16 +31,16 @@ export function extractLinks(recipe: RecipeRecord): string[] {
 export function buildRecipeHighlights(recipe: RecipeRecord, lang: AppLanguage): string[] {
   const highlights: string[] = [];
 
-  if (recipe.cuisine) {
-    highlights.push(recipe.cuisine);
+  if (getRecipeCuisine(recipe, lang)) {
+    highlights.push(getRecipeCuisine(recipe, lang));
   }
 
-  if (recipe.course) {
-    highlights.push(recipe.course);
+  if (getRecipeCourse(recipe, lang)) {
+    highlights.push(getRecipeCourse(recipe, lang));
   }
 
-  if (recipe.difficulty) {
-    highlights.push(recipe.difficulty);
+  if (getRecipeDifficulty(recipe, lang)) {
+    highlights.push(getRecipeDifficulty(recipe, lang));
   }
 
   if (recipe.prep_time) {
@@ -107,7 +107,7 @@ const CLAIM_LABELS = {
 
 // These are display claims, not legal packaging claims. They help your recipe cards communicate
 // nutrition strengths based on manual nutrition values already stored in the app.
-export function deriveNutritionClaimTags(recipe: RecipeRecord): string[] {
+export function deriveNutritionClaimTags(recipe: RecipeRecord, lang: AppLanguage = "en"): string[] {
   if (!recipe.nutrition) {
     return [];
   }
@@ -122,11 +122,11 @@ export function deriveNutritionClaimTags(recipe: RecipeRecord): string[] {
       const percentDailyValue = (value / DAILY_VALUES[key]) * 100;
 
       if (percentDailyValue >= 20) {
-        return [`Excellent ${CLAIM_LABELS[key]}`];
+        return [getBadgeLabel(`Excellent ${CLAIM_LABELS[key]}`, lang)];
       }
 
       if (percentDailyValue >= 10) {
-        return [`Good ${CLAIM_LABELS[key]}`];
+        return [getBadgeLabel(`Good ${CLAIM_LABELS[key]}`, lang)];
       }
 
       return [];

@@ -4,10 +4,14 @@ import Image from "next/image";
 import { useState } from "react";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
+  getBadgeLabel,
   getEquipmentLabel,
   getIngredientGroupLabel,
   getIngredientLabel,
+  getRecipeCourse,
+  getRecipeCuisine,
   getRecipeDescription,
+  getRecipeDifficulty,
   getRecipeNotes,
   getRecipeNutritionNote,
   getRecipeStorage,
@@ -97,7 +101,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const stepPhotos = recipe.step_photos ?? [];
   const coverImage = getRecipeCoverImage(recipe);
   const galleryImages = recipe.image_urls.filter((imageUrl) => imageUrl !== coverImage);
-  const displayBadges = [...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe)])];
+  const displayBadges = [...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])];
 
   const handlePrint = () => {
     window.print();
@@ -152,7 +156,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
           </p>
           <p style={{ marginTop: 8, marginBottom: 0 }}>
-            {[recipe.cuisine, recipe.course, recipe.difficulty].filter(Boolean).join(" • ")}
+            {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).join(" • ")}
           </p>
         </div>
 
@@ -196,7 +200,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           {displayBadges.map((badge) => (
             <span key={badge} className="chip">
-              {badge}
+              {getBadgeLabel(badge, lang)}
             </span>
           ))}
         </div>
