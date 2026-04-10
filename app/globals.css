@@ -248,10 +248,36 @@ ul {
   gap: 12px;
 }
 
+/* Grid used by home and index cards so recipe previews stay aligned even with cover photos. */
+.recipe-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+/* Cover image treatment for home/index recipe cards. */
+.recipe-card-photo {
+  width: calc(100% + 40px);
+  height: 210px;
+  object-fit: cover;
+  margin: -20px -20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Shared treatment for recipe photos. */
 .recipe-photo {
   width: 100%;
   height: 220px;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* Recipe hero image uses a taller aspect than the gallery thumbnails. */
+.recipe-cover-photo {
+  width: 100%;
+  height: 340px;
   object-fit: cover;
   border-radius: 18px;
   border: 1px solid var(--border);

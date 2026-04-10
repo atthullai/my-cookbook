@@ -12,6 +12,7 @@ import type {
   FaqDraft,
   IngredientDraft,
   IngredientGroupDraft,
+  InstructionSectionDraft,
   NutritionDraft,
   RecipeRecord,
   StepPhotoDraft,
@@ -22,6 +23,7 @@ import {
   EMPTY_FAQ,
   EMPTY_INGREDIENT,
   EMPTY_INGREDIENT_GROUP,
+  EMPTY_INSTRUCTION_SECTION,
   EMPTY_NUTRITION,
   EMPTY_STEP_PHOTO,
   EMPTY_TROUBLESHOOTING,
@@ -49,10 +51,16 @@ export default function EditRecipe() {
   const [descriptionEn, setDescriptionEn] = useState("");
   const [descriptionDe, setDescriptionDe] = useState("");
   const [category, setCategory] = useState("");
+  const [cuisine, setCuisine] = useState("");
+  const [course, setCourse] = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [prepTime, setPrepTime] = useState("");
+  const [cookTime, setCookTime] = useState("");
+  const [totalTime, setTotalTime] = useState("");
   const [tags, setTags] = useState("");
+  const [badges, setBadges] = useState<string[]>([]);
   const [ingredientGroups, setIngredientGroups] = useState<IngredientGroupDraft[]>([{ ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }]);
-  const [steps, setSteps] = useState("");
-  const [stepsDe, setStepsDe] = useState("");
+  const [instructionSections, setInstructionSections] = useState<InstructionSectionDraft[]>([{ ...EMPTY_INSTRUCTION_SECTION }]);
   const [notesEn, setNotesEn] = useState("");
   const [notesDe, setNotesDe] = useState("");
   const [tipsEn, setTipsEn] = useState("");
@@ -68,6 +76,7 @@ export default function EditRecipe() {
   const [servings, setServings] = useState("");
   const [equipment, setEquipment] = useState<EquipmentDraft[]>([{ ...EMPTY_EQUIPMENT }]);
   const [imageUrls, setImageUrls] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -112,7 +121,14 @@ export default function EditRecipe() {
       setDescriptionEn(normalizedRecipe.description_en || "");
       setDescriptionDe(normalizedRecipe.description_de || "");
       setCategory(normalizedRecipe.category || "");
+      setCuisine(normalizedRecipe.cuisine || "");
+      setCourse(normalizedRecipe.course || "");
+      setDifficulty(normalizedRecipe.difficulty || "");
+      setPrepTime(normalizedRecipe.prep_time || "");
+      setCookTime(normalizedRecipe.cook_time || "");
+      setTotalTime(normalizedRecipe.total_time || "");
       setTags(normalizedRecipe.tags.join(", "));
+      setBadges(normalizedRecipe.badges);
       setIngredientGroups(
         normalizedRecipe.ingredients.length
           ? normalizedRecipe.ingredients.map((group) => ({
@@ -129,8 +145,16 @@ export default function EditRecipe() {
             }))
           : [{ ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }]
       );
-      setSteps(normalizedRecipe.steps_en);
-      setStepsDe(normalizedRecipe.steps_de || "");
+      setInstructionSections(
+        normalizedRecipe.instruction_sections.length
+          ? normalizedRecipe.instruction_sections.map((section) => ({
+              title_en: section.title_en,
+              title_de: section.title_de,
+              steps_en: section.steps_en.join("\n"),
+              steps_de: section.steps_de.join("\n"),
+            }))
+          : [{ ...EMPTY_INSTRUCTION_SECTION }]
+      );
       setNotesEn(normalizedRecipe.notes_en || "");
       setNotesDe(normalizedRecipe.notes_de || "");
       setTipsEn(normalizedRecipe.tips_en || "");
@@ -177,6 +201,7 @@ export default function EditRecipe() {
           : [{ ...EMPTY_EQUIPMENT }]
       );
       setImageUrls(normalizedRecipe.image_urls.join("\n"));
+      setCoverImageUrl(normalizedRecipe.cover_image_url || "");
       setLoading(false);
     };
 
@@ -203,6 +228,9 @@ export default function EditRecipe() {
       )
     );
   };
+  const updateInstructionSection = (index: number, field: keyof InstructionSectionDraft, value: string) => {
+    setInstructionSections((current) => current.map((section, currentIndex) => (currentIndex === index ? { ...section, [field]: value } : section)));
+  };
   const updateEquipment = (index: number, field: keyof EquipmentDraft, value: string) => {
     setEquipment((current) => current.map((item, currentIndex) => (currentIndex === index ? { ...item, [field]: value } : item)));
   };
@@ -218,6 +246,9 @@ export default function EditRecipe() {
   const updateNutrition = (field: keyof NutritionDraft, value: string) => {
     setNutrition((current) => ({ ...current, [field]: value }));
   };
+  const toggleBadge = (badge: string) => {
+    setBadges((current) => (current.includes(badge) ? current.filter((item) => item !== badge) : [...current, badge]));
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -230,7 +261,6 @@ export default function EditRecipe() {
 
     const autoTitleDe = title.trim() ? await translateEnglishToGerman(title) : "";
     const autoDescriptionDe = descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "";
-    const autoStepsDe = steps.trim() ? await translateEnglishToGerman(steps) : "";
     const autoNotesDe = notesEn.trim() ? await translateEnglishToGerman(notesEn) : "";
     const autoTipsDe = tipsEn.trim() ? await translateEnglishToGerman(tipsEn) : "";
     const autoStorageDe = storageEn.trim() ? await translateEnglishToGerman(storageEn) : "";
@@ -245,6 +275,15 @@ export default function EditRecipe() {
             name_de: ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : "",
           }))
         ),
+      }))
+    );
+
+    const translatedInstructionSections = await Promise.all(
+      instructionSections.map(async (section) => ({
+        title_en: section.title_en,
+        title_de: section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : "",
+        steps_en: section.steps_en,
+        steps_de: section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : "",
       }))
     );
 
@@ -280,6 +319,11 @@ export default function EditRecipe() {
       }))
     );
 
+    const translatedNutrition = {
+      ...nutrition,
+      note_de: nutrition.note_en.trim() ? await translateEnglishToGerman(nutrition.note_en) : "",
+    };
+
     // Rebuild the entire recipe payload from the current draft state before updating Supabase.
     const payload = buildRecipePayload({
       slug: recipe.slug,
@@ -290,17 +334,23 @@ export default function EditRecipe() {
       descriptionEn,
       descriptionDe: autoDescriptionDe,
       category,
+      cuisine,
+      course,
+      difficulty,
+      prepTime,
+      cookTime,
+      totalTime,
       tags,
+      badges,
       ingredientGroups: translatedGroups,
-      stepsEn: steps,
-      stepsDe: autoStepsDe,
+      instructionSections: translatedInstructionSections,
       notesEn,
       notesDe: autoNotesDe,
       tipsEn,
       tipsDe: autoTipsDe,
       storageEn,
       storageDe: autoStorageDe,
-      nutrition,
+      nutrition: translatedNutrition,
       faq: translatedFaq,
       troubleshooting: translatedTroubleshooting,
       stepPhotos: translatedStepPhotos,
@@ -309,6 +359,7 @@ export default function EditRecipe() {
       servings,
       equipment: translatedEquipment,
       imageUrls,
+      coverImageUrl,
     });
 
     const { error } = await supabase.from("recipes").update(payload).eq("id", recipeId).eq("user_id", user.id);
@@ -322,7 +373,13 @@ export default function EditRecipe() {
     router.push(`/recipe/${recipeId}`);
   };
 
-  if (loading || !recipe) return <main className="container"><p>Loading recipe...</p></main>;
+  if (loading || !recipe) {
+    return (
+      <main className="container">
+        <p>Loading recipe...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="container">
@@ -338,10 +395,16 @@ export default function EditRecipe() {
         descriptionEn={descriptionEn}
         descriptionDe={descriptionDe}
         category={category}
+        cuisine={cuisine}
+        course={course}
+        difficulty={difficulty}
+        prepTime={prepTime}
+        cookTime={cookTime}
+        totalTime={totalTime}
         tags={tags}
+        badges={badges}
         ingredientGroups={ingredientGroups}
-        steps={steps}
-        stepsDe={stepsDe}
+        instructionSections={instructionSections}
         notesEn={notesEn}
         notesDe={notesDe}
         tipsEn={tipsEn}
@@ -357,6 +420,7 @@ export default function EditRecipe() {
         servings={servings}
         equipment={equipment}
         imageUrls={imageUrls}
+        coverImageUrl={coverImageUrl}
         saving={saving}
         submitLabel="Save Changes"
         onSubmit={handleSubmit}
@@ -367,7 +431,14 @@ export default function EditRecipe() {
         onDescriptionEnChange={setDescriptionEn}
         onDescriptionDeChange={setDescriptionDe}
         onCategoryChange={setCategory}
+        onCuisineChange={setCuisine}
+        onCourseChange={setCourse}
+        onDifficultyChange={setDifficulty}
+        onPrepTimeChange={setPrepTime}
+        onCookTimeChange={setCookTime}
+        onTotalTimeChange={setTotalTime}
         onTagsChange={setTags}
+        onBadgeToggle={toggleBadge}
         onIngredientGroupAdd={() =>
           setIngredientGroups((current) => [...current, { ...EMPTY_INGREDIENT_GROUP, items: [{ ...EMPTY_INGREDIENT }] }])
         }
@@ -380,7 +451,7 @@ export default function EditRecipe() {
         onIngredientGroupChange={updateIngredientGroup}
         onIngredientAdd={(groupIndex) =>
           setIngredientGroups((current) =>
-            current.map((group, index) => index === groupIndex ? { ...group, items: [...group.items, { ...EMPTY_INGREDIENT }] } : group)
+            current.map((group, index) => (index === groupIndex ? { ...group, items: [...group.items, { ...EMPTY_INGREDIENT }] } : group))
           )
         }
         onIngredientRemove={(groupIndex, ingredientIndex) =>
@@ -393,8 +464,14 @@ export default function EditRecipe() {
           )
         }
         onIngredientChange={updateIngredient}
-        onStepsChange={setSteps}
-        onStepsDeChange={setStepsDe}
+        onInstructionSectionAdd={() => setInstructionSections((current) => [...current, { ...EMPTY_INSTRUCTION_SECTION, title_en: "", title_de: "" }])}
+        onInstructionSectionRemove={(index) =>
+          setInstructionSections((current) => {
+            const next = current.filter((_, currentIndex) => currentIndex !== index);
+            return next.length > 0 ? next : [{ ...EMPTY_INSTRUCTION_SECTION }];
+          })
+        }
+        onInstructionSectionChange={updateInstructionSection}
         onNotesEnChange={setNotesEn}
         onNotesDeChange={setNotesDe}
         onTipsEnChange={setTipsEn}
@@ -411,22 +488,16 @@ export default function EditRecipe() {
         }
         onTroubleshootingChange={updateTroubleshooting}
         onStepPhotoAdd={() => setStepPhotos((current) => [...current, { ...EMPTY_STEP_PHOTO }])}
-        onStepPhotoRemove={(index) =>
-          setStepPhotos((current) => current.filter((_, currentIndex) => currentIndex !== index))
-        }
+        onStepPhotoRemove={(index) => setStepPhotos((current) => current.filter((_, currentIndex) => currentIndex !== index))}
         onStepPhotoChange={updateStepPhoto}
         onSourceUrlChange={setSourceUrl}
         onVideoUrlChange={setVideoUrl}
         onServingsChange={setServings}
         onEquipmentAdd={() => setEquipment((current) => [...current, { ...EMPTY_EQUIPMENT }])}
-        onEquipmentRemove={(index) =>
-          setEquipment((current) => {
-            const next = current.filter((_, currentIndex) => currentIndex !== index);
-            return next.length > 0 ? next : [{ ...EMPTY_EQUIPMENT }];
-          })
-        }
+        onEquipmentRemove={(index) => setEquipment((current) => current.filter((_, currentIndex) => currentIndex !== index))}
         onEquipmentChange={updateEquipment}
         onImageUrlsChange={setImageUrls}
+        onCoverImageUrlChange={setCoverImageUrl}
       />
     </main>
   );

@@ -5,9 +5,16 @@ export type ImportedRecipeDraft = {
   title: string;
   description: string;
   category: string;
+  cuisine: string;
+  course: string;
+  difficulty: string;
   tags: string;
+  badges: string[];
   learnedFrom: string;
   servings: string;
+  prepTime: string;
+  cookTime: string;
+  totalTime: string;
   ingredients: Array<{
     group_en: string;
     items: Array<{
@@ -16,14 +23,13 @@ export type ImportedRecipeDraft = {
       name_en: string;
     }>;
   }>;
-  steps: string;
+  instructionSections: Array<{
+    title_en: string;
+    steps_en: string[];
+  }>;
   notesEn: string;
   imageUrls: string[];
-  stepPhotos: Array<{
-    step_number: string;
-    image_url: string;
-    caption_en: string;
-  }>;
+  coverImageUrl: string;
   videoUrl: string;
 };
 
@@ -135,26 +141,12 @@ function extractLegacyDescription(html: string): string {
 
 function extractLegacyMethodSteps(html: string): string[] {
   const stepWiseSection = html.match(/Method with step wise pictures:([\s\S]*?)(?:<\/div>\s*<\/div>\s*<\/div>|<div id="respond"|$)/i);
-  const methodSection = stepWiseSection?.[1] || html.match(/<h2>Method:?<\/h2>([\s\S]*?)(?:<h2>Method with step wise pictures:|<div id="respond"|$)/i)?.[1] || "";
+  const methodSection =
+    stepWiseSection?.[1] || html.match(/<h2>Method:?<\/h2>([\s\S]*?)(?:<h2>Method with step wise pictures:|<div id="respond"|$)/i)?.[1] || "";
 
-  const steps = [...methodSection.matchAll(/<li>([\s\S]*?)<\/li>/gi)]
+  return [...methodSection.matchAll(/<li>([\s\S]*?)<\/li>/gi)]
     .map((match) => stripHtml(match[1]))
     .filter(Boolean);
-
-  return steps;
-}
-
-function extractLegacyStepPhotos(html: string, fallbackSteps: string[]) {
-  const stepWiseSection = html.match(/Method with step wise pictures:([\s\S]*?)(?:<\/div>\s*<\/div>\s*<\/div>|<div id="respond"|$)/i)?.[1] || "";
-  const imageMatches = [...stepWiseSection.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)]
-    .map((match) => decodeHtmlEntities(match[1]))
-    .filter((image) => /wp-content\/uploads/i.test(image));
-
-  return imageMatches.slice(0, 8).map((imageUrl, index) => ({
-    step_number: String(index + 1),
-    image_url: imageUrl,
-    caption_en: fallbackSteps[index] || `Process photo ${index + 1}`,
-  }));
 }
 
 function extractLegacyRecipe(html: string, sourceUrl: URL): JsonLdValue | null {
@@ -178,7 +170,8 @@ function extractLegacyRecipe(html: string, sourceUrl: URL): JsonLdValue | null {
     keywords: extractMetaContent(html, "article:tag"),
     image: [...new Set([extractMetaContent(html, "og:image"), ...extractImageUrls(html, {})])].filter(Boolean),
     video: extractVideoUrl(html, {}),
-    _legacyStepPhotos: extractLegacyStepPhotos(html, instructions),
+    recipeCuisine: extractMetaContent(html, "article:section"),
+    totalTime: extractMetaContent(html, "cook_time"),
   };
 }
 
@@ -286,24 +279,29 @@ function extractIngredients(recipe: JsonLdValue) {
   ];
 }
 
-function flattenInstructions(value: unknown): string[] {
+function flattenInstructions(value: unknown): Array<{ title_en: string; steps_en: string[] }> {
   if (typeof value === "string") {
-    return normalizeText(value)
+    const steps = normalizeText(value)
       .split(/\n+/)
       .map((step) => step.trim())
       .filter(Boolean);
+
+    return steps.length > 0 ? [{ title_en: "Method", steps_en: steps }] : [];
   }
 
   if (!Array.isArray(value)) {
     return [];
   }
 
-  const steps: string[] = [];
+  const sections: Array<{ title_en: string; steps_en: string[] }> = [];
+  const methodSteps: string[] = [];
 
   for (const item of value) {
     if (typeof item === "string") {
       const step = normalizeText(item);
-      if (step) steps.push(step);
+      if (step) {
+        methodSteps.push(step);
+      }
       continue;
     }
 
@@ -315,30 +313,37 @@ function flattenInstructions(value: unknown): string[] {
     const type = normalizeText(raw["@type"]).toLowerCase();
 
     if (type === "howtosection") {
-      const sectionName = normalizeText(raw.name);
-      const sectionSteps = flattenInstructions(raw.itemListElement);
+      const sectionName = normalizeText(raw.name) || "Method";
+      const sectionSteps = flattenInstructions(raw.itemListElement).flatMap((section) => section.steps_en);
 
-      if (sectionName) {
-        steps.push(`## ${sectionName}`);
+      if (sectionSteps.length > 0) {
+        sections.push({
+          title_en: sectionName,
+          steps_en: sectionSteps,
+        });
       }
 
-      steps.push(...sectionSteps);
       continue;
     }
 
     const text = normalizeText(raw.text || raw.name);
     if (text) {
-      steps.push(text);
+      methodSteps.push(text);
     }
   }
 
-  return steps;
-}
+  if (sections.length === 0 && methodSteps.length > 0) {
+    return [{ title_en: "Method", steps_en: methodSteps }];
+  }
 
-function buildStepText(recipe: JsonLdValue): string {
-  return flattenInstructions(recipe.recipeInstructions)
-    .map((step, index) => (step.startsWith("## ") ? step : `${index + 1}. ${step}`))
-    .join("\n");
+  if (methodSteps.length > 0) {
+    sections.unshift({
+      title_en: "Method",
+      steps_en: methodSteps,
+    });
+  }
+
+  return sections;
 }
 
 function extractImageUrls(html: string, recipe: JsonLdValue): string[] {
@@ -353,29 +358,18 @@ function extractImageUrls(html: string, recipe: JsonLdValue): string[] {
 function extractVideoUrl(html: string, recipe: JsonLdValue): string {
   const candidates = [
     recipe.video,
-    (recipe.video && typeof recipe.video === "object" ? (recipe.video as JsonLdValue).embedUrl : null),
-    (recipe.video && typeof recipe.video === "object" ? (recipe.video as JsonLdValue).contentUrl : null),
-    (recipe.video && typeof recipe.video === "object" ? (recipe.video as JsonLdValue).url : null),
+    recipe.video && typeof recipe.video === "object" ? (recipe.video as JsonLdValue).embedUrl : null,
+    recipe.video && typeof recipe.video === "object" ? (recipe.video as JsonLdValue).contentUrl : null,
+    recipe.video && typeof recipe.video === "object" ? (recipe.video as JsonLdValue).url : null,
   ]
     .flatMap((value) => normalizeTextList(value))
     .filter(Boolean);
 
-  const pageVideo = html.match(/https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=[^"' ]+|youtube\.com\/embed\/[^"' ]+|youtu\.be\/[^"' ]+|youtube\.com\/shorts\/[^"' ]+|instagram\.com\/reel\/[^"' ]+)/i);
+  const pageVideo = html.match(
+    /https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=[^"' ]+|youtube\.com\/embed\/[^"' ]+|youtu\.be\/[^"' ]+|youtube\.com\/shorts\/[^"' ]+|instagram\.com\/reel\/[^"' ]+)/i
+  );
 
   return candidates[0] || pageVideo?.[0] || "";
-}
-
-function buildStepPhotos(steps: string, imageUrls: string[]) {
-  const instructionLines = steps
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("## "));
-
-  return imageUrls.slice(1, Math.min(imageUrls.length, 6)).map((imageUrl, index) => ({
-    step_number: String(index + 1),
-    image_url: imageUrl,
-    caption_en: instructionLines[index]?.replace(/^\d+\.\s*/, "") || `Process photo ${index + 1}`,
-  }));
 }
 
 function extractDescription(recipe: JsonLdValue): string {
@@ -383,11 +377,28 @@ function extractDescription(recipe: JsonLdValue): string {
 }
 
 function extractCategory(recipe: JsonLdValue): string {
-  const category = normalizeText(recipe.recipeCategory);
-  if (category) return category;
+  return normalizeText(recipe.recipeCategory);
+}
 
-  const cuisine = normalizeText(recipe.recipeCuisine);
-  return cuisine || "";
+function extractCuisine(recipe: JsonLdValue): string {
+  return normalizeText(recipe.recipeCuisine);
+}
+
+function extractCourse(recipe: JsonLdValue): string {
+  const category = normalizeText(recipe.recipeCategory);
+  if (!category) {
+    return "";
+  }
+
+  const lower = category.toLowerCase();
+  if (lower.includes("dessert")) return "Dessert";
+  if (lower.includes("breakfast")) return "Breakfast";
+  if (lower.includes("lunch")) return "Lunch";
+  if (lower.includes("dinner")) return "Dinner";
+  if (lower.includes("main")) return "Main Course";
+  if (lower.includes("side")) return "Side Dish";
+
+  return category;
 }
 
 function extractTags(recipe: JsonLdValue): string {
@@ -397,9 +408,38 @@ function extractTags(recipe: JsonLdValue): string {
   return normalizeTextList(recipe.recipeCuisine).join(", ");
 }
 
+function inferBadges(recipe: JsonLdValue, title: string, tags: string): string[] {
+  const haystack = `${title} ${tags} ${normalizeText(recipe.description)}`.toLowerCase();
+  const badges: string[] = [];
+
+  if (/(veg(etarian)?|dal|sambar|kuzhambu|paneer)/.test(haystack)) badges.push("Veg");
+  if (/(vegan)/.test(haystack)) badges.push("Vegan");
+  if (/(chicken|mutton|fish|egg|beef|prawn)/.test(haystack)) badges.push("Non-Veg");
+  if (/(spicy|masala|andhra)/.test(haystack)) badges.push("Spicy");
+  if (/(quick|instant|pressure cooker|cooker)/.test(haystack)) badges.push("Quick Meal");
+  if (/(protein|dal|lentil|paneer|moong)/.test(haystack)) badges.push("High Protein");
+
+  return [...new Set(badges)];
+}
+
+function extractIsoDuration(value: string): string {
+  const normalized = normalizeText(value);
+  if (!normalized) return "";
+  if (!normalized.startsWith("PT")) return normalized;
+
+  const hours = normalized.match(/(\d+)H/i)?.[1];
+  const minutes = normalized.match(/(\d+)M/i)?.[1];
+  const parts = [];
+
+  if (hours) parts.push(`${hours} hr`);
+  if (minutes) parts.push(`${minutes} min`);
+
+  return parts.join(" ");
+}
+
 function extractNotes(recipe: JsonLdValue): string {
   const parts = [
-    normalizeText(recipe.totalTime) ? `Total time: ${normalizeText(recipe.totalTime)}` : "",
+    normalizeText(recipe.totalTime) ? `Total time: ${extractIsoDuration(normalizeText(recipe.totalTime))}` : "",
     normalizeText(recipe.recipeYield) ? `Yield: ${normalizeText(recipe.recipeYield)}` : "",
   ].filter(Boolean);
 
@@ -426,28 +466,30 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
     throw new Error("I could not find recipe data on that page yet.");
   }
 
+  const title = normalizeText(recipe.name);
+  const tags = extractTags(recipe);
   const imageUrls = extractImageUrls(html, recipe);
-  const steps = buildStepText(recipe);
-
-  const legacyStepPhotos =
-    Array.isArray(recipe._legacyStepPhotos) &&
-    recipe._legacyStepPhotos.every((item) => item && typeof item === "object")
-      ? (recipe._legacyStepPhotos as ImportedRecipeDraft["stepPhotos"])
-      : [];
 
   return {
     sourceUrl: url.toString(),
-    title: normalizeText(recipe.name),
+    title,
     description: extractDescription(recipe),
     category: extractCategory(recipe),
-    tags: extractTags(recipe),
+    cuisine: extractCuisine(recipe),
+    course: extractCourse(recipe),
+    difficulty: "",
+    tags,
+    badges: inferBadges(recipe, title, tags),
     learnedFrom: extractAuthorName(recipe, url),
     servings: extractRecipeYield(recipe),
+    prepTime: extractIsoDuration(normalizeText(recipe.prepTime)),
+    cookTime: extractIsoDuration(normalizeText(recipe.cookTime)),
+    totalTime: extractIsoDuration(normalizeText(recipe.totalTime)),
     ingredients: extractIngredients(recipe),
-    steps,
+    instructionSections: flattenInstructions(recipe.recipeInstructions),
     notesEn: extractNotes(recipe),
     imageUrls,
-    stepPhotos: legacyStepPhotos.length > 0 ? legacyStepPhotos : buildStepPhotos(steps, imageUrls),
+    coverImageUrl: imageUrls[0] || "",
     videoUrl: extractVideoUrl(html, recipe),
   };
 }

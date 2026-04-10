@@ -2,11 +2,13 @@ import type {
   EquipmentDraft,
   FaqDraft,
   IngredientGroupDraft,
+  InstructionSectionDraft,
   NutritionDraft,
   RecipeEquipmentItem,
   RecipeFaqItem,
   RecipeIngredient,
   RecipeIngredientGroup,
+  RecipeInstructionSection,
   RecipeNutritionFacts,
   RecipeRecord,
   RecipeStepPhoto,
@@ -14,7 +16,7 @@ import type {
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
-import { normalizeRecipe, parseTagInput } from "@/lib/recipe-types";
+import { normalizeRecipe, parseTagInput, serializeInstructionSections, splitRecipeSteps } from "@/lib/recipe-types";
 
 // This file is the boundary between form state and database shape.
 // Components talk in drafts; Supabase inserts/updates talk in clean payload objects.
@@ -50,6 +52,22 @@ export function buildEquipmentPayload(equipment: EquipmentDraft[]): RecipeEquipm
       label_en: item.label_en.trim(),
       label_de: item.label_de.trim() || item.label_en.trim(),
     }));
+}
+
+export function buildInstructionSectionPayload(sections: InstructionSectionDraft[]): RecipeInstructionSection[] {
+  return sections
+    .map((section, index) => {
+      const stepsEn = splitRecipeSteps(section.steps_en);
+      const stepsDe = splitRecipeSteps(section.steps_de);
+
+      return {
+        title_en: section.title_en.trim() || (index === 0 ? "Method" : `Section ${index + 1}`),
+        title_de: section.title_de.trim() || section.title_en.trim() || (index === 0 ? "Methode" : `Abschnitt ${index + 1}`),
+        steps_en: stepsEn,
+        steps_de: stepsDe.length > 0 ? stepsDe : stepsEn,
+      };
+    })
+    .filter((section) => section.steps_en.length > 0);
 }
 
 export function buildStepPhotoPayload(stepPhotos: StepPhotoDraft[]): RecipeStepPhoto[] {
@@ -130,10 +148,16 @@ export function buildRecipePayload(input: {
   descriptionEn: string;
   descriptionDe: string;
   category: string;
+  cuisine: string;
+  course: string;
+  difficulty: string;
+  prepTime: string;
+  cookTime: string;
+  totalTime: string;
   tags: string;
+  badges: string[];
   ingredientGroups: IngredientGroupDraft[];
-  stepsEn: string;
-  stepsDe: string;
+  instructionSections: InstructionSectionDraft[];
   notesEn: string;
   notesDe: string;
   tipsEn: string;
@@ -149,7 +173,17 @@ export function buildRecipePayload(input: {
   servings: string;
   equipment: EquipmentDraft[];
   imageUrls: string;
+  coverImageUrl: string;
 }) {
+  const instructionSections = buildInstructionSectionPayload(input.instructionSections);
+  const stepsEn = serializeInstructionSections(instructionSections, "en");
+  const stepsDe = serializeInstructionSections(instructionSections, "de");
+  const imageUrls = input.imageUrls
+    .split("\n")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const coverImageUrl = input.coverImageUrl.trim() || imageUrls[0] || null;
+
   // This is the single place where we translate form values into the exact database record shape.
   return {
     slug: input.slug.trim(),
@@ -160,10 +194,18 @@ export function buildRecipePayload(input: {
     description_en: input.descriptionEn.trim() || null,
     description_de: input.descriptionDe.trim() || null,
     category: input.category.trim() || null,
+    cuisine: input.cuisine.trim() || null,
+    course: input.course.trim() || null,
+    difficulty: input.difficulty.trim() || null,
+    prep_time: input.prepTime.trim() || null,
+    cook_time: input.cookTime.trim() || null,
+    total_time: input.totalTime.trim() || null,
     tags: parseTagInput(input.tags),
+    badges: input.badges.map((badge) => badge.trim()).filter(Boolean),
     ingredients: buildIngredientPayload(input.ingredientGroups),
-    steps_en: input.stepsEn.trim(),
-    steps_de: input.stepsDe.trim() || null,
+    instruction_sections: instructionSections,
+    steps_en: stepsEn,
+    steps_de: stepsDe || null,
     notes_en: input.notesEn.trim() || null,
     notes_de: input.notesDe.trim() || null,
     tips_en: input.tipsEn.trim() || null,
@@ -178,9 +220,7 @@ export function buildRecipePayload(input: {
     video_url: input.videoUrl.trim() || null,
     servings: input.servings.trim() ? Number(input.servings) : null,
     equipment: buildEquipmentPayload(input.equipment),
-    image_urls: input.imageUrls
-      .split("\n")
-      .map((value) => value.trim())
-      .filter(Boolean),
+    image_urls: imageUrls,
+    cover_image_url: coverImageUrl,
   };
 }

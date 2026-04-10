@@ -6,10 +6,12 @@ import type {
   FaqDraft,
   IngredientDraft,
   IngredientGroupDraft,
+  InstructionSectionDraft,
   NutritionDraft,
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
+import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -21,10 +23,16 @@ type RecipeFormProps = {
   descriptionEn: string;
   descriptionDe: string;
   category: string;
+  cuisine: string;
+  course: string;
+  difficulty: string;
+  prepTime: string;
+  cookTime: string;
+  totalTime: string;
   tags: string;
+  badges: string[];
   ingredientGroups: IngredientGroupDraft[];
-  steps: string;
-  stepsDe: string;
+  instructionSections: InstructionSectionDraft[];
   notesEn: string;
   notesDe: string;
   tipsEn: string;
@@ -40,6 +48,7 @@ type RecipeFormProps = {
   servings: string;
   equipment: EquipmentDraft[];
   imageUrls: string;
+  coverImageUrl: string;
   saving: boolean;
   submitLabel: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -50,15 +59,23 @@ type RecipeFormProps = {
   onDescriptionEnChange: (value: string) => void;
   onDescriptionDeChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
+  onCuisineChange: (value: string) => void;
+  onCourseChange: (value: string) => void;
+  onDifficultyChange: (value: string) => void;
+  onPrepTimeChange: (value: string) => void;
+  onCookTimeChange: (value: string) => void;
+  onTotalTimeChange: (value: string) => void;
   onTagsChange: (value: string) => void;
+  onBadgeToggle: (badge: string) => void;
   onIngredientGroupAdd: () => void;
   onIngredientGroupRemove: (groupIndex: number) => void;
   onIngredientGroupChange: (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => void;
   onIngredientAdd: (groupIndex: number) => void;
   onIngredientRemove: (groupIndex: number, ingredientIndex: number) => void;
   onIngredientChange: (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string) => void;
-  onStepsChange: (value: string) => void;
-  onStepsDeChange: (value: string) => void;
+  onInstructionSectionAdd: () => void;
+  onInstructionSectionRemove: (index: number) => void;
+  onInstructionSectionChange: (index: number, field: keyof InstructionSectionDraft, value: string) => void;
   onNotesEnChange: (value: string) => void;
   onNotesDeChange: (value: string) => void;
   onTipsEnChange: (value: string) => void;
@@ -82,6 +99,7 @@ type RecipeFormProps = {
   onEquipmentRemove: (index: number) => void;
   onEquipmentChange: (index: number, field: keyof EquipmentDraft, value: string) => void;
   onImageUrlsChange: (value: string) => void;
+  onCoverImageUrlChange: (value: string) => void;
 };
 
 export default function RecipeForm(props: RecipeFormProps) {
@@ -101,9 +119,50 @@ export default function RecipeForm(props: RecipeFormProps) {
       <textarea className="input" value={props.descriptionEn} onChange={(event) => props.onDescriptionEnChange(event.target.value)} placeholder="Description (EN)" />
       <textarea className="input" value={props.descriptionDe} onChange={(event) => props.onDescriptionDeChange(event.target.value)} placeholder="Description (DE)" />
 
-      <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+        <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
+        <input className="input" value={props.cuisine} onChange={(event) => props.onCuisineChange(event.target.value)} placeholder="Cuisine" />
+        <input className="input" value={props.course} onChange={(event) => props.onCourseChange(event.target.value)} placeholder="Course" />
+        <select className="input" value={props.difficulty} onChange={(event) => props.onDifficultyChange(event.target.value)}>
+          <option value="">Difficulty</option>
+          {DIFFICULTY_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+        <input className="input" value={props.prepTime} onChange={(event) => props.onPrepTimeChange(event.target.value)} placeholder="Prep time" />
+        <input className="input" value={props.cookTime} onChange={(event) => props.onCookTimeChange(event.target.value)} placeholder="Cooking time" />
+        <input className="input" value={props.totalTime} onChange={(event) => props.onTotalTimeChange(event.target.value)} placeholder="Total time" />
+        <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
+      </div>
+
       <input className="input" value={props.tags} onChange={(event) => props.onTagsChange(event.target.value)} placeholder="Tags (comma separated)" />
-      <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <h3 style={{ marginBottom: 8 }}>Quick Badge Filters</h3>
+        <p style={{ marginBottom: 12 }}>These are the easy filter buttons shown on home and recipe index pages.</p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {BADGE_OPTIONS.map((badge) => {
+            const isActive = props.badges.includes(badge);
+
+            return (
+              <button
+                key={badge}
+                className="button"
+                type="button"
+                onClick={() => props.onBadgeToggle(badge)}
+                style={{ background: isActive ? "#f0d6c5" : undefined }}
+              >
+                {badge}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Ingredient sections are nested so the editor matches the structure shown on the recipe page. */}
       <div className="card" style={{ marginBottom: 0 }}>
@@ -185,19 +244,58 @@ export default function RecipeForm(props: RecipeFormProps) {
         ))}
       </div>
 
-      {/* Instructions stay as plain text so recipe writing remains fast and familiar. */}
+      {/* Instruction sections let you keep main steps, filling steps, garnish steps, and so on clearly separated. */}
       <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 8 }}>Instructions</h3>
-        <p style={{ marginBottom: 12 }}>Write normal numbered instructions. One step per line is fine.</p>
-        <textarea className="input" value={props.steps} onChange={(event) => props.onStepsChange(event.target.value)} placeholder={"1. Prep ingredients\n2. Cook gently\n3. Finish and serve"} />
-        <textarea className="input" value={props.stepsDe} onChange={(event) => props.onStepsDeChange(event.target.value)} placeholder="1. Zutaten vorbereiten\n2. Sanft kochen\n3. Fertig servieren" />
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Instruction Sections</h3>
+            <p style={{ marginBottom: 0 }}>Create sections like Dough, Filling, Assembly. Inside each section, use one step per line.</p>
+          </div>
+          <button className="button" type="button" onClick={props.onInstructionSectionAdd}>
+            + Add Instruction Section
+          </button>
+        </div>
+
+        {props.instructionSections.map((section, index) => (
+          <div key={`instruction-section-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 8 }}>
+              <input
+                className="input"
+                value={section.title_en}
+                onChange={(event) => props.onInstructionSectionChange(index, "title_en", event.target.value)}
+                placeholder="Section title (EN)"
+              />
+              <input
+                className="input"
+                value={section.title_de}
+                onChange={(event) => props.onInstructionSectionChange(index, "title_de", event.target.value)}
+                placeholder="Section title (DE)"
+              />
+              <button className="button" type="button" onClick={() => props.onInstructionSectionRemove(index)}>
+                Remove Section
+              </button>
+            </div>
+            <textarea
+              className="input"
+              value={section.steps_en}
+              onChange={(event) => props.onInstructionSectionChange(index, "steps_en", event.target.value)}
+              placeholder={"Step 1 in English\nStep 2 in English\nStep 3 in English"}
+            />
+            <textarea
+              className="input"
+              value={section.steps_de}
+              onChange={(event) => props.onInstructionSectionChange(index, "steps_de", event.target.value)}
+              placeholder={"Schritt 1 auf Deutsch\nSchritt 2 auf Deutsch\nSchritt 3 auf Deutsch"}
+            />
+          </div>
+        ))}
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
           <div>
             <h3 style={{ marginBottom: 8 }}>Step-by-Step Photos</h3>
-            <p style={{ marginBottom: 0 }}>Add process photos with captions and optional step numbers.</p>
+            <p style={{ marginBottom: 0 }}>Add these manually when you really want process photos. Imported recipes no longer auto-fill them.</p>
           </div>
           <button className="button" type="button" onClick={props.onStepPhotoAdd}>
             + Add Step Photo
@@ -403,6 +501,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       <textarea className="input" value={props.notesDe} onChange={(event) => props.onNotesDeChange(event.target.value)} placeholder="Notes (DE)" />
       <input className="input" value={props.sourceUrl} onChange={(event) => props.onSourceUrlChange(event.target.value)} placeholder="Source URL" />
       <input className="input" value={props.videoUrl} onChange={(event) => props.onVideoUrlChange(event.target.value)} placeholder="Video URL" />
+      <input className="input" value={props.coverImageUrl} onChange={(event) => props.onCoverImageUrlChange(event.target.value)} placeholder="Cover photo URL" />
       <textarea className="input" value={props.imageUrls} onChange={(event) => props.onImageUrlsChange(event.target.value)} placeholder={"Photo URLs (one per line)\nhttps://..."} />
 
       <button className="button button-primary" type="submit" disabled={props.saving}>

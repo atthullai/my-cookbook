@@ -7,6 +7,29 @@ export type AppUser = User;
 
 export type RecipeAmount = string | number | null;
 
+export const DIFFICULTY_OPTIONS = [
+  "Easy",
+  "Beginner",
+  "Intermediate",
+  "Advanced",
+  "Expert",
+] as const;
+
+export const BADGE_OPTIONS = [
+  "Veg",
+  "Non-Veg",
+  "Vegan",
+  "Spicy",
+  "High Protein",
+  "Quick Meal",
+  "One Pot",
+  "Festival",
+  "Breakfast",
+  "Lunch",
+  "Dinner",
+  "Dessert",
+] as const;
+
 export type RecipeIngredient = {
   name_en: string;
   name_de: string;
@@ -23,6 +46,13 @@ export type RecipeIngredientGroup = {
 export type RecipeEquipmentItem = {
   label_en: string;
   label_de: string;
+};
+
+export type RecipeInstructionSection = {
+  title_en: string;
+  title_de: string;
+  steps_en: string[];
+  steps_de: string[];
 };
 
 export type RecipeStepPhoto = {
@@ -85,8 +115,16 @@ export type RecipeRecord = {
   description_en: string | null;
   description_de: string | null;
   category: string | null;
+  cuisine: string | null;
+  course: string | null;
+  difficulty: string | null;
+  prep_time: string | null;
+  cook_time: string | null;
+  total_time: string | null;
   tags: string[];
+  badges: string[];
   ingredients: RecipeIngredientGroup[];
+  instruction_sections: RecipeInstructionSection[];
   steps_en: string;
   steps_de: string | null;
   notes_en: string | null;
@@ -96,6 +134,7 @@ export type RecipeRecord = {
   servings: number | null;
   equipment: RecipeEquipmentItem[];
   image_urls: string[];
+  cover_image_url: string | null;
   tips_en?: string | null;
   tips_de?: string | null;
   storage_en?: string | null;
@@ -176,6 +215,27 @@ function normalizeEquipmentItem(value: unknown): RecipeEquipmentItem {
   };
 }
 
+function normalizeInstructionSection(value: unknown): RecipeInstructionSection {
+  const item = value && typeof value === "object" ? value : {};
+  const raw = item as Record<string, unknown>;
+  const legacyTitle = normalizeString(raw.title) || "Method";
+  const stepsEn = Array.isArray(raw.steps_en)
+    ? raw.steps_en.map((step) => normalizeString(step).trim()).filter(Boolean)
+    : Array.isArray(raw.steps)
+      ? raw.steps.map((step) => normalizeString(step).trim()).filter(Boolean)
+      : [];
+  const stepsDe = Array.isArray(raw.steps_de)
+    ? raw.steps_de.map((step) => normalizeString(step).trim()).filter(Boolean)
+    : [];
+
+  return {
+    title_en: normalizeString(raw.title_en) || legacyTitle,
+    title_de: normalizeString(raw.title_de) || legacyTitle,
+    steps_en: stepsEn,
+    steps_de: stepsDe.length > 0 ? stepsDe : stepsEn,
+  };
+}
+
 function normalizeStepPhoto(value: unknown): RecipeStepPhoto {
   const item = value && typeof value === "object" ? value : {};
   const raw = item as Record<string, unknown>;
@@ -248,10 +308,39 @@ function normalizeNutrition(value: unknown): RecipeNutritionFacts | null {
   };
 }
 
+function normalizeInstructionSections(raw: Record<string, unknown>, stepsEn: string, stepsDe: string | null): RecipeInstructionSection[] {
+  const fromDb = Array.isArray(raw.instruction_sections) ? raw.instruction_sections.map(normalizeInstructionSection) : [];
+
+  if (fromDb.length > 0) {
+    return fromDb;
+  }
+
+  const englishSteps = splitRecipeSteps(stepsEn);
+  const germanSteps = splitRecipeSteps(stepsDe || "");
+
+  if (englishSteps.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      title_en: "Method",
+      title_de: "Methode",
+      steps_en: englishSteps,
+      steps_de: germanSteps.length > 0 ? germanSteps : englishSteps,
+    },
+  ];
+}
+
 export function normalizeRecipe(value: unknown): RecipeRecord {
   const rawValue = value && typeof value === "object" ? value : {};
   const raw = rawValue as Record<string, unknown>;
   const titleEn = normalizeString(raw.title_en);
+  const stepsEn = normalizeString(raw.steps_en);
+  const stepsDe = normalizeString(raw.steps_de) || null;
+  const imageUrls = Array.isArray(raw.image_urls)
+    ? raw.image_urls.map((item) => normalizeString(item).trim()).filter(Boolean)
+    : [];
 
   return {
     id: typeof raw.id === "number" ? raw.id : Number(raw.id ?? 0),
@@ -264,12 +353,22 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     description_en: normalizeString(raw.description_en) || null,
     description_de: normalizeString(raw.description_de) || null,
     category: normalizeString(raw.category) || null,
+    cuisine: normalizeString(raw.cuisine) || null,
+    course: normalizeString(raw.course) || null,
+    difficulty: normalizeString(raw.difficulty) || null,
+    prep_time: normalizeString(raw.prep_time) || null,
+    cook_time: normalizeString(raw.cook_time) || null,
+    total_time: normalizeString(raw.total_time) || null,
     tags: Array.isArray(raw.tags)
       ? raw.tags.map((tag) => normalizeString(tag).trim()).filter(Boolean)
       : [],
+    badges: Array.isArray(raw.badges)
+      ? raw.badges.map((badge) => normalizeString(badge).trim()).filter(Boolean)
+      : [],
     ingredients: Array.isArray(raw.ingredients) ? raw.ingredients.map(normalizeIngredientGroup) : [],
-    steps_en: normalizeString(raw.steps_en),
-    steps_de: normalizeString(raw.steps_de) || null,
+    instruction_sections: normalizeInstructionSections(raw, stepsEn, stepsDe),
+    steps_en: stepsEn,
+    steps_de: stepsDe,
     notes_en: normalizeString(raw.notes_en) || null,
     notes_de: normalizeString(raw.notes_de) || null,
     source_url: normalizeString(raw.source_url) || null,
@@ -281,9 +380,8 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
           ? Number(raw.servings)
           : null,
     equipment: Array.isArray(raw.equipment) ? raw.equipment.map(normalizeEquipmentItem) : [],
-    image_urls: Array.isArray(raw.image_urls)
-      ? raw.image_urls.map((item) => normalizeString(item).trim()).filter(Boolean)
-      : [],
+    image_urls: imageUrls,
+    cover_image_url: normalizeString(raw.cover_image_url) || imageUrls[0] || null,
     tips_en: normalizeString(raw.tips_en) || null,
     tips_de: normalizeString(raw.tips_de) || null,
     storage_en: normalizeString(raw.storage_en) || null,
@@ -369,11 +467,48 @@ export function getEquipmentLabel(item: RecipeEquipmentItem, lang: AppLanguage):
   return lang === "de" ? item.label_de || item.label_en : item.label_en;
 }
 
+export function getInstructionSections(recipe: RecipeRecord, lang: AppLanguage): Array<{ title: string; steps: string[] }> {
+  if (recipe.instruction_sections.length > 0) {
+    return recipe.instruction_sections
+      .map((section) => ({
+        title: lang === "de" ? section.title_de || section.title_en : section.title_en,
+        steps: lang === "de" ? (section.steps_de.length > 0 ? section.steps_de : section.steps_en) : section.steps_en,
+      }))
+      .filter((section) => section.steps.length > 0);
+  }
+
+  return [];
+}
+
 export function splitRecipeSteps(text: string): string[] {
   return text
     .split("\n")
     .map((step) => step.replace(/^\d+\.\s*/, "").trim())
     .filter(Boolean);
+}
+
+export function serializeInstructionSections(
+  sections: Array<{
+    title_en: string;
+    title_de: string;
+    steps_en: string[];
+    steps_de: string[];
+  }>,
+  lang: AppLanguage
+): string {
+  return sections
+    .flatMap((section, index) => {
+      const title = lang === "de" ? section.title_de || section.title_en : section.title_en;
+      const steps = lang === "de" ? (section.steps_de.length > 0 ? section.steps_de : section.steps_en) : section.steps_en;
+
+      return [
+        ...(title && sections.length > 1 ? [`## ${title}`] : []),
+        ...steps.map((step, stepIndex) => `${stepIndex + 1}. ${step}`),
+        ...(index < sections.length - 1 ? [""] : []),
+      ];
+    })
+    .join("\n")
+    .trim();
 }
 
 // Route params arrive as strings from the URL. This helper safely converts them into numeric ids.
@@ -384,7 +519,7 @@ export function parseRecipeId(value: string | string[] | undefined): number | nu
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
-// Tags are stored as arrays in the database, but users edit them as comma-separated text.
+// Tags and badges are stored as arrays in the database, but users often edit them as comma-separated text.
 export function parseTagInput(tags: string): string[] {
   return tags
     .split(",")
@@ -428,6 +563,20 @@ export type EquipmentDraft = {
 export const EMPTY_EQUIPMENT: EquipmentDraft = {
   label_en: "",
   label_de: "",
+};
+
+export type InstructionSectionDraft = {
+  title_en: string;
+  title_de: string;
+  steps_en: string;
+  steps_de: string;
+};
+
+export const EMPTY_INSTRUCTION_SECTION: InstructionSectionDraft = {
+  title_en: "Method",
+  title_de: "Methode",
+  steps_en: "",
+  steps_de: "",
 };
 
 export type StepPhotoDraft = {

@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import Image from "next/image";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { RecipeRecord } from "@/lib/recipe-types";
+import { getRecipeCoverImage } from "@/lib/recipe-view";
 import { supabase } from "@/lib/supabase";
 
 export default function RecipeIndexPage() {
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedCuisine, setSelectedCuisine] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedBadge, setSelectedBadge] = useState("");
 
   const loadRecipes = useEffectEvent(async () => {
     const {
@@ -21,8 +27,6 @@ export default function RecipeIndexPage() {
       return;
     }
 
-    // The index page is meant to be structured and browsable, so we sort first by category
-    // and then alphabetically inside each category.
     const { data, error } = await supabase
       .from("recipes")
       .select("*")
@@ -44,7 +48,37 @@ export default function RecipeIndexPage() {
     void loadRecipes();
   }, []);
 
-  const categories = Array.from(new Set(recipes.map((recipe) => recipe.category).filter(Boolean)));
+  const cuisines = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean))) as string[], [recipes]);
+  const courses = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.course).filter(Boolean))) as string[], [recipes]);
+  const badges = useMemo(() => Array.from(new Set(recipes.flatMap((recipe) => recipe.badges))).sort(), [recipes]);
+
+  const filteredRecipes = recipes.filter((recipe) => {
+    const searchValue = search.trim().toLowerCase();
+    const matchesSearch =
+      !searchValue ||
+      [
+        recipe.title_en,
+        recipe.title_de ?? "",
+        recipe.description_en ?? "",
+        recipe.category ?? "",
+        recipe.cuisine ?? "",
+        recipe.course ?? "",
+        recipe.difficulty ?? "",
+        recipe.tags.join(" "),
+        recipe.badges.join(" "),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(searchValue);
+
+    const matchesCuisine = !selectedCuisine || recipe.cuisine === selectedCuisine;
+    const matchesCourse = !selectedCourse || recipe.course === selectedCourse;
+    const matchesBadge = !selectedBadge || recipe.badges.includes(selectedBadge);
+
+    return matchesSearch && matchesCuisine && matchesCourse && matchesBadge;
+  });
+
+  const categories = Array.from(new Set(filteredRecipes.map((recipe) => recipe.category).filter(Boolean)));
 
   const handleDelete = async (recipeId: number) => {
     const confirmed = window.confirm("Delete this recipe?");
@@ -62,49 +96,91 @@ export default function RecipeIndexPage() {
   return (
     <main className="container">
       <h1>Recipe Index</h1>
-      <p>A structured overview of your Supabase cookbook, grouped by category.</p>
+      <p>A structured overview of your Supabase cookbook with filters for cuisine, course, and quick badge labels.</p>
+
+      <input className="input" placeholder="Search title, cuisine, course, difficulty, tags..." value={search} onChange={(event) => setSearch(event.target.value)} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8, marginTop: 12 }}>
+        <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
+          <option value="">All cuisines</option>
+          {cuisines.map((cuisine) => (
+            <option key={cuisine} value={cuisine}>
+              {cuisine}
+            </option>
+          ))}
+        </select>
+        <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
+          <option value="">All courses</option>
+          {courses.map((course) => (
+            <option key={course} value={course}>
+              {course}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {badges.length > 0 ? (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+          <button className="button" type="button" onClick={() => setSelectedBadge("")} style={{ background: selectedBadge === "" ? "#f0d6c5" : undefined }}>
+            All badges
+          </button>
+          {badges.map((badge) => (
+            <button key={badge} className="button" type="button" onClick={() => setSelectedBadge(badge)} style={{ background: selectedBadge === badge ? "#f0d6c5" : undefined }}>
+              {badge}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {loading ? <p>Loading recipes...</p> : null}
 
       {categories.map((category) => (
         <section key={category} style={{ marginTop: 28 }}>
           <h2 style={{ marginBottom: 12 }}>{category}</h2>
-          <div style={{ display: "grid", gap: 14 }}>
-            {recipes
+          <div className="recipe-card-grid">
+            {filteredRecipes
               .filter((recipe) => recipe.category === category)
-              .map((recipe) => (
-                <div key={recipe.id} className="card">
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 16,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+              .map((recipe) => {
+                const coverImage = getRecipeCoverImage(recipe);
+
+                return (
+                  <div key={recipe.id} className="card" style={{ overflow: "hidden" }}>
+                    {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : null}
+
+                    <div style={{ marginTop: coverImage ? 14 : 0 }}>
                       <Link href={`/recipe/${recipe.id}`}>
                         <h3 style={{ marginBottom: 8 }}>{recipe.title_en}</h3>
                       </Link>
                       <p style={{ marginBottom: 8 }}>{recipe.description_en}</p>
-                      <p style={{ marginBottom: 0 }}>
+                      <p style={{ marginBottom: 8 }}>{[recipe.cuisine, recipe.course, recipe.difficulty].filter(Boolean).join(" • ")}</p>
+                      <p style={{ marginBottom: 8 }}>{[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).join(" • ")}</p>
+                      <p style={{ marginBottom: 8 }}>
                         By {recipe.author_name}
                         {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
                       </p>
-                    </div>
 
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <Link href={`/edit/${recipe.id}`} className="button">
-                        Edit
-                      </Link>
-                      <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
-                        Delete
-                      </button>
+                      {recipe.badges.length > 0 ? (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                          {recipe.badges.map((badge) => (
+                            <span key={`${recipe.id}-${badge}`} className="chip">
+                              {badge}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Link href={`/edit/${recipe.id}`} className="button">
+                          Edit
+                        </Link>
+                        <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         </section>
       ))}

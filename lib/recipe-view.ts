@@ -1,68 +1,15 @@
-import type { RecipeRecord } from "@/lib/recipe-types";
-import { getRecipeNotes, splitRecipeSteps } from "@/lib/recipe-types";
+import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
+import { getInstructionSections, getRecipeNotes } from "@/lib/recipe-types";
 
-// The recipe page can display instructions either as a simple numbered list
-// or as grouped sections. This type represents those grouped sections.
+// The recipe page renders normalized instruction sections, regardless of whether the row
+// came from the new structured editor or an older text-only recipe.
 export type InstructionSection = {
   title: string;
   steps: string[];
 };
 
-export function parseInstructionSections(text: string): InstructionSection[] {
-  const trimmedText = text.trim();
-
-  if (!trimmedText) {
-    return [];
-  }
-
-  const lines = trimmedText.split("\n").map((line) => line.trim());
-  // Older drafts used markdown-style `##` headings to split instruction sections.
-  // We still support them for backward compatibility, but the editor no longer asks
-  // the user to type them manually.
-  const hasHeadings = lines.some((line) => line.startsWith("## "));
-
-  if (!hasHeadings) {
-    return [
-      {
-        title: "Method",
-        steps: splitRecipeSteps(trimmedText),
-      },
-    ];
-  }
-
-  const sections: InstructionSection[] = [];
-  let currentTitle = "Method";
-  let currentLines: string[] = [];
-
-  const pushCurrentSection = () => {
-    const steps = currentLines
-      .map((line) => line.replace(/^\d+\.\s*/, "").trim())
-      .filter(Boolean);
-
-    if (steps.length > 0) {
-      sections.push({
-        title: currentTitle,
-        steps,
-      });
-    }
-  };
-
-  for (const line of lines) {
-    if (line.startsWith("## ")) {
-      pushCurrentSection();
-      currentTitle = line.replace(/^##\s+/, "").trim() || "Method";
-      currentLines = [];
-      continue;
-    }
-
-    if (line) {
-      currentLines.push(line);
-    }
-  }
-
-  pushCurrentSection();
-
-  return sections;
+export function parseInstructionSections(recipe: RecipeRecord, lang: AppLanguage): InstructionSection[] {
+  return getInstructionSections(recipe, lang);
 }
 
 export function extractLinks(recipe: RecipeRecord): string[] {
@@ -81,32 +28,52 @@ export function extractLinks(recipe: RecipeRecord): string[] {
 }
 
 // Highlights are the small chips shown near the top of the recipe page.
-export function buildRecipeHighlights(recipe: RecipeRecord): string[] {
+export function buildRecipeHighlights(recipe: RecipeRecord, lang: AppLanguage): string[] {
   const highlights: string[] = [];
 
-  if (recipe.category) {
-    highlights.push(recipe.category);
+  if (recipe.cuisine) {
+    highlights.push(recipe.cuisine);
+  }
+
+  if (recipe.course) {
+    highlights.push(recipe.course);
+  }
+
+  if (recipe.difficulty) {
+    highlights.push(recipe.difficulty);
+  }
+
+  if (recipe.prep_time) {
+    highlights.push(lang === "de" ? `Vorbereitung ${recipe.prep_time}` : `Prep ${recipe.prep_time}`);
+  }
+
+  if (recipe.cook_time) {
+    highlights.push(lang === "de" ? `Kochen ${recipe.cook_time}` : `Cook ${recipe.cook_time}`);
+  }
+
+  if (recipe.total_time) {
+    highlights.push(lang === "de" ? `Gesamt ${recipe.total_time}` : `Total ${recipe.total_time}`);
   }
 
   if (recipe.servings) {
-    highlights.push(`${recipe.servings} servings`);
-  }
-
-  if (recipe.tags.length > 0) {
-    highlights.push(`${recipe.tags.length} tags`);
+    highlights.push(lang === "de" ? `${recipe.servings} Portionen` : `${recipe.servings} servings`);
   }
 
   if (recipe.ingredients.length > 0) {
-    highlights.push(`${recipe.ingredients.length} ingredient section${recipe.ingredients.length > 1 ? "s" : ""}`);
-  }
-
-  if (recipe.equipment.length > 0) {
-    highlights.push(`${recipe.equipment.length} tools`);
+    highlights.push(
+      lang === "de"
+        ? `${recipe.ingredients.length} Zutatenbereiche`
+        : `${recipe.ingredients.length} ingredient section${recipe.ingredients.length > 1 ? "s" : ""}`
+    );
   }
 
   return highlights;
 }
 
-export function hasNotes(recipe: RecipeRecord, lang: "en" | "de"): boolean {
+export function hasNotes(recipe: RecipeRecord, lang: AppLanguage): boolean {
   return Boolean(getRecipeNotes(recipe, lang).trim());
+}
+
+export function getRecipeCoverImage(recipe: RecipeRecord): string {
+  return recipe.cover_image_url || recipe.image_urls[0] || "";
 }

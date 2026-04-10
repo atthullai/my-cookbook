@@ -5,17 +5,16 @@ import { useState } from "react";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
   getEquipmentLabel,
-  getRecipeNutritionNote,
-  getRecipeStorage,
   getIngredientGroupLabel,
   getIngredientLabel,
   getRecipeDescription,
   getRecipeNotes,
-  getRecipeSteps,
+  getRecipeNutritionNote,
+  getRecipeStorage,
   getRecipeTips,
   getRecipeTitle,
 } from "@/lib/recipe-types";
-import { buildRecipeHighlights, extractLinks, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
+import { buildRecipeHighlights, extractLinks, getRecipeCoverImage, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
@@ -89,13 +88,15 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const recipeTips = getRecipeTips(recipe, lang);
   const recipeStorage = getRecipeStorage(recipe, lang);
   const recipeNutritionNote = getRecipeNutritionNote(recipe, lang);
-  const recipeSections = parseInstructionSections(getRecipeSteps(recipe, lang));
+  const recipeSections = parseInstructionSections(recipe, lang);
   const ingredientGroups: RecipeIngredientGroup[] = recipe.ingredients ?? [];
   const recipeLinks = extractLinks(recipe);
-  const highlights = buildRecipeHighlights(recipe);
+  const highlights = buildRecipeHighlights(recipe, lang);
   const faqItems = recipe.faq ?? [];
   const troubleshootingItems = recipe.troubleshooting ?? [];
   const stepPhotos = recipe.step_photos ?? [];
+  const coverImage = getRecipeCoverImage(recipe);
+  const galleryImages = recipe.image_urls.filter((imageUrl) => imageUrl !== coverImage);
 
   const handlePrint = () => {
     window.print();
@@ -139,6 +140,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           alignItems: "flex-start",
           gap: 16,
           marginBottom: 20,
+          flexWrap: "wrap",
         }}
       >
         <div style={{ flex: "1 1 0", minWidth: 0 }}>
@@ -147,6 +149,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <p style={{ marginTop: 8, marginBottom: 0 }}>
             By {recipe.author_name || "Saran"}
             {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
+          </p>
+          <p style={{ marginTop: 8, marginBottom: 0 }}>
+            {[recipe.cuisine, recipe.course, recipe.difficulty].filter(Boolean).join(" • ")}
           </p>
         </div>
 
@@ -163,39 +168,16 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       </div>
 
+      {coverImage ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <Image src={coverImage} alt={`${recipeTitle} cover`} className="recipe-cover-photo" width={1600} height={1000} />
+        </div>
+      ) : null}
+
       {recipeDescription ? (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 8 }}>Description</h3>
+          <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Beschreibung" : "Description"}</h3>
           <p style={{ marginBottom: 0 }}>{recipeDescription}</p>
-        </div>
-      ) : null}
-
-      {/* Photos are optional. If a recipe has none yet, the rest of the page still works cleanly. */}
-      {recipe.image_urls && recipe.image_urls.length > 0 ? (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 10 }}>Photos</h3>
-          <div className="photo-grid">
-            {recipe.image_urls.map((imageUrl, index) => (
-              <Image
-                key={`${imageUrl}-${index}`}
-                src={imageUrl}
-                alt={`${recipeTitle} photo ${index + 1}`}
-                className="recipe-photo"
-                width={1200}
-                height={800}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {recipe.video_url ? (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 8 }}>Video</h3>
-          <p style={{ marginBottom: 12 }}>Open the original reel for the source recipe video.</p>
-          <a className="button button-primary" href={recipe.video_url} target="_blank" rel="noreferrer">
-            Watch Video
-          </a>
         </div>
       ) : null}
 
@@ -209,19 +191,20 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
+      {recipe.badges.length > 0 ? (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          {recipe.badges.map((badge) => (
+            <span key={badge} className="chip">
+              {badge}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {recipe.tags.length > 0 ? (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
           {recipe.tags.map((tag) => (
-            <span
-              key={`${recipe.id}-${tag}`}
-              style={{
-                fontSize: 12,
-                border: "1px solid rgba(89, 58, 34, 0.18)",
-                padding: "4px 8px",
-                borderRadius: 999,
-                background: "rgba(255, 250, 241, 0.8)",
-              }}
-            >
+            <span key={`${recipe.id}-${tag}`} className="chip">
               {tag}
             </span>
           ))}
@@ -230,32 +213,32 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
       {/* Jump links make longer recipes feel closer to the reference food sites. */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 8 }}>Jump To</h3>
+        <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Springe zu" : "Jump To"}</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <a className="button" href="#ingredients">
-            Ingredients
+            {lang === "de" ? "Zutaten" : "Ingredients"}
           </a>
           {recipe.equipment && recipe.equipment.length > 0 ? (
             <a className="button" href="#equipment">
-              Equipment
+              {lang === "de" ? "Equipment" : "Equipment"}
             </a>
           ) : null}
           <a className="button" href="#instructions">
-            Instructions
+            {lang === "de" ? "Anleitung" : "Instructions"}
           </a>
           {hasNotes(recipe, lang) ? (
             <a className="button" href="#notes">
-              Notes
+              {lang === "de" ? "Notizen" : "Notes"}
             </a>
           ) : null}
           {recipeTips ? (
             <a className="button" href="#tips">
-              Tips
+              {lang === "de" ? "Tipps" : "Tips"}
             </a>
           ) : null}
           {recipeStorage ? (
             <a className="button" href="#storage">
-              Storage
+              {lang === "de" ? "Aufbewahrung" : "Storage"}
             </a>
           ) : null}
           {faqItems.length > 0 ? (
@@ -265,24 +248,29 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           ) : null}
           {troubleshootingItems.length > 0 ? (
             <a className="button" href="#troubleshooting">
-              Troubleshooting
+              {lang === "de" ? "Fehlersuche" : "Troubleshooting"}
             </a>
           ) : null}
           {stepPhotos.length > 0 ? (
             <a className="button" href="#step-photos">
-              Step Photos
+              {lang === "de" ? "Schrittfotos" : "Step Photos"}
+            </a>
+          ) : null}
+          {galleryImages.length > 0 ? (
+            <a className="button" href="#photos">
+              {lang === "de" ? "Fotos" : "Photos"}
             </a>
           ) : null}
           {recipeLinks.length > 0 ? (
             <a className="button" href="#links">
-              Links
+              {lang === "de" ? "Links" : "Links"}
             </a>
           ) : null}
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <p>Servings</p>
+        <p>{lang === "de" ? "Portionen" : "Servings"}</p>
 
         <div style={{ display: "flex", gap: 8 }}>
           {[0.5, 1, 2].map((value) => (
@@ -301,7 +289,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
       {/* Ingredients and equipment both use checklist-style interactions because they are "work through" sections. */}
       <div id="ingredients" className="card" style={{ marginBottom: 24 }}>
-        <h3>Ingredients</h3>
+        <h3>{lang === "de" ? "Zutaten" : "Ingredients"}</h3>
 
         {ingredientGroups.map((group, groupIndex) => (
           <div key={`${group.group_en}-${groupIndex}`} style={{ marginBottom: 16 }}>
@@ -341,8 +329,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       </div>
 
       {recipe.equipment && recipe.equipment.length > 0 ? (
-        <div id="equipment" className="card" style={{ marginBottom: recipeNotes || recipeLinks.length > 0 ? 20 : 0 }}>
-          <h3>Equipment</h3>
+        <div id="equipment" className="card" style={{ marginBottom: 20 }}>
+          <h3>{lang === "de" ? "Equipment" : "Equipment"}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {recipe.equipment.map((item) => (
               <button
@@ -370,8 +358,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
-      <div id="instructions" className="card" style={{ marginBottom: recipeNotes ? 20 : 0 }}>
-        <h3>Instructions</h3>
+      <div id="instructions" className="card" style={{ marginBottom: 20 }}>
+        <h3>{lang === "de" ? "Anleitung" : "Instructions"}</h3>
 
         {recipeSections.map((section, sectionIndex) => (
           <div key={`${section.title}-${sectionIndex}`} style={{ marginBottom: 16 }}>
@@ -389,7 +377,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
       {stepPhotos.length > 0 ? (
         <div id="step-photos" className="card" style={{ marginBottom: 20 }}>
-          <h3>Step-by-Step Photos</h3>
+          <h3>{lang === "de" ? "Schritt-fur-Schritt Fotos" : "Step-by-Step Photos"}</h3>
           <div className="photo-grid">
             {stepPhotos.map((item, index) => (
               <div key={`${item.image_url}-${index}`}>
@@ -401,7 +389,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   height={800}
                 />
                 <p style={{ marginTop: 8, marginBottom: 0 }}>
-                  {item.step_number ? `Step ${item.step_number}: ` : ""}
+                  {item.step_number ? `${lang === "de" ? "Schritt" : "Step"} ${item.step_number}: ` : ""}
                   {lang === "de" ? item.caption_de || item.caption_en : item.caption_en}
                 </p>
               </div>
@@ -412,14 +400,14 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
       {recipeTips ? (
         <div id="tips" className="card" style={{ marginBottom: 20 }}>
-          <h3>Tips and Tricks</h3>
+          <h3>{lang === "de" ? "Tipps und Tricks" : "Tips and Tricks"}</h3>
           <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeTips}</p>
         </div>
       ) : null}
 
       {recipeStorage ? (
         <div id="storage" className="card" style={{ marginBottom: 20 }}>
-          <h3>Storage</h3>
+          <h3>{lang === "de" ? "Aufbewahrung" : "Storage"}</h3>
           <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeStorage}</p>
         </div>
       ) : null}
@@ -442,7 +430,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
       {troubleshootingItems.length > 0 ? (
         <div id="troubleshooting" className="card" style={{ marginBottom: 20 }}>
-          <h3>Troubleshooting</h3>
+          <h3>{lang === "de" ? "Fehlersuche" : "Troubleshooting"}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {troubleshootingItems.map((item, index) => (
               <div key={`${item.issue_en}-${index}`}>
@@ -457,15 +445,26 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       ) : null}
 
       {recipeNotes ? (
-        <div id="notes" className="card" style={{ marginBottom: recipeLinks.length > 0 ? 20 : 0 }}>
-          <h3>Notes</h3>
+        <div id="notes" className="card" style={{ marginBottom: 20 }}>
+          <h3>{lang === "de" ? "Notizen" : "Notes"}</h3>
           <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNotes}</p>
+        </div>
+      ) : null}
+
+      {galleryImages.length > 0 ? (
+        <div id="photos" className="card" style={{ marginBottom: 20 }}>
+          <h3>{lang === "de" ? "Weitere Fotos" : "More Photos"}</h3>
+          <div className="photo-grid">
+            {galleryImages.map((imageUrl, index) => (
+              <Image key={`${imageUrl}-${index}`} src={imageUrl} alt={`${recipeTitle} photo ${index + 1}`} className="recipe-photo" width={1200} height={800} />
+            ))}
+          </div>
         </div>
       ) : null}
 
       {recipeLinks.length > 0 ? (
         <div id="links" className="card">
-          <h3>Links</h3>
+          <h3>{lang === "de" ? "Links" : "Links"}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {recipeLinks.map((link) => (
               <a key={link} href={link} target="_blank" rel="noreferrer">
@@ -487,13 +486,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             </p>
           </div>
           <button className="button button-primary" type="button" onClick={() => setShowNutrition((current) => !current)}>
-            {lang === "de"
-              ? showNutrition
-                ? "Nahrwerte ausblenden"
-                : "Nahrwerte anzeigen"
-              : showNutrition
-                ? "Hide Nutrition"
-                : "Show Nutrition"}
+            {lang === "de" ? (showNutrition ? "Nahrwerte ausblenden" : "Nahrwerte anzeigen") : showNutrition ? "Hide Nutrition" : "Show Nutrition"}
           </button>
         </div>
 
@@ -519,16 +512,10 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   ))}
                 </div>
 
-                {recipeNutritionNote ? (
-                  <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNutritionNote}</p>
-                ) : null}
+                {recipeNutritionNote ? <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNutritionNote}</p> : null}
               </div>
             ) : (
-              <p style={{ marginBottom: 0 }}>
-                {lang === "de"
-                  ? "Fur dieses Rezept wurden noch keine Nahrwerte eingetragen."
-                  : "Nutrition facts have not been entered for this recipe yet."}
-              </p>
+              <p style={{ marginBottom: 0 }}>{lang === "de" ? "Noch keine Nahrwerte hinterlegt." : "No nutrition facts added yet."}</p>
             )}
           </div>
         ) : null}
