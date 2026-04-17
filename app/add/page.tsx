@@ -128,11 +128,18 @@ export default function AddRecipe() {
     );
     setNotesEn(recipe.notesEn);
     setNotesDe("");
-    setTipsEn("");
+    setTipsEn(recipe.tipsEn);
     setTipsDe("");
     setStorageEn("");
     setStorageDe("");
-    setFaq([]);
+    setFaq(
+      recipe.faq.map((item) => ({
+        question_en: item.question_en,
+        question_de: "",
+        answer_en: item.answer_en,
+        answer_de: "",
+      }))
+    );
     setTroubleshooting([]);
     setNutrition({ ...EMPTY_NUTRITION });
     // Imported links no longer auto-create process-photo rows; that section is now opt-in only.
@@ -141,7 +148,7 @@ export default function AddRecipe() {
     setVideoUrl(recipe.videoUrl);
     setServings(recipe.servings);
     setEquipment([{ ...EMPTY_EQUIPMENT }]);
-    setImageUrls(recipe.imageUrls.join("\n"));
+    setImageUrls(recipe.coverImageUrl);
     setCoverImageUrl(recipe.coverImageUrl);
   };
 

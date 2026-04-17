@@ -511,7 +511,6 @@ export default function RecipeForm(props: RecipeFormProps) {
       <input className="input" value={props.sourceUrl} onChange={(event) => props.onSourceUrlChange(event.target.value)} placeholder="Source URL" />
       <input className="input" value={props.videoUrl} onChange={(event) => props.onVideoUrlChange(event.target.value)} placeholder="Video URL" />
       <input className="input" value={props.coverImageUrl} onChange={(event) => props.onCoverImageUrlChange(event.target.value)} placeholder="Cover photo URL" />
-      <textarea className="input" value={props.imageUrls} onChange={(event) => props.onImageUrlsChange(event.target.value)} placeholder={"Photo URLs (one per line)\nhttps://..."} />
 
       <button className="button button-primary" type="submit" disabled={props.saving}>
         {props.saving ? "Saving..." : props.submitLabel}

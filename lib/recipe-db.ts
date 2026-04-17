@@ -226,7 +226,7 @@ export function buildRecipePayload(input: {
     video_url: input.videoUrl.trim() || null,
     servings: input.servings.trim() ? Number(input.servings) : null,
     equipment: buildEquipmentPayload(input.equipment),
-    image_urls: imageUrls,
+    image_urls: coverImageUrl ? [coverImageUrl] : [],
     cover_image_url: coverImageUrl,
   };
 }

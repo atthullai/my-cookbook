@@ -100,7 +100,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const troubleshootingItems = recipe.troubleshooting ?? [];
   const stepPhotos = recipe.step_photos ?? [];
   const coverImage = getRecipeCoverImage(recipe);
-  const galleryImages = recipe.image_urls.filter((imageUrl) => imageUrl !== coverImage);
   const displayBadges = [...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])];
 
   const handlePrint = () => {
@@ -261,11 +260,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
               {lang === "de" ? "Schrittfotos" : "Step Photos"}
             </a>
           ) : null}
-          {galleryImages.length > 0 ? (
-            <a className="button" href="#photos">
-              {lang === "de" ? "Fotos" : "Photos"}
-            </a>
-          ) : null}
           {recipeLinks.length > 0 ? (
             <a className="button" href="#links">
               {lang === "de" ? "Links" : "Links"}
@@ -298,7 +292,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
         {ingredientGroups.map((group, groupIndex) => (
           <div key={`${group.group_en}-${groupIndex}`} style={{ marginBottom: 16 }}>
-            <h4>{getIngredientGroupLabel(group, lang)}</h4>
+            <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{getIngredientGroupLabel(group, lang)}</h4>
 
             {group.items.map((ingredient, ingredientIndex) => {
               const itemId = `${groupIndex}-${ingredientIndex}`;
@@ -368,7 +362,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
         {recipeSections.map((section, sectionIndex) => (
           <div key={`${section.title}-${sectionIndex}`} style={{ marginBottom: 16 }}>
-            {section.title && recipeSections.length > 1 ? <h4>{section.title}</h4> : null}
+            {section.title && recipeSections.length > 1 ? <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{section.title}</h4> : null}
             <ol style={{ marginBottom: 0, listStyle: "decimal", paddingLeft: "1.5rem" }}>
               {section.steps.map((step, index) => (
                 <li key={`${section.title}-${index}`} style={{ listStyle: "decimal" }}>
@@ -453,17 +447,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div id="notes" className="card" style={{ marginBottom: 20 }}>
           <h3>{lang === "de" ? "Notizen" : "Notes"}</h3>
           <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNotes}</p>
-        </div>
-      ) : null}
-
-      {galleryImages.length > 0 ? (
-        <div id="photos" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Weitere Fotos" : "More Photos"}</h3>
-          <div className="photo-grid">
-            {galleryImages.map((imageUrl, index) => (
-              <Image key={`${imageUrl}-${index}`} src={imageUrl} alt={`${recipeTitle} photo ${index + 1}`} className="recipe-photo" width={1200} height={800} />
-            ))}
-          </div>
         </div>
       ) : null}
 
