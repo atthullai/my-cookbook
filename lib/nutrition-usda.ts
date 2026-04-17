@@ -6,10 +6,9 @@ const FOOD_ENDPOINT = "https://api.nal.usda.gov/fdc/v1/food";
 type FoodSearchResult = {
   fdcId: number;
   description?: string;
-};
-
-type FoodSearchResponse = {
-  foods?: FoodSearchResult[];
+  foodNutrients?: FoodNutrient[];
+  servingSize?: number;
+  servingSizeUnit?: string;
 };
 
 type FoodPortion = {
@@ -34,6 +33,10 @@ type FoodDetailsResponse = {
   foodPortions?: FoodPortion[];
   servingSize?: number;
   servingSizeUnit?: string;
+};
+
+type FoodSearchResponse = {
+  foods?: FoodSearchResult[];
 };
 
 const NUTRIENT_NAME_MAP = {
@@ -136,11 +139,15 @@ async function searchFood(query: string): Promise<FoodSearchResult | null> {
   }
 
   const data = (await response.json()) as FoodSearchResponse;
-  return data.foods?.[0] || null;
+  return data.foods?.find((food) => typeof food.fdcId === "number") || null;
 }
 
-async function fetchFoodDetails(fdcId: number): Promise<FoodDetailsResponse> {
+async function fetchFoodDetails(fdcId: number): Promise<FoodDetailsResponse | null> {
   const response = await fetch(`${FOOD_ENDPOINT}/${fdcId}?api_key=${getApiKey()}`);
+
+  if (response.status === 404) {
+    return null;
+  }
 
   if (!response.ok) {
     throw new Error(`USDA food details failed with status ${response.status}`);
@@ -149,7 +156,7 @@ async function fetchFoodDetails(fdcId: number): Promise<FoodDetailsResponse> {
   return (await response.json()) as FoodDetailsResponse;
 }
 
-function resolveGramWeight(details: FoodDetailsResponse, amount: number, unit: string): number | null {
+function resolveGramWeight(details: FoodDetailsResponse | FoodSearchResult, amount: number, unit: string): number | null {
   const normalizedUnit = unit.trim().toLowerCase();
 
   if (!normalizedUnit) {
@@ -160,7 +167,7 @@ function resolveGramWeight(details: FoodDetailsResponse, amount: number, unit: s
     return amount * 100;
   }
 
-  const matchedPortion = details.foodPortions?.find((portion) => {
+  const matchedPortion = ("foodPortions" in details ? details.foodPortions : undefined)?.find((portion) => {
     const names = [portion.modifier, portion.measureUnit?.name].map((value) => value?.toLowerCase() || "");
     return names.some((name) => name.includes(normalizedUnit));
   });
@@ -176,8 +183,8 @@ function resolveGramWeight(details: FoodDetailsResponse, amount: number, unit: s
   return amount * 100;
 }
 
-function getNutrientAmount(details: FoodDetailsResponse, names: string[]): number {
-  for (const nutrient of details.foodNutrients ?? []) {
+function getNutrientAmount(source: { foodNutrients?: FoodNutrient[] }, names: string[]): number {
+  for (const nutrient of source.foodNutrients ?? []) {
     const nutrientName = nutrient.nutrient?.name;
 
     if (nutrientName && names.includes(nutrientName) && typeof nutrient.amount === "number") {
@@ -249,8 +256,16 @@ export async function estimateNutritionFromIngredients(input: {
       continue;
     }
 
-    const details = await fetchFoodDetails(searchResult.fdcId);
-    const grams = resolveGramWeight(details, amount ?? 1, ingredient.unit);
+    let details: FoodDetailsResponse | null = null;
+
+    try {
+      details = await fetchFoodDetails(searchResult.fdcId);
+    } catch {
+      details = null;
+    }
+
+    const nutrientSource = details || searchResult;
+    const grams = resolveGramWeight(details || searchResult, amount ?? 1, ingredient.unit);
 
     if (!grams) {
       continue;
@@ -259,7 +274,7 @@ export async function estimateNutritionFromIngredients(input: {
     for (const [field, nutrientNames] of Object.entries(NUTRIENT_NAME_MAP) as Array<
       [Exclude<keyof NutritionDraft, "note_en" | "note_de">, string[]]
     >) {
-      const per100 = getNutrientAmount(details, nutrientNames);
+      const per100 = getNutrientAmount(nutrientSource, nutrientNames);
       nutritionTotals[field] += (per100 * grams) / 100;
     }
   }
