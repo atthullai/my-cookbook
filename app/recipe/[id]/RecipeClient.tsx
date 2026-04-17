@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
   getBadgeLabel,
+  getBadgeIcon,
   getEquipmentLabel,
   getIngredientGroupLabel,
   getIngredientLabel,
@@ -199,7 +200,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           {displayBadges.map((badge) => (
             <span key={badge} className="chip">
-              {getBadgeLabel(badge, lang)}
+              {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
             </span>
           ))}
         </div>

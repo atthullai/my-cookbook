@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
-import { getBadgeLabel, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
+import { getBadgeIcon, getBadgeLabel, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
 import { supabase } from "@/lib/supabase";
@@ -249,7 +249,7 @@ export default function Home() {
           </button>
           {badges.map((badge) => (
             <button key={badge} className="button" type="button" onClick={() => setSelectedBadge(badge)} style={{ background: selectedBadge === badge ? "#f0d6c5" : undefined }}>
-              {getBadgeLabel(badge, lang)}
+              {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
             </button>
           ))}
         </div>
@@ -307,7 +307,7 @@ export default function Home() {
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
                     {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
                       <span key={`${recipe.id}-${badge}`} className="chip">
-                        {getBadgeLabel(badge, lang)}
+                        {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
                       </span>
                     ))}
                   </div>

@@ -11,7 +11,7 @@ import type {
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
-import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
+import { BADGE_OPTIONS, DIFFICULTY_OPTIONS, getBadgeIcon } from "@/lib/recipe-types";
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -166,7 +166,7 @@ export default function RecipeForm(props: RecipeFormProps) {
                 onClick={() => props.onBadgeToggle(badge)}
                 style={{ background: isActive ? "#f0d6c5" : undefined }}
               >
-                {badge}
+                {`${getBadgeIcon(badge)} ${badge}`}
               </button>
             );
           })}
