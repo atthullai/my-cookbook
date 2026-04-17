@@ -241,6 +241,56 @@ function normalizeEquipmentItem(value: unknown): RecipeEquipmentItem {
   };
 }
 
+function inferEquipmentLabelsFromText(text: string): string[] {
+  const normalized = text.toLowerCase();
+  const matches: string[] = [];
+  const equipmentRules: Array<[RegExp, string]> = [
+    [/\bpressure cooker|instant pot\b/, "Pressure Cooker"],
+    [/\bblend|blender|mixer grinder|grind to\b/, "Mixer Grinder / Blender"],
+    [/\bwhisk|beat\b/, "Whisk"],
+    [/\boven|bake|preheat\b/, "Oven"],
+    [/\bpiping bag|pipe\b/, "Piping Bag"],
+    [/\bbaking tray|sheet pan\b/, "Baking Tray"],
+    [/\bdeep fry|deep-fry|shallow fry|fry\b/, "Deep Fry Pan / Kadai"],
+    [/\btemper|tadka\b/, "Tempering Pan"],
+    [/\bboil|simmer\b/, "Saucepan / Pot"],
+    [/\bskillet|saute|sautee|pan roast|tawa\b/, "Skillet / Pan"],
+    [/\bstrain|sieve|filter\b/, "Strainer / Sieve"],
+    [/\broll|flatten\b/, "Rolling Pin"],
+    [/\bmix\b/, "Mixing Bowl"],
+    [/\bspatula|ladle|stir\b/, "Spatula / Ladle"],
+  ];
+
+  for (const [pattern, label] of equipmentRules) {
+    if (pattern.test(normalized)) {
+      matches.push(label);
+    }
+  }
+
+  return [...new Set(matches)].slice(0, 8);
+}
+
+function inferEquipmentFromRecipe(raw: Record<string, unknown>, ingredients: RecipeIngredientGroup[], stepsEn: string): RecipeEquipmentItem[] {
+  const textParts = [
+    normalizeString(raw.title_en),
+    normalizeString(raw.description_en),
+    normalizeString(raw.notes_en),
+    normalizeString(raw.tips_en),
+    normalizeString(raw.category),
+    normalizeString(raw.cuisine),
+    normalizeString(raw.course),
+    stepsEn,
+    ingredients
+      .flatMap((group) => [group.group_en, ...group.items.map((item) => `${item.amount ?? ""} ${item.unit} ${item.name_en}`)])
+      .join("\n"),
+  ];
+
+  return inferEquipmentLabelsFromText(textParts.join("\n")).map((label) => ({
+    label_en: label,
+    label_de: label,
+  }));
+}
+
 function normalizeInstructionSection(value: unknown): RecipeInstructionSection {
   const item = value && typeof value === "object" ? value : {};
   const raw = item as Record<string, unknown>;
@@ -336,9 +386,57 @@ function normalizeNutrition(value: unknown): RecipeNutritionFacts | null {
 
 function normalizeInstructionSections(raw: Record<string, unknown>, stepsEn: string, stepsDe: string | null): RecipeInstructionSection[] {
   const fromDb = Array.isArray(raw.instruction_sections) ? raw.instruction_sections.map(normalizeInstructionSection) : [];
+  const hasLegacyHeadings = stepsEn.includes("## ");
 
-  if (fromDb.length > 0) {
+  const parseLegacySections = (text: string, fallbackText: string) => {
+    const lines = (text || fallbackText)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const sections: Array<{ title: string; steps: string[] }> = [];
+    let currentTitle = "METHOD";
+    let currentSteps: string[] = [];
+
+    const pushSection = () => {
+      if (currentSteps.length === 0) {
+        return;
+      }
+
+      sections.push({
+        title: currentTitle,
+        steps: currentSteps,
+      });
+    };
+
+    for (const line of lines) {
+      if (line.startsWith("## ")) {
+        pushSection();
+        currentTitle = line.replace(/^##\s+/, "").trim().toUpperCase() || "METHOD";
+        currentSteps = [];
+        continue;
+      }
+
+      currentSteps.push(line.replace(/^\d+\.\s*/, "").trim());
+    }
+
+    pushSection();
+    return sections;
+  };
+
+  if (fromDb.length > 0 && !hasLegacyHeadings) {
     return fromDb;
+  }
+
+  if (hasLegacyHeadings) {
+    const englishSections = parseLegacySections(stepsEn, stepsEn);
+    const germanSections = parseLegacySections(stepsDe || stepsEn, stepsEn);
+
+    return englishSections.map((section, index) => ({
+      title_en: section.title,
+      title_de: germanSections[index]?.title || section.title,
+      steps_en: section.steps,
+      steps_de: germanSections[index]?.steps.length ? germanSections[index].steps : section.steps,
+    }));
   }
 
   const englishSteps = splitRecipeSteps(stepsEn);
@@ -364,6 +462,8 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
   const titleEn = normalizeString(raw.title_en);
   const stepsEn = normalizeString(raw.steps_en);
   const stepsDe = normalizeString(raw.steps_de) || null;
+  const ingredients = Array.isArray(raw.ingredients) ? raw.ingredients.map(normalizeIngredientGroup) : [];
+  const normalizedEquipment = Array.isArray(raw.equipment) ? raw.equipment.map(normalizeEquipmentItem) : [];
   const imageUrls = Array.isArray(raw.image_urls)
     ? raw.image_urls.map((item) => normalizeString(item).trim()).filter(Boolean)
     : [];
@@ -394,7 +494,7 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     badges: Array.isArray(raw.badges)
       ? raw.badges.map((badge) => normalizeString(badge).trim()).filter(Boolean)
       : [],
-    ingredients: Array.isArray(raw.ingredients) ? raw.ingredients.map(normalizeIngredientGroup) : [],
+    ingredients,
     instruction_sections: normalizeInstructionSections(raw, stepsEn, stepsDe),
     steps_en: stepsEn,
     steps_de: stepsDe,
@@ -408,7 +508,7 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
         : typeof raw.servings === "string" && raw.servings.trim()
           ? Number(raw.servings)
           : null,
-    equipment: Array.isArray(raw.equipment) ? raw.equipment.map(normalizeEquipmentItem) : [],
+    equipment: normalizedEquipment.length > 0 ? normalizedEquipment : inferEquipmentFromRecipe(raw, ingredients, stepsEn),
     image_urls: imageUrls,
     cover_image_url: normalizeString(raw.cover_image_url) || imageUrls[0] || null,
     tips_en: normalizeString(raw.tips_en) || null,
@@ -481,19 +581,19 @@ export function getBadgeLabel(badge: string, lang: AppLanguage): string {
 }
 
 export function getBadgeIcon(badge: string): string {
-  if (badge.includes("Veg")) return "🥬";
+  if (badge.includes("Vegan")) return "🌿";
   if (badge.includes("Non-Veg")) return "🍗";
-  if (badge.includes("Vegan")) return "🌱";
-  if (badge.includes("Spicy")) return "🌶";
-  if (badge.includes("High Protein")) return "⚡";
-  if (badge.includes("Quick Meal")) return "⏱";
+  if (badge.includes("Veg")) return "🥕";
+  if (badge.includes("Spicy")) return "🌶️";
+  if (badge.includes("High Protein")) return "💪";
+  if (badge.includes("Quick Meal")) return "⚡";
   if (badge.includes("One Pot")) return "🍲";
-  if (badge.includes("Breakfast")) return "🌅";
-  if (badge.includes("Lunch")) return "🍽";
-  if (badge.includes("Dinner")) return "🌙";
-  if (badge.includes("Dessert")) return "🍮";
+  if (badge.includes("Breakfast")) return "☀️";
+  if (badge.includes("Lunch")) return "🍛";
+  if (badge.includes("Dinner")) return "🍽️";
+  if (badge.includes("Dessert")) return "🧁";
   if (badge.includes("Good")) return "➕";
-  if (badge.includes("Excellent")) return "✨";
+  if (badge.includes("Excellent")) return "⭐";
 
   return "🏷";
 }

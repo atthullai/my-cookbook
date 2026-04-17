@@ -33,6 +33,9 @@ export type ImportedRecipeDraft = {
     question_en: string;
     answer_en: string;
   }>;
+  equipment: Array<{
+    label_en: string;
+  }>;
   imageUrls: string[];
   coverImageUrl: string;
   videoUrl: string;
@@ -129,6 +132,16 @@ function extractMetaContent(html: string, name: string): string {
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escapedName}["'][^>]+content=["']([^"']+)["']`, "i"));
   return match ? decodeHtmlEntities(match[1]).trim() : "";
+}
+
+function pickBestCoverImage(html: string, recipe: JsonLdValue): string {
+  const preferred = [
+    extractMetaContent(html, "og:image"),
+    extractMetaContent(html, "twitter:image"),
+    ...normalizeTextList(recipe.image),
+  ].filter(Boolean);
+
+  return preferred.find((image) => !/logo|avatar|icon|pixel|cropped/i.test(image)) || "";
 }
 
 function extractHeadingText(html: string): string {
@@ -362,7 +375,7 @@ function flattenInstructions(value: unknown): Array<{ title_en: string; steps_en
 }
 
 function extractImageUrls(html: string, recipe: JsonLdValue): string[] {
-  const schemaImages = normalizeTextList(recipe.image);
+  const schemaImages = [pickBestCoverImage(html, recipe), ...normalizeTextList(recipe.image)].filter(Boolean);
   const pageImages = [...html.matchAll(/https:\/\/[^"' ]+wp-content\/uploads\/[^"' ]+\.(?:jpg|jpeg|png|webp)/gi)]
     .map((match) => match[0])
     .filter((image) => !/logo|cropped|avatar|button|pixel|icon|yummly|-\d+x\d+\./i.test(image));
@@ -435,6 +448,42 @@ function inferBadges(recipe: JsonLdValue, title: string, tags: string): string[]
   if (/(protein|dal|lentil|paneer|moong)/.test(haystack)) badges.push("High Protein");
 
   return [...new Set(badges)];
+}
+
+function inferEquipment(title: string, sections: Array<{ title_en: string; steps_en: string[] }>, ingredients: Array<{ group_en: string; items: Array<{ name_en: string }> }>, html: string) {
+  const text = [
+    title,
+    stripHtmlWithLines(html).slice(0, 5000),
+    sections.flatMap((section) => [section.title_en, ...section.steps_en]).join("\n"),
+    ingredients.flatMap((group) => [group.group_en, ...group.items.map((item) => item.name_en)]).join("\n"),
+  ]
+    .join("\n")
+    .toLowerCase();
+  const matches: string[] = [];
+  const rules: Array<[RegExp, string]> = [
+    [/\bpressure cooker|instant pot\b/, "PRESSURE COOKER"],
+    [/\bblend|blender|mixer grinder|grind\b/, "MIXER GRINDER / BLENDER"],
+    [/\bwhisk|beat\b/, "WHISK"],
+    [/\boven|bake|preheat\b/, "OVEN"],
+    [/\bpiping bag|pipe\b/, "PIPING BAG"],
+    [/\bbaking tray|sheet pan\b/, "BAKING TRAY"],
+    [/\bdeep fry|deep-fry|fry\b/, "DEEP FRY PAN / KADAI"],
+    [/\btemper|tadka\b/, "TEMPERING PAN"],
+    [/\bboil|simmer\b/, "SAUCEPAN / POT"],
+    [/\bskillet|saute|tawa\b/, "SKILLET / PAN"],
+    [/\bstrain|sieve|filter\b/, "STRAINER / SIEVE"],
+    [/\broll|flatten\b/, "ROLLING PIN"],
+    [/\bmix\b/, "MIXING BOWL"],
+    [/\bspatula|ladle|stir\b/, "SPATULA / LADLE"],
+  ];
+
+  for (const [pattern, label] of rules) {
+    if (pattern.test(text)) {
+      matches.push(label);
+    }
+  }
+
+  return [...new Set(matches)].map((label) => ({ label_en: label })).slice(0, 8);
 }
 
 function extractIsoDuration(value: string): string {
@@ -521,6 +570,7 @@ function extractHebbarOverrides(html: string) {
   const faqBlock = extractHtmlHeadingBlock(html, /<h2[^>]*>\s*FAQs\s*<\/h2>/i, [/<h3[^>]*>\s*Video Recipe/i, /<h2[^>]*>\s*Recipe Card/i]);
   const notesBlock = extractHtmlHeadingBlock(html, /<h2[^>]*>\s*Notes\s*<\/h2>/i, [/<\/article>/i, /<h2[^>]*>/i]);
   const tipsBlock = extractHtmlHeadingBlock(html, /<h2[^>]*>\s*Chef Pro Tips[^<]*<\/h2>/i, [/<h2[^>]*>\s*FAQs\s*<\/h2>/i, /<h3[^>]*>\s*Video Recipe/i]);
+  const footerMetaBlock = extractHtmlHeadingBlock(html, /<h2[^>]*>\s*Notes\s*<\/h2>/i, [/<\/article>/i]);
 
   const ingredientSections = extractGroupedListSections(ingredientsBlock, "MAIN").map((section) => ({
     group_en: section.title_en,
@@ -568,6 +618,11 @@ function extractHebbarOverrides(html: string) {
 
   const notesEn = extractGroupedListSections(notesBlock, "NOTES").flatMap((section) => section.items).join("\n");
   const tipsEn = extractGroupedListSections(tipsBlock, "CHEF PRO TIPS").flatMap((section) => section.items).join("\n");
+  const equipment = [...footerMetaBlock.matchAll(/【\d+†([^】]+)】/g)]
+    .map((match) => normalizeText(match[1]))
+    .filter((label) => /blend|stove|frying|bowl|pan|pot|mixer|whisk/i.test(label))
+    .map((label) => ({ label_en: label.toUpperCase() }));
+  const difficulty = footerMetaBlock.match(/【\d+†(easy|medium|hard|beginner|intermediate|advanced)】/i)?.[1] || "";
 
   return {
     ingredients: ingredientSections,
@@ -575,6 +630,8 @@ function extractHebbarOverrides(html: string) {
     faq,
     notesEn,
     tipsEn,
+    equipment,
+    difficulty: difficulty ? difficulty[0].toUpperCase() + difficulty.slice(1).toLowerCase() : "",
   };
 }
 
@@ -602,7 +659,12 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
   const tags = extractTags(recipe);
   const imageUrls = extractImageUrls(html, recipe);
   const hebbarOverrides = extractHebbarOverrides(html);
-  const coverImageUrl = imageUrls[0] || "";
+  const coverImageUrl = pickBestCoverImage(html, recipe) || imageUrls[0] || "";
+  const importedIngredients = hebbarOverrides?.ingredients.length ? hebbarOverrides.ingredients : extractIngredients(recipe);
+  const importedInstructionSections =
+    hebbarOverrides?.instructionSections.length ? hebbarOverrides.instructionSections : flattenInstructions(recipe.recipeInstructions);
+  const importedEquipment =
+    hebbarOverrides?.equipment.length ? hebbarOverrides.equipment : inferEquipment(title, importedInstructionSections, importedIngredients, html);
 
   return {
     sourceUrl: url.toString(),
@@ -611,7 +673,7 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
     category: extractCategory(recipe),
     cuisine: extractCuisine(recipe),
     course: extractCourse(recipe),
-    difficulty: "",
+    difficulty: hebbarOverrides?.difficulty || "",
     tags,
     badges: inferBadges(recipe, title, tags),
     learnedFrom: extractAuthorName(recipe, url),
@@ -619,12 +681,12 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
     prepTime: extractIsoDuration(normalizeText(recipe.prepTime)),
     cookTime: extractIsoDuration(normalizeText(recipe.cookTime)),
     totalTime: extractIsoDuration(normalizeText(recipe.totalTime)),
-    ingredients: hebbarOverrides?.ingredients.length ? hebbarOverrides.ingredients : extractIngredients(recipe),
-    instructionSections:
-      hebbarOverrides?.instructionSections.length ? hebbarOverrides.instructionSections : flattenInstructions(recipe.recipeInstructions),
+    ingredients: importedIngredients,
+    instructionSections: importedInstructionSections,
     notesEn: hebbarOverrides?.notesEn || extractNotes(recipe),
     tipsEn: hebbarOverrides?.tipsEn || "",
     faq: hebbarOverrides?.faq || [],
+    equipment: importedEquipment,
     imageUrls: coverImageUrl ? [coverImageUrl] : [],
     coverImageUrl,
     videoUrl: extractVideoUrl(html, recipe),

@@ -53,6 +53,7 @@ type RecipeFormProps = {
   imageUrls: string;
   coverImageUrl: string;
   saving: boolean;
+  estimatingNutrition: boolean;
   submitLabel: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onTitleChange: (value: string) => void;
@@ -106,6 +107,7 @@ type RecipeFormProps = {
   onEquipmentChange: (index: number, field: keyof EquipmentDraft, value: string) => void;
   onImageUrlsChange: (value: string) => void;
   onCoverImageUrlChange: (value: string) => void;
+  onEstimateNutrition: () => void;
 };
 
 export default function RecipeForm(props: RecipeFormProps) {
@@ -388,7 +390,14 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Nutrition Facts</h3>
-        <p style={{ marginBottom: 12 }}>Enter per-serving nutrition values manually. Labels will show in English or German automatically on the recipe page.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <p style={{ marginBottom: 0 }}>
+            Enter per-serving nutrition values manually, or estimate them from the ingredient list. Labels will show in English or German automatically on the recipe page.
+          </p>
+          <button className="button" type="button" onClick={props.onEstimateNutrition} disabled={props.estimatingNutrition}>
+            {props.estimatingNutrition ? "Estimating..." : "Estimate From Ingredients"}
+          </button>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
           <input className="input" value={props.nutrition.calories_kcal} onChange={(event) => props.onNutritionChange("calories_kcal", event.target.value)} placeholder="Calories (kcal)" />
           <input className="input" value={props.nutrition.fat_g} onChange={(event) => props.onNutritionChange("fat_g", event.target.value)} placeholder="Fat (g)" />

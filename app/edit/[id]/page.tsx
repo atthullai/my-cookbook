@@ -43,6 +43,7 @@ export default function EditRecipe() {
   const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [estimatingNutrition, setEstimatingNutrition] = useState(false);
 
   const [title, setTitle] = useState("");
   const [titleDe, setTitleDe] = useState("");
@@ -385,6 +386,40 @@ export default function EditRecipe() {
     router.push(`/recipe/${recipeId}`);
   };
 
+  const handleEstimateNutrition = async () => {
+    if (!ingredientGroups.some((group) => group.items.some((ingredient) => ingredient.name_en.trim()))) {
+      alert("Please add ingredients first.");
+      return;
+    }
+
+    setEstimatingNutrition(true);
+
+    try {
+      const response = await fetch("/api/nutrition-estimate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ingredientGroups,
+          servings,
+        }),
+      });
+
+      const result = (await response.json()) as { nutrition?: NutritionDraft; error?: string };
+
+      if (!response.ok || !result.nutrition) {
+        throw new Error(result.error || "Could not estimate nutrition.");
+      }
+
+      setNutrition(result.nutrition);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not estimate nutrition.");
+    } finally {
+      setEstimatingNutrition(false);
+    }
+  };
+
   if (loading || !recipe) {
     return (
       <main className="container">
@@ -437,6 +472,7 @@ export default function EditRecipe() {
         imageUrls={imageUrls}
         coverImageUrl={coverImageUrl}
         saving={saving}
+        estimatingNutrition={estimatingNutrition}
         submitLabel="Save Changes"
         onSubmit={handleSubmit}
         onTitleChange={setTitle}
@@ -516,6 +552,7 @@ export default function EditRecipe() {
         onEquipmentChange={updateEquipment}
         onImageUrlsChange={setImageUrls}
         onCoverImageUrlChange={setCoverImageUrl}
+        onEstimateNutrition={() => void handleEstimateNutrition()}
       />
     </main>
   );

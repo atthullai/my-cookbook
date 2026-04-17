@@ -19,6 +19,16 @@ const nextConfig: NextConfig = {
         hostname: "www.jeyashriskitchen.com",
         pathname: "/wp-content/uploads/**",
       },
+      {
+        protocol: "https",
+        hostname: "hebbarskitchen.com",
+        pathname: "/wp-content/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.hebbarskitchen.com",
+        pathname: "/wp-content/uploads/**",
+      },
     ],
   },
 };

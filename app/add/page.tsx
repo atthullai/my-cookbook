@@ -41,6 +41,7 @@ export default function AddRecipe() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
 
@@ -147,8 +148,15 @@ export default function AddRecipe() {
     setSourceUrl(recipe.sourceUrl);
     setVideoUrl(recipe.videoUrl);
     setServings(recipe.servings);
-    setEquipment([{ ...EMPTY_EQUIPMENT }]);
-    setImageUrls(recipe.coverImageUrl);
+    setEquipment(
+      recipe.equipment.length
+        ? recipe.equipment.map((item) => ({
+            label_en: item.label_en,
+            label_de: "",
+          }))
+        : [{ ...EMPTY_EQUIPMENT }]
+    );
+    setImageUrls(recipe.coverImageUrl ? `${recipe.coverImageUrl}\n` : "");
     setCoverImageUrl(recipe.coverImageUrl);
   };
 
@@ -369,6 +377,40 @@ export default function AddRecipe() {
     window.location.href = "/recipes";
   };
 
+  const handleEstimateNutrition = async () => {
+    if (!ingredientGroups.some((group) => group.items.some((ingredient) => ingredient.name_en.trim()))) {
+      alert("Please add ingredients first.");
+      return;
+    }
+
+    setEstimatingNutrition(true);
+
+    try {
+      const response = await fetch("/api/nutrition-estimate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ingredientGroups,
+          servings,
+        }),
+      });
+
+      const result = (await response.json()) as { nutrition?: NutritionDraft; error?: string };
+
+      if (!response.ok || !result.nutrition) {
+        throw new Error(result.error || "Could not estimate nutrition.");
+      }
+
+      setNutrition(result.nutrition);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not estimate nutrition.");
+    } finally {
+      setEstimatingNutrition(false);
+    }
+  };
+
   const handleImport = async () => {
     if (!importUrl.trim()) {
       alert("Please paste a recipe link first.");
@@ -465,6 +507,7 @@ export default function AddRecipe() {
         imageUrls={imageUrls}
         coverImageUrl={coverImageUrl}
         saving={saving}
+        estimatingNutrition={estimatingNutrition}
         submitLabel="Save Recipe"
         onSubmit={handleSubmit}
         onTitleChange={setTitle}
@@ -544,6 +587,7 @@ export default function AddRecipe() {
         onEquipmentChange={updateEquipment}
         onImageUrlsChange={setImageUrls}
         onCoverImageUrlChange={setCoverImageUrl}
+        onEstimateNutrition={() => void handleEstimateNutrition()}
       />
     </main>
   );
