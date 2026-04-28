@@ -269,6 +269,8 @@ p {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 .chip-default {
@@ -291,6 +293,12 @@ p {
   background: rgba(253, 235, 231, 0.96);
   border-color: rgba(168, 73, 55, 0.22);
   color: #8f3c2b;
+}
+
+.chip-egg {
+  background: rgba(255, 248, 223, 0.96);
+  border-color: rgba(191, 156, 55, 0.24);
+  color: #8c6710;
 }
 
 .chip-spicy {
@@ -329,6 +337,12 @@ p {
   background: rgba(239, 241, 246, 0.96);
   border-color: rgba(92, 106, 136, 0.18);
   color: #4a566e;
+}
+
+.chip-breakfast .chip-icon,
+.chip-lunch .chip-icon,
+.chip-dinner .chip-icon {
+  background: rgba(255, 255, 255, 0.84);
 }
 
 .chip-dessert {

@@ -1,7 +1,6 @@
 "use client";
 
-import AppIcon from "@/components/AppIcon";
-import { getBadgeIcon, getBadgeLabel } from "@/lib/recipe-types";
+import { getBadgeEmoji, getBadgeLabel } from "@/lib/recipe-types";
 
 type BadgeChipProps = {
   badge: string;
@@ -15,6 +14,7 @@ export default function BadgeChip({ badge, lang, active = false, asButton = fals
   const tone =
     badge.includes("Vegan") ? "chip-vegan" :
     badge.includes("Non-Veg") ? "chip-nonveg" :
+    badge.includes("Egg") ? "chip-egg" :
     badge.includes("Veg") ? "chip-veg" :
     badge.includes("Spicy") ? "chip-spicy" :
     badge.includes("High Protein") ? "chip-protein" :
@@ -32,7 +32,7 @@ export default function BadgeChip({ badge, lang, active = false, asButton = fals
   const content = (
     <>
       <span className="chip-icon">
-        <AppIcon name={getBadgeIcon(badge)} size={16} />
+        {getBadgeEmoji(badge)}
       </span>
       <span>{getBadgeLabel(badge, lang)}</span>
     </>

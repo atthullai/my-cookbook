@@ -184,7 +184,7 @@ export default function Home() {
 
           <Link href="/add" className="button button-primary">
             <AppIcon name="add" size={16} />
-            + Add Recipe
+            Add Recipe
           </Link>
           {user ? (
             <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>

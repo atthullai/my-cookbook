@@ -181,7 +181,7 @@ export default function RecipeForm(props: RecipeFormProps) {
           </div>
           <button className="button" type="button" onClick={props.onIngredientGroupAdd}>
             <AppIcon name="add" size={16} />
-            + Add Section
+            Add Section
           </button>
         </div>
 
@@ -250,7 +250,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
             <button className="button" type="button" onClick={() => props.onIngredientAdd(groupIndex)}>
               <AppIcon name="add" size={16} />
-              + Add Ingredient
+              Add Ingredient
             </button>
           </div>
         ))}
@@ -265,7 +265,7 @@ export default function RecipeForm(props: RecipeFormProps) {
           </div>
           <button className="button" type="button" onClick={props.onInstructionSectionAdd}>
             <AppIcon name="add" size={16} />
-            + Add Instruction Section
+            Add Instruction Section
           </button>
         </div>
 
@@ -313,7 +313,7 @@ export default function RecipeForm(props: RecipeFormProps) {
           </div>
           <button className="button" type="button" onClick={props.onStepPhotoAdd}>
             <AppIcon name="add" size={16} />
-            + Add Step Photo
+            Add Step Photo
           </button>
         </div>
 
@@ -379,7 +379,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
         <button className="button" type="button" onClick={props.onEquipmentAdd}>
           <AppIcon name="add" size={16} />
-          + Add Equipment
+          Add Equipment
         </button>
       </div>
 
@@ -443,7 +443,7 @@ export default function RecipeForm(props: RecipeFormProps) {
           </div>
           <button className="button" type="button" onClick={props.onFaqAdd}>
             <AppIcon name="add" size={16} />
-            + Add FAQ
+            Add FAQ
           </button>
         </div>
 
@@ -489,7 +489,7 @@ export default function RecipeForm(props: RecipeFormProps) {
           </div>
           <button className="button" type="button" onClick={props.onTroubleshootingAdd}>
             <AppIcon name="add" size={16} />
-            + Add Issue
+            Add Issue
           </button>
         </div>
 

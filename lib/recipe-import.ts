@@ -442,7 +442,8 @@ function inferBadges(recipe: JsonLdValue, title: string, tags: string): string[]
 
   if (/(veg(etarian)?|dal|sambar|kuzhambu|paneer)/.test(haystack)) badges.push("Veg");
   if (/(vegan)/.test(haystack)) badges.push("Vegan");
-  if (/(chicken|mutton|fish|egg|beef|prawn)/.test(haystack)) badges.push("Non-Veg");
+  if (/\begg\b/.test(haystack)) badges.push("Egg");
+  if (/(chicken|mutton|fish|beef|prawn|shrimp|lamb)/.test(haystack)) badges.push("Non-Veg");
   if (/(spicy|masala|andhra)/.test(haystack)) badges.push("Spicy");
   if (/(quick|instant|pressure cooker|cooker)/.test(haystack)) badges.push("Quick Meal");
   if (/(protein|dal|lentil|paneer|moong)/.test(haystack)) badges.push("High Protein");
