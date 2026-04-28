@@ -3,9 +3,11 @@
 import Image from "next/image";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import AppIcon from "@/components/AppIcon";
+import BadgeChip from "@/components/BadgeChip";
 import { buildRecipePayload, mapRecipeRows } from "@/lib/recipe-db";
 import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
-import { EMPTY_NUTRITION, getBadgeIcon, getBadgeLabel, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty } from "@/lib/recipe-types";
+import { EMPTY_NUTRITION, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty } from "@/lib/recipe-types";
 import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
 import { supabase } from "@/lib/supabase";
@@ -351,9 +353,7 @@ export default function RecipeIndexPage() {
             All badges
           </button>
           {badges.map((badge) => (
-            <button key={badge} className="button" type="button" onClick={() => setSelectedBadge(badge)} style={{ background: selectedBadge === badge ? "#f0d6c5" : undefined }}>
-              {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
-            </button>
+            <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
           ))}
         </div>
       ) : null}
@@ -371,8 +371,8 @@ export default function RecipeIndexPage() {
                 const coverImage = getRecipeCoverImage(recipe);
 
                 return (
-                  <div key={recipe.id} className="card" style={{ overflow: "hidden" }}>
-                    {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : null}
+                  <article key={recipe.id} className="card recipe-preview-card" style={{ overflow: "hidden" }}>
+                    {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : <div className="recipe-card-photo recipe-card-photo-placeholder"><AppIcon name="recipe" size={30} /></div>}
 
                     <div style={{ marginTop: coverImage ? 14 : 0 }}>
                       <Link href={`/recipe/${recipe.id}`}>
@@ -389,23 +389,23 @@ export default function RecipeIndexPage() {
                       {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
                           {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                            <span key={`${recipe.id}-${badge}`} className="chip">
-                              {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
-                            </span>
+                            <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
                           ))}
                         </div>
                       ) : null}
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <Link href={`/edit/${recipe.id}`} className="button">
+                          <AppIcon name="edit" size={16} />
                           Edit
                         </Link>
                         <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
+                          <AppIcon name="delete" size={16} />
                           Delete
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
           </div>

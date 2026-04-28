@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import AppIcon from "@/components/AppIcon";
+import BadgeChip from "@/components/BadgeChip";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
-  getBadgeLabel,
-  getBadgeIcon,
   getEquipmentLabel,
   getIngredientGroupLabel,
   getIngredientLabel,
@@ -138,17 +138,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   return (
     <div style={{ marginTop: 16 }}>
       {/* Keep header controls together because language and serving size both change the same recipe view. */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          marginBottom: 20,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="hero-panel" style={{ marginBottom: 20 }}>
         <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <p className="eyebrow">{lang === "de" ? "Rezeptseite" : "Recipe Page"}</p>
           <h1>{recipeTitle}</h1>
           <p style={{ marginBottom: 0 }}>{recipe.category || "Uncategorized"}</p>
           <p style={{ marginTop: 8, marginBottom: 0 }}>
@@ -162,12 +154,15 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0, marginLeft: "auto", justifyContent: "flex-end" }}>
           <button className="button" type="button" onClick={handlePrint}>
+            <AppIcon name="print" size={16} />
             Print
           </button>
           <button className="button" type="button" onClick={() => setLang("en")}>
+            <AppIcon name="globe" size={16} />
             EN
           </button>
           <button className="button" type="button" onClick={() => setLang("de")}>
+            <AppIcon name="globe" size={16} />
             DE
           </button>
         </div>
@@ -199,9 +194,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       {displayBadges.length > 0 ? (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           {displayBadges.map((badge) => (
-            <span key={badge} className="chip">
-              {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
-            </span>
+            <BadgeChip key={badge} badge={badge} lang={lang} />
           ))}
         </div>
       ) : null}
@@ -219,16 +212,19 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       {/* Jump links make longer recipes feel closer to the reference food sites. */}
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Springe zu" : "Jump To"}</h3>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="section-link-grid">
           <a className="button" href="#ingredients">
+            <AppIcon name="recipe" size={16} />
             {lang === "de" ? "Zutaten" : "Ingredients"}
           </a>
           {recipe.equipment && recipe.equipment.length > 0 ? (
             <a className="button" href="#equipment">
+              <AppIcon name="onepot" size={16} />
               {lang === "de" ? "Equipment" : "Equipment"}
             </a>
           ) : null}
           <a className="button" href="#instructions">
+            <AppIcon name="book" size={16} />
             {lang === "de" ? "Anleitung" : "Instructions"}
           </a>
           {hasNotes(recipe, lang) ? (
@@ -272,7 +268,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       <div className="card" style={{ marginBottom: 20 }}>
         <p>{lang === "de" ? "Portionen" : "Servings"}</p>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[0.5, 1, 2].map((value) => (
             <button
               key={value}
@@ -315,7 +311,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                     marginBottom: 6,
                   }}
                 >
-                  <span>{isChecked ? "☑" : "☐"}</span>
+                  <span className={isChecked ? "checkmark-box checked" : "checkmark-box"}>{isChecked ? "✓" : ""}</span>
                   <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
                     {amountLabel}
                     {ingredient.unit ? ` ${ingredient.unit}` : ""}
@@ -348,7 +344,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   color: "inherit",
                 }}
               >
-                <span>{checkedEquipment.includes(item.label_en) ? "☑" : "☐"}</span>
+                <span className={checkedEquipment.includes(item.label_en) ? "checkmark-box checked" : "checkmark-box"}>
+                  {checkedEquipment.includes(item.label_en) ? "✓" : ""}
+                </span>
                 <span style={{ textDecoration: checkedEquipment.includes(item.label_en) ? "line-through" : "none" }}>
                   {getEquipmentLabel(item, lang)}
                 </span>
@@ -475,6 +473,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             </p>
           </div>
           <button className="button button-primary" type="button" onClick={() => setShowNutrition((current) => !current)}>
+            <AppIcon name="protein" size={16} />
             {lang === "de" ? (showNutrition ? "Nahrwerte ausblenden" : "Nahrwerte anzeigen") : showNutrition ? "Hide Nutrition" : "Show Nutrition"}
           </button>
         </div>

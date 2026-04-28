@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AppIcon from "@/components/AppIcon";
 import type { FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -33,9 +34,14 @@ export default function Login() {
   return (
     <main className="container" style={{ maxWidth: 520 }}>
       {/* Login stays intentionally simple because it only needs to unlock the private cookbook. */}
-      <h1>Login</h1>
+      <div className="hero-panel" style={{ marginBottom: 20 }}>
+        <div>
+          <p className="eyebrow">Private Access</p>
+          <h1>Login</h1>
+        </div>
+      </div>
 
-      <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <form onSubmit={handleLogin} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <input
           type="email"
           placeholder="Enter email"
@@ -53,6 +59,7 @@ export default function Login() {
         />
 
         <button className="button button-primary" type="submit" disabled={loading}>
+          <AppIcon name="login" size={16} />
           {loading ? "Logging in..." : "Login"}
         </button>
       </form>

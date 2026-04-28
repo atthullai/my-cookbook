@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AppIcon from "@/components/AppIcon";
 import { supabase } from "@/lib/supabase";
 import { translateEnglishToGerman } from "@/lib/translate";
 
@@ -80,7 +81,12 @@ export default function AboutPage() {
 
   return (
     <main className="container">
-      <h1>About Me</h1>
+      <div className="hero-panel" style={{ marginBottom: 20 }}>
+        <div>
+          <p className="eyebrow">Profile</p>
+          <h1>About Me</h1>
+        </div>
+      </div>
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
           <div>
@@ -90,12 +96,15 @@ export default function AboutPage() {
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="button" type="button" onClick={() => setLang("en")} style={{ background: lang === "en" ? "#f0d6c5" : undefined }}>
+              <AppIcon name="globe" size={16} />
               EN
             </button>
             <button className="button" type="button" onClick={() => setLang("de")} style={{ background: lang === "de" ? "#f0d6c5" : undefined }}>
+              <AppIcon name="globe" size={16} />
               DE
             </button>
             <button className="button button-primary" type="button" onClick={() => setEditing((current) => !current)}>
+              <AppIcon name="edit" size={16} />
               {editing ? "Close Edit" : "Edit About Me"}
             </button>
           </div>
@@ -109,6 +118,7 @@ export default function AboutPage() {
             <textarea className="input" value={aboutEn} onChange={(event) => setAboutEn(event.target.value)} placeholder="About Me (EN)" />
             <textarea className="input" value={aboutDe} onChange={(event) => setAboutDe(event.target.value)} placeholder="About Me (DE, optional if auto-translate should fill it)" />
             <button className="button button-primary" type="button" onClick={() => void handleSave()} disabled={saving}>
+              <AppIcon name="recipe" size={16} />
               {saving ? "Saving..." : "Save About Me"}
             </button>
           </div>

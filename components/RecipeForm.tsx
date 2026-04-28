@@ -11,7 +11,9 @@ import type {
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
-import { BADGE_OPTIONS, DIFFICULTY_OPTIONS, getBadgeIcon } from "@/lib/recipe-types";
+import AppIcon from "@/components/AppIcon";
+import BadgeChip from "@/components/BadgeChip";
+import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -161,15 +163,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             const isActive = props.badges.includes(badge);
 
             return (
-              <button
-                key={badge}
-                className="button"
-                type="button"
-                onClick={() => props.onBadgeToggle(badge)}
-                style={{ background: isActive ? "#f0d6c5" : undefined }}
-              >
-                {`${getBadgeIcon(badge)} ${badge}`}
-              </button>
+              <BadgeChip key={badge} badge={badge} lang="en" active={isActive} asButton onClick={() => props.onBadgeToggle(badge)} />
             );
           })}
         </div>
@@ -183,6 +177,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             <p style={{ marginBottom: 0 }}>Use as many sections as you want: dough, filling, tempering, garnish, and so on.</p>
           </div>
           <button className="button" type="button" onClick={props.onIngredientGroupAdd}>
+            <AppIcon name="add" size={16} />
             + Add Section
           </button>
         </div>
@@ -203,6 +198,7 @@ export default function RecipeForm(props: RecipeFormProps) {
                 placeholder="Section title (DE)"
               />
               <button className="button" type="button" onClick={() => props.onIngredientGroupRemove(groupIndex)}>
+                <AppIcon name="delete" size={16} />
                 Remove Section
               </button>
             </div>
@@ -243,12 +239,14 @@ export default function RecipeForm(props: RecipeFormProps) {
                   onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_de", event.target.value)}
                 />
                 <button className="button" type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}>
+                  <AppIcon name="delete" size={16} />
                   Remove
                 </button>
               </div>
             ))}
 
             <button className="button" type="button" onClick={() => props.onIngredientAdd(groupIndex)}>
+              <AppIcon name="add" size={16} />
               + Add Ingredient
             </button>
           </div>
@@ -263,6 +261,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             <p style={{ marginBottom: 0 }}>Create sections like Dough, Filling, Assembly. Inside each section, use one step per line.</p>
           </div>
           <button className="button" type="button" onClick={props.onInstructionSectionAdd}>
+            <AppIcon name="add" size={16} />
             + Add Instruction Section
           </button>
         </div>
@@ -283,6 +282,7 @@ export default function RecipeForm(props: RecipeFormProps) {
                 placeholder="Section title (DE)"
               />
               <button className="button" type="button" onClick={() => props.onInstructionSectionRemove(index)}>
+                <AppIcon name="delete" size={16} />
                 Remove Section
               </button>
             </div>
@@ -309,6 +309,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             <p style={{ marginBottom: 0 }}>Add these manually when you really want process photos. Imported recipes no longer auto-fill them.</p>
           </div>
           <button className="button" type="button" onClick={props.onStepPhotoAdd}>
+            <AppIcon name="add" size={16} />
             + Add Step Photo
           </button>
         </div>
@@ -329,6 +330,7 @@ export default function RecipeForm(props: RecipeFormProps) {
                 placeholder="Photo URL"
               />
               <button className="button" type="button" onClick={() => props.onStepPhotoRemove(index)}>
+                <AppIcon name="delete" size={16} />
                 Remove
               </button>
             </div>
@@ -366,12 +368,14 @@ export default function RecipeForm(props: RecipeFormProps) {
               onChange={(event) => props.onEquipmentChange(index, "label_de", event.target.value)}
             />
             <button className="button" type="button" onClick={() => props.onEquipmentRemove(index)}>
+              <AppIcon name="delete" size={16} />
               Remove
             </button>
           </div>
         ))}
 
         <button className="button" type="button" onClick={props.onEquipmentAdd}>
+          <AppIcon name="add" size={16} />
           + Add Equipment
         </button>
       </div>
@@ -395,6 +399,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             Enter per-serving nutrition values manually, or estimate them from the ingredient list. Labels will show in English or German automatically on the recipe page.
           </p>
           <button className="button" type="button" onClick={props.onEstimateNutrition} disabled={props.estimatingNutrition}>
+            <AppIcon name="protein" size={16} />
             {props.estimatingNutrition ? "Estimating..." : "Estimate From Ingredients"}
           </button>
         </div>
@@ -434,6 +439,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             <p style={{ marginBottom: 0 }}>Add common questions and answers for the recipe.</p>
           </div>
           <button className="button" type="button" onClick={props.onFaqAdd}>
+            <AppIcon name="add" size={16} />
             + Add FAQ
           </button>
         </div>
@@ -465,6 +471,7 @@ export default function RecipeForm(props: RecipeFormProps) {
               placeholder="Answer (DE)"
             />
             <button className="button" type="button" onClick={() => props.onFaqRemove(index)}>
+              <AppIcon name="delete" size={16} />
               Remove FAQ
             </button>
           </div>
@@ -478,6 +485,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             <p style={{ marginBottom: 0 }}>List common problems and how to fix them.</p>
           </div>
           <button className="button" type="button" onClick={props.onTroubleshootingAdd}>
+            <AppIcon name="add" size={16} />
             + Add Issue
           </button>
         </div>
@@ -509,6 +517,7 @@ export default function RecipeForm(props: RecipeFormProps) {
               placeholder="Fix (DE)"
             />
             <button className="button" type="button" onClick={() => props.onTroubleshootingRemove(index)}>
+              <AppIcon name="delete" size={16} />
               Remove Issue
             </button>
           </div>
@@ -522,6 +531,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       <input className="input" value={props.coverImageUrl} onChange={(event) => props.onCoverImageUrlChange(event.target.value)} placeholder="Cover photo URL" />
 
       <button className="button button-primary" type="submit" disabled={props.saving}>
+        <AppIcon name="recipe" size={16} />
         {props.saving ? "Saving..." : props.submitLabel}
       </button>
     </form>

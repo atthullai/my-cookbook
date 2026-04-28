@@ -580,22 +580,38 @@ export function getBadgeLabel(badge: string, lang: AppLanguage): string {
   return badge;
 }
 
-export function getBadgeIcon(badge: string): string {
-  if (badge.includes("Vegan")) return "🌿";
-  if (badge.includes("Non-Veg")) return "🍗";
-  if (badge.includes("Veg")) return "🥕";
-  if (badge.includes("Spicy")) return "🌶️";
-  if (badge.includes("High Protein")) return "💪";
-  if (badge.includes("Quick Meal")) return "⚡";
-  if (badge.includes("One Pot")) return "🍲";
-  if (badge.includes("Breakfast")) return "☀️";
-  if (badge.includes("Lunch")) return "🍛";
-  if (badge.includes("Dinner")) return "🍽️";
-  if (badge.includes("Dessert")) return "🧁";
-  if (badge.includes("Good")) return "➕";
-  if (badge.includes("Excellent")) return "⭐";
+export function getBadgeIcon(badge: string):
+  | "vegan"
+  | "nonveg"
+  | "veg"
+  | "spicy"
+  | "protein"
+  | "quick"
+  | "onepot"
+  | "festival"
+  | "breakfast"
+  | "lunch"
+  | "dinner"
+  | "dessert"
+  | "good"
+  | "excellent"
+  | "tag" {
+  if (badge.includes("Vegan")) return "vegan";
+  if (badge.includes("Non-Veg")) return "nonveg";
+  if (badge.includes("Veg")) return "veg";
+  if (badge.includes("Spicy")) return "spicy";
+  if (badge.includes("High Protein")) return "protein";
+  if (badge.includes("Quick Meal")) return "quick";
+  if (badge.includes("One Pot")) return "onepot";
+  if (badge.includes("Festival")) return "festival";
+  if (badge.includes("Breakfast")) return "breakfast";
+  if (badge.includes("Lunch")) return "lunch";
+  if (badge.includes("Dinner")) return "dinner";
+  if (badge.includes("Dessert")) return "dessert";
+  if (badge.includes("Good")) return "good";
+  if (badge.includes("Excellent")) return "excellent";
 
-  return "🏷";
+  return "tag";
 }
 
 export function getRecipeSteps(recipe: RecipeRecord, lang: AppLanguage): string {

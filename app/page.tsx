@@ -3,8 +3,10 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import AppIcon from "@/components/AppIcon";
+import BadgeChip from "@/components/BadgeChip";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
-import { getBadgeIcon, getBadgeLabel, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
+import { getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
 import { supabase } from "@/lib/supabase";
@@ -156,17 +158,9 @@ export default function Home() {
   return (
     <main className="container">
       {/* This top block acts like a dashboard header: identity, auth, and big cookbook actions. */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          marginBottom: 20,
-          flexWrap: "wrap",
-        }}
-      >
+      <section className="hero-panel">
         <div>
+          <p className="eyebrow">Private Recipe Studio</p>
           <h1>My Cookbook</h1>
           <p style={{ marginBottom: 0 }}>
             A private family cookbook with bilingual recipes, cover photos, structured methods, and all the people I learned from.
@@ -178,35 +172,41 @@ export default function Home() {
 
           {user ? (
             <button className="button" type="button" onClick={handleLogout}>
+              <AppIcon name="logout" size={16} />
               Logout
             </button>
           ) : (
             <Link href="/login" className="button">
+              <AppIcon name="login" size={16} />
               Login
             </Link>
           )}
 
           <Link href="/add" className="button button-primary">
+            <AppIcon name="add" size={16} />
             + Add Recipe
           </Link>
           {user ? (
             <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
+              <AppIcon name="delete" size={16} />
               Delete My Recipes
             </button>
           ) : null}
         </div>
-      </div>
+      </section>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card card-accent" style={{ marginTop: 20 }}>
         <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
         <p style={{ marginBottom: 12 }}>
           Home shows the newest recipes. The recipe index gives you the full structured collection with filtering and management.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/recipes" className="button">
+            <AppIcon name="book" size={16} />
             Open Recipe Index
           </Link>
           <Link href="/about" className="button">
+            <AppIcon name="about" size={16} />
             About Me
           </Link>
         </div>
@@ -248,9 +248,7 @@ export default function Home() {
             All badges
           </button>
           {badges.map((badge) => (
-            <button key={badge} className="button" type="button" onClick={() => setSelectedBadge(badge)} style={{ background: selectedBadge === badge ? "#f0d6c5" : undefined }}>
-              {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
-            </button>
+            <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
           ))}
         </div>
       ) : null}
@@ -266,8 +264,8 @@ export default function Home() {
             const coverImage = getRecipeCoverImage(recipe);
 
             return (
-              <div key={recipe.id} className="card" style={{ overflow: "hidden" }}>
-                {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : null}
+              <article key={recipe.id} className="card recipe-preview-card" style={{ overflow: "hidden" }}>
+                {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : <div className="recipe-card-photo recipe-card-photo-placeholder"><AppIcon name="recipe" size={30} /></div>}
 
                 <div
                   style={{
@@ -294,9 +292,11 @@ export default function Home() {
                   {user?.id === recipe.user_id ? (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <Link href={`/edit/${recipe.id}`} className="button">
+                        <AppIcon name="edit" size={16} />
                         Edit
                       </Link>
                       <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
+                        <AppIcon name="delete" size={16} />
                         Delete
                       </button>
                     </div>
@@ -306,13 +306,11 @@ export default function Home() {
                 {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
                     {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                      <span key={`${recipe.id}-${badge}`} className="chip">
-                        {`${getBadgeIcon(badge)} ${getBadgeLabel(badge, lang)}`}
-                      </span>
+                      <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
                     ))}
                   </div>
                 ) : null}
-              </div>
+              </article>
             );
           })}
         </div>

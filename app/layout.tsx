@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
 
 // This metadata is shared by the whole app unless a page overrides part of it.
@@ -18,14 +18,7 @@ export default function RootLayout({
     // and the single global stylesheet import.
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <header className="site-shell">
-          <nav className="site-nav">
-            <Link href="/">Home</Link>
-            <Link href="/recipes">Recipes</Link>
-            <Link href="/about">About Me</Link>
-            <Link href="/add">Add Recipe</Link>
-          </nav>
-        </header>
+        <SiteHeader />
         {children}
       </body>
     </html>
