@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { FormEvent } from "react";
 import type {
   EquipmentDraft,
@@ -56,6 +57,7 @@ type RecipeFormProps = {
   coverImageUrl: string;
   saving: boolean;
   estimatingNutrition: boolean;
+  refreshingCoverPhoto: boolean;
   submitLabel: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onTitleChange: (value: string) => void;
@@ -110,6 +112,7 @@ type RecipeFormProps = {
   onImageUrlsChange: (value: string) => void;
   onCoverImageUrlChange: (value: string) => void;
   onEstimateNutrition: () => void;
+  onUseSourceCoverPhoto: () => void;
 };
 
 export default function RecipeForm(props: RecipeFormProps) {
@@ -528,7 +531,32 @@ export default function RecipeForm(props: RecipeFormProps) {
       <textarea className="input" value={props.notesDe} onChange={(event) => props.onNotesDeChange(event.target.value)} placeholder="Notes (DE)" />
       <input className="input" value={props.sourceUrl} onChange={(event) => props.onSourceUrlChange(event.target.value)} placeholder="Source URL" />
       <input className="input" value={props.videoUrl} onChange={(event) => props.onVideoUrlChange(event.target.value)} placeholder="Video URL" />
-      <input className="input" value={props.coverImageUrl} onChange={(event) => props.onCoverImageUrlChange(event.target.value)} placeholder="Cover photo URL" />
+      <div className="card" style={{ marginBottom: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Cover Photo</h3>
+            <p style={{ marginBottom: 0 }}>Paste an image URL, or use the source page to refill the best recipe cover automatically.</p>
+          </div>
+          <button className="button" type="button" onClick={props.onUseSourceCoverPhoto} disabled={props.refreshingCoverPhoto}>
+            <AppIcon name="recipe" size={16} />
+            {props.refreshingCoverPhoto ? "Refreshing Cover..." : "Use Source Cover Photo"}
+          </button>
+        </div>
+        <input className="input" value={props.coverImageUrl} onChange={(event) => props.onCoverImageUrlChange(event.target.value)} placeholder="Cover photo URL" />
+        <p style={{ marginTop: 10, marginBottom: 10 }}>
+          Tip: on most recipe websites, right-click the photo and choose “Copy Image Address”, then paste it here.
+        </p>
+        {props.coverImageUrl ? (
+          <Image
+            src={props.coverImageUrl}
+            alt="Cover preview"
+            className="recipe-cover-photo"
+            width={1200}
+            height={800}
+            style={{ height: 240, objectFit: "cover" }}
+          />
+        ) : null}
+      </div>
 
       <button className="button button-primary" type="submit" disabled={props.saving}>
         <AppIcon name="recipe" size={16} />

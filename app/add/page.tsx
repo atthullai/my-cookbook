@@ -42,6 +42,7 @@ export default function AddRecipe() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
+  const [refreshingCoverPhoto, setRefreshingCoverPhoto] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
 
@@ -442,6 +443,41 @@ export default function AddRecipe() {
     }
   };
 
+  const handleUseSourceCoverPhoto = async () => {
+    const lookupUrl = sourceUrl.trim() || importUrl.trim();
+
+    if (!lookupUrl) {
+      alert("Please add a source URL first.");
+      return;
+    }
+
+    setRefreshingCoverPhoto(true);
+
+    try {
+      const response = await fetch("/api/import-recipe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: lookupUrl }),
+      });
+
+      const result = (await response.json()) as { recipe?: ImportedRecipeDraft; error?: string };
+
+      if (!response.ok || !result.recipe?.coverImageUrl) {
+        throw new Error(result.error || "Could not find a cover photo from the source page.");
+      }
+
+      setSourceUrl(result.recipe.sourceUrl);
+      setCoverImageUrl(result.recipe.coverImageUrl);
+      setImageUrls(`${result.recipe.coverImageUrl}\n`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not refresh the cover photo.");
+    } finally {
+      setRefreshingCoverPhoto(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="container">
@@ -508,6 +544,7 @@ export default function AddRecipe() {
         coverImageUrl={coverImageUrl}
         saving={saving}
         estimatingNutrition={estimatingNutrition}
+        refreshingCoverPhoto={refreshingCoverPhoto}
         submitLabel="Save Recipe"
         onSubmit={handleSubmit}
         onTitleChange={setTitle}
@@ -588,6 +625,7 @@ export default function AddRecipe() {
         onImageUrlsChange={setImageUrls}
         onCoverImageUrlChange={setCoverImageUrl}
         onEstimateNutrition={() => void handleEstimateNutrition()}
+        onUseSourceCoverPhoto={() => void handleUseSourceCoverPhoto()}
       />
     </main>
   );

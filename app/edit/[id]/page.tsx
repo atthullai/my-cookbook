@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import RecipeForm from "@/components/RecipeForm";
 import { buildRecipePayload } from "@/lib/recipe-db";
+import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import type {
   AppUser,
   EquipmentDraft,
@@ -44,6 +45,7 @@ export default function EditRecipe() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
+  const [refreshingCoverPhoto, setRefreshingCoverPhoto] = useState(false);
 
   const [title, setTitle] = useState("");
   const [titleDe, setTitleDe] = useState("");
@@ -420,6 +422,41 @@ export default function EditRecipe() {
     }
   };
 
+  const handleUseSourceCoverPhoto = async () => {
+    const lookupUrl = sourceUrl.trim();
+
+    if (!lookupUrl) {
+      alert("Please add a source URL first.");
+      return;
+    }
+
+    setRefreshingCoverPhoto(true);
+
+    try {
+      const response = await fetch("/api/import-recipe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: lookupUrl }),
+      });
+
+      const result = (await response.json()) as { recipe?: ImportedRecipeDraft; error?: string };
+
+      if (!response.ok || !result.recipe?.coverImageUrl) {
+        throw new Error(result.error || "Could not find a cover photo from the source page.");
+      }
+
+      setSourceUrl(result.recipe.sourceUrl);
+      setCoverImageUrl(result.recipe.coverImageUrl);
+      setImageUrls(`${result.recipe.coverImageUrl}\n`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not refresh the cover photo.");
+    } finally {
+      setRefreshingCoverPhoto(false);
+    }
+  };
+
   if (loading || !recipe) {
     return (
       <main className="container">
@@ -473,6 +510,7 @@ export default function EditRecipe() {
         coverImageUrl={coverImageUrl}
         saving={saving}
         estimatingNutrition={estimatingNutrition}
+        refreshingCoverPhoto={refreshingCoverPhoto}
         submitLabel="Save Changes"
         onSubmit={handleSubmit}
         onTitleChange={setTitle}
@@ -553,6 +591,7 @@ export default function EditRecipe() {
         onImageUrlsChange={setImageUrls}
         onCoverImageUrlChange={setCoverImageUrl}
         onEstimateNutrition={() => void handleEstimateNutrition()}
+        onUseSourceCoverPhoto={() => void handleUseSourceCoverPhoto()}
       />
     </main>
   );
