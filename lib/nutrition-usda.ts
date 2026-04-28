@@ -242,6 +242,7 @@ export async function estimateNutritionFromIngredients(input: {
   const ingredients = input.ingredientGroups.flatMap((group) =>
     group.items.filter((ingredient) => ingredient.name_en.trim())
   );
+  let matchedIngredients = 0;
 
   for (const ingredient of ingredients) {
     const amount = parseAmount(ingredient.amount);
@@ -255,6 +256,7 @@ export async function estimateNutritionFromIngredients(input: {
     if (!searchResult) {
       continue;
     }
+    matchedIngredients += 1;
 
     let details: FoodDetailsResponse | null = null;
 
@@ -281,6 +283,14 @@ export async function estimateNutritionFromIngredients(input: {
 
   const servings = Number(input.servings) > 0 ? Number(input.servings) : 1;
   const format = (value: number) => (value > 0 ? Number((value / servings).toFixed(2)).toString() : "");
+  const noteEn =
+    matchedIngredients > 0
+      ? `Estimated from USDA FoodData Central ingredient matches (${matchedIngredients} of ${ingredients.length} ingredients matched). Review and adjust for recipe-specific yield, frying, and evaporation.`
+      : "USDA could not confidently match the current ingredient list yet. Please review ingredient names and enter nutrition manually if needed.";
+  const noteDe =
+    matchedIngredients > 0
+      ? `Geschaetzt aus passenden USDA-FoodData-Central-Zutaten (${matchedIngredients} von ${ingredients.length} Zutaten erkannt). Bitte fur Ausbeute, Frittieren und Verdunstung bei Bedarf anpassen.`
+      : "USDA konnte die aktuelle Zutatenliste noch nicht sicher zuordnen. Bitte pruefe die Zutatenbezeichnungen oder trage die Nahrwerte manuell ein.";
 
   return {
     calories_kcal: format(nutritionTotals.calories_kcal),
@@ -306,7 +316,7 @@ export async function estimateNutritionFromIngredients(input: {
     vitamin_b6_mg: format(nutritionTotals.vitamin_b6_mg),
     vitamin_b12_mcg: format(nutritionTotals.vitamin_b12_mcg),
     folate_mcg: format(nutritionTotals.folate_mcg),
-    note_en: "Estimated from USDA FoodData Central ingredient matches. Review and adjust for recipe-specific yield, frying, and evaporation.",
-    note_de: "Geschaetzt aus passenden USDA-FoodData-Central-Zutaten. Bitte fur Ausbeute, Frittieren und Verdunstung bei Bedarf anpassen.",
+    note_en: noteEn,
+    note_de: noteDe,
   };
 }

@@ -202,7 +202,7 @@ const iconPaths: Record<IconName, ReactNode> = {
   ),
 };
 
-export default function AppIcon({ name, size = 18, strokeWidth = 1.8, className }: AppIconProps) {
+export default function AppIcon({ name, size = 18, strokeWidth = 2.05, className }: AppIconProps) {
   return (
     <svg
       aria-hidden="true"

@@ -260,12 +260,93 @@ p {
 }
 
 .chip-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.3rem;
+  height: 1.3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-strong);
+  color: currentColor;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.chip-default {
+  background: rgba(255, 248, 239, 0.94);
+}
+
+.chip-veg {
+  background: rgba(231, 247, 234, 0.95);
+  border-color: rgba(68, 126, 78, 0.22);
+  color: #295838;
+}
+
+.chip-vegan {
+  background: rgba(225, 249, 234, 0.96);
+  border-color: rgba(40, 137, 81, 0.22);
+  color: #1f6a3e;
+}
+
+.chip-nonveg {
+  background: rgba(253, 235, 231, 0.96);
+  border-color: rgba(168, 73, 55, 0.22);
+  color: #8f3c2b;
+}
+
+.chip-spicy {
+  background: rgba(255, 238, 225, 0.96);
+  border-color: rgba(196, 92, 34, 0.24);
+  color: #aa4c1c;
+}
+
+.chip-protein {
+  background: rgba(232, 241, 255, 0.96);
+  border-color: rgba(68, 104, 176, 0.22);
+  color: #36559a;
+}
+
+.chip-quick {
+  background: rgba(255, 244, 217, 0.96);
+  border-color: rgba(181, 140, 30, 0.24);
+  color: #8b6711;
+}
+
+.chip-onepot {
+  background: rgba(244, 234, 225, 0.96);
+  border-color: rgba(123, 85, 54, 0.22);
+  color: #7b5536;
+}
+
+.chip-festival {
+  background: rgba(244, 233, 255, 0.96);
+  border-color: rgba(109, 75, 155, 0.22);
+  color: #6d4b9b;
+}
+
+.chip-breakfast,
+.chip-lunch,
+.chip-dinner {
+  background: rgba(239, 241, 246, 0.96);
+  border-color: rgba(92, 106, 136, 0.18);
+  color: #4a566e;
+}
+
+.chip-dessert {
+  background: rgba(255, 236, 243, 0.96);
+  border-color: rgba(191, 92, 129, 0.2);
+  color: #aa4a70;
+}
+
+.chip-good {
+  background: rgba(232, 246, 241, 0.96);
+  border-color: rgba(73, 139, 121, 0.2);
+  color: #2f7461;
+}
+
+.chip-excellent {
+  background: rgba(255, 244, 221, 0.96);
+  border-color: rgba(193, 144, 35, 0.2);
+  color: #916b12;
 }
 
 /* Shared text input appearance. */
