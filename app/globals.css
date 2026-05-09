@@ -2,17 +2,22 @@
 
 /* Shared design tokens for the cookbook color palette and depth. */
 :root {
-  --background: #f4efe4;
-  --surface: rgba(255, 252, 246, 0.86);
-  --surface-strong: #fffaf1;
-  --surface-soft: rgba(255, 247, 237, 0.7);
-  --foreground: #221b16;
-  --muted: #6d5a4e;
-  --border: rgba(89, 58, 34, 0.16);
-  --accent: #b4572c;
-  --accent-strong: #8f401d;
-  --accent-soft: rgba(180, 87, 44, 0.12);
-  --shadow: 0 20px 50px rgba(78, 49, 28, 0.12);
+  --background: #f7f3ea;
+  --surface: rgba(255, 252, 246, 0.9);
+  --surface-strong: #fffaf3;
+  --surface-soft: rgba(255, 248, 237, 0.76);
+  --foreground: #241d18;
+  --muted: #725e51;
+  --border: rgba(77, 61, 48, 0.16);
+  --accent: #c45c36;
+  --accent-strong: #934222;
+  --accent-soft: rgba(196, 92, 54, 0.13);
+  --teal: #24736e;
+  --teal-soft: rgba(36, 115, 110, 0.12);
+  --berry: #a54668;
+  --berry-soft: rgba(165, 70, 104, 0.12);
+  --gold: #b7861d;
+  --shadow: 0 20px 50px rgba(59, 45, 34, 0.12);
 }
 
 /* Keep width/height calculations consistent across all elements. */
@@ -23,6 +28,7 @@
 /* Allow the page background to extend to the full viewport height. */
 html {
   min-height: 100%;
+  scroll-padding-top: 116px;
 }
 
 /* Global page styling: warm background, readable serif type, and full-height layout. */
@@ -30,8 +36,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.65), transparent 35%),
-    linear-gradient(180deg, #efe6d6 0%, var(--background) 45%, #eadfca 100%);
+    radial-gradient(circle at 12% 12%, rgba(36, 115, 110, 0.16), transparent 26%),
+    radial-gradient(circle at 86% 8%, rgba(196, 92, 54, 0.18), transparent 25%),
+    linear-gradient(180deg, #f9f6ef 0%, var(--background) 46%, #eee5d8 100%);
   color: var(--foreground);
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
 }
@@ -46,7 +53,7 @@ body {
 
 /* Shared top bar for brand plus navigation. */
 .site-topbar {
-  max-width: 880px;
+  max-width: 1080px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -55,8 +62,8 @@ body {
   flex-wrap: wrap;
   padding: 16px 18px;
   border: 1px solid rgba(89, 58, 34, 0.12);
-  border-radius: 28px;
-  background: rgba(255, 251, 245, 0.72);
+  border-radius: 22px;
+  background: rgba(255, 251, 245, 0.82);
   backdrop-filter: blur(18px);
   box-shadow: 0 18px 40px rgba(78, 49, 28, 0.08);
 }
@@ -87,8 +94,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(180, 87, 44, 0.16), rgba(143, 64, 29, 0.22));
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(196, 92, 54, 0.18), rgba(36, 115, 110, 0.18));
   color: var(--accent-strong);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
@@ -96,7 +103,7 @@ body {
 /* Header nav stays centered and wraps on smaller screens. */
 .site-nav {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -107,9 +114,10 @@ body {
   gap: 8px;
   border: 1px solid var(--border);
   background: rgba(255, 250, 241, 0.68);
-  padding: 0.7rem 1rem;
-  border-radius: 999px;
-  box-shadow: 0 8px 24px rgba(78, 49, 28, 0.08);
+  min-height: 42px;
+  padding: 0.62rem 0.9rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(59, 45, 34, 0.07);
   transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
 }
 
@@ -117,7 +125,7 @@ body {
 .site-nav-link.active {
   transform: translateY(-1px);
   border-color: rgba(180, 87, 44, 0.35);
-  background: rgba(240, 214, 197, 0.9);
+  background: linear-gradient(135deg, rgba(196, 92, 54, 0.13), rgba(36, 115, 110, 0.11));
 }
 
 /* Links inherit local text color unless a component styles them differently. */
@@ -140,7 +148,7 @@ button {
 
 /* Standard content width wrapper used on each page. */
 .container {
-  max-width: 880px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 42px 20px 72px;
 }
@@ -156,9 +164,9 @@ p {
 
 /* Main page title styling. */
 h1 {
-  font-size: clamp(2.25rem, 5vw, 3.5rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
+  font-size: clamp(2.35rem, 5vw, 4.25rem);
+  line-height: 0.96;
+  letter-spacing: 0;
   margin-bottom: 0.75rem;
 }
 
@@ -179,7 +187,7 @@ p {
   border: 1px solid var(--border);
   background: var(--surface);
   backdrop-filter: blur(14px);
-  border-radius: 24px;
+  border-radius: 8px;
   padding: 20px;
   margin-bottom: 14px;
   box-shadow: var(--shadow);
@@ -188,7 +196,7 @@ p {
 
 .card-accent {
   background:
-    radial-gradient(circle at top right, rgba(180, 87, 44, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(36, 115, 110, 0.1), rgba(196, 92, 54, 0.09)),
     var(--surface);
 }
 
@@ -209,7 +217,8 @@ p {
   background: var(--surface-strong);
   color: var(--foreground);
   padding: 0.7rem 1rem;
-  border-radius: 999px;
+  min-height: 42px;
+  border-radius: 12px;
   box-shadow: 0 8px 24px rgba(78, 49, 28, 0.08);
   cursor: pointer;
   transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
@@ -230,8 +239,14 @@ p {
 
 /* Destructive action variant for deletes/resets. */
 .button-danger {
-  background: #983f35;
+  background: #9c3c42;
   color: white;
+}
+
+.button-soft {
+  background: linear-gradient(135deg, var(--teal-soft), rgba(255, 250, 241, 0.9));
+  border-color: rgba(36, 115, 110, 0.2);
+  color: #1e5956;
 }
 
 /* Small pill/badge for tags and metadata chips. */
@@ -243,7 +258,7 @@ p {
   background: rgba(255, 250, 241, 0.88);
   color: var(--foreground);
   padding: 0.45rem 0.8rem;
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 0.9rem;
 }
 
@@ -367,7 +382,8 @@ p {
 .input {
   width: 100%;
   padding: 0.9rem 1rem;
-  border-radius: 18px;
+  min-height: 46px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(255, 250, 241, 0.88);
   color: var(--foreground);
@@ -381,7 +397,8 @@ input:not([type="checkbox"]),
 select {
   width: 100%;
   padding: 0.9rem 1rem;
-  border-radius: 18px;
+  min-height: 46px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(255, 250, 241, 0.88);
   color: var(--foreground);
@@ -440,14 +457,14 @@ ul {
 /* Grid used by home and index cards so recipe previews stay aligned even with cover photos. */
 .recipe-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(285px, 1fr));
   gap: 18px;
 }
 
 /* Cover image treatment for home/index recipe cards. */
 .recipe-card-photo {
   width: calc(100% + 40px);
-  height: 230px;
+  height: 220px;
   object-fit: cover;
   margin: -20px -20px 0;
   border-bottom: 1px solid var(--border);
@@ -468,7 +485,7 @@ ul {
   width: 100%;
   height: 220px;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
@@ -478,28 +495,211 @@ ul {
   width: 100%;
   height: 380px;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
 
 .recipe-preview-card {
   position: relative;
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.recipe-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.recipe-card-title {
+  margin-bottom: 6px;
+  font-size: 1.28rem;
+  line-height: 1.16;
+}
+
+.recipe-card-title a,
+.recipe-card-title:hover {
+  color: var(--accent-strong);
+}
+
+.recipe-card-description {
+  display: -webkit-box;
+  min-height: 3.25rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.recipe-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgba(77, 61, 48, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #59483d;
+  padding: 0.35rem 0.62rem;
+  font-size: 0.84rem;
+}
+
+.recipe-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
 }
 
 .hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 32px;
+  border: 1px solid rgba(89, 58, 34, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 252, 246, 0.96), rgba(255, 247, 235, 0.76)),
+    linear-gradient(135deg, rgba(36, 115, 110, 0.12), rgba(196, 92, 54, 0.14));
+  box-shadow: 0 24px 60px rgba(78, 49, 28, 0.1);
+}
+
+.hero-copy {
+  max-width: 690px;
+}
+
+.hero-copy p:last-child {
+  max-width: 620px;
+  margin-bottom: 0;
+  font-size: 1.08rem;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.user-pill {
+  max-width: 260px;
+  overflow: hidden;
+  border: 1px solid rgba(77, 61, 48, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--muted);
+  padding: 0.62rem 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.dashboard-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.stat-tile {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 250, 241, 0.72);
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(59, 45, 34, 0.07);
+}
+
+.stat-tile strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.stat-tile span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.browse-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.toolbar-panel {
+  margin-top: 18px;
+}
+
+.toolbar-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(160px, 0.8fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.segmented-control {
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 250, 241, 0.72);
+}
+
+.segmented-control .button {
+  min-height: 34px;
+  border-radius: 10px;
+  border-color: transparent;
+  box-shadow: none;
+  padding: 0.45rem 0.75rem;
+}
+
+.segmented-control .active {
+  background: linear-gradient(135deg, rgba(36, 115, 110, 0.16), rgba(196, 92, 54, 0.13));
+  color: var(--accent-strong);
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.section-heading-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
+  align-items: end;
   flex-wrap: wrap;
-  padding: 26px 28px;
-  border: 1px solid rgba(89, 58, 34, 0.12);
-  border-radius: 30px;
-  background:
-    radial-gradient(circle at top right, rgba(180, 87, 44, 0.18), transparent 28%),
-    linear-gradient(180deg, rgba(255, 252, 246, 0.9), rgba(255, 248, 238, 0.72));
-  box-shadow: 0 24px 60px rgba(78, 49, 28, 0.1);
+  margin-bottom: 12px;
+}
+
+.section-heading-row p {
+  margin-bottom: 0;
+}
+
+.empty-state {
+  border: 1px dashed rgba(77, 61, 48, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 250, 241, 0.64);
+  padding: 26px;
+  text-align: center;
 }
 
 .eyebrow {
@@ -550,7 +750,32 @@ main.container > p {
   .site-topbar,
   .hero-panel {
     padding: 18px;
-    border-radius: 24px;
+  }
+
+  .site-topbar {
+    align-items: flex-start;
+  }
+
+  .site-nav {
+    width: 100%;
+  }
+
+  .site-nav-link {
+    flex: 1 1 46%;
+  }
+
+  .hero-panel,
+  .browse-panel,
+  .toolbar-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    justify-content: flex-start;
+  }
+
+  .dashboard-strip {
+    grid-template-columns: 1fr;
   }
 
   .recipe-card-photo {

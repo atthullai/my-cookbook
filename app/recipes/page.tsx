@@ -314,56 +314,96 @@ export default function RecipeIndexPage() {
 
   return (
     <main className="container">
-      <h1>Recipe Index</h1>
-      <p>A structured overview of your Supabase cookbook with filters for cuisine, course, and quick badge labels.</p>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, marginTop: 16 }}>
-        <button className="button" type="button" onClick={() => setLang("en")} style={{ background: lang === "en" ? "#f0d6c5" : undefined }}>
-          EN
-        </button>
-        <button className="button" type="button" onClick={() => setLang("de")} style={{ background: lang === "de" ? "#f0d6c5" : undefined }}>
-          DE
-        </button>
-      </div>
-
-      <input className="input" placeholder="Search title, cuisine, course, difficulty, tags..." value={search} onChange={(event) => setSearch(event.target.value)} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8, marginTop: 12 }}>
-        <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
-          <option value="">All cuisines</option>
-          {cuisines.map((cuisine) => (
-            <option key={cuisine} value={cuisine}>
-              {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
-            </option>
-          ))}
-        </select>
-        <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
-          <option value="">All courses</option>
-          {courses.map((course) => (
-            <option key={course} value={course}>
-              {lang === "de" ? recipeLabel(course, "course") : course}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {badges.length > 0 ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-          <button className="button" type="button" onClick={() => setSelectedBadge("")} style={{ background: selectedBadge === "" ? "#f0d6c5" : undefined }}>
-            All badges
-          </button>
-          {badges.map((badge) => (
-            <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
-          ))}
+      <section className="hero-panel">
+        <div className="hero-copy">
+          <p className="eyebrow">Cookbook Library</p>
+          <h1>Recipe Index</h1>
+          <p>A structured overview of your saved recipes with quick filters for cuisine, course, and badge labels.</p>
         </div>
-      ) : null}
+        <div className="hero-actions">
+          <Link href="/add" className="button button-primary">
+            <AppIcon name="add" size={16} />
+            Add Recipe
+          </Link>
+        </div>
+      </section>
 
-      {loading ? <p>Loading recipes...</p> : null}
-      {!loading && upgrading ? <p>Refreshing older imported recipes...</p> : null}
+      <div className="dashboard-strip">
+        <div className="stat-tile">
+          <strong>{recipes.length}</strong>
+          <span>saved recipes</span>
+        </div>
+        <div className="stat-tile">
+          <strong>{categories.length}</strong>
+          <span>visible categories</span>
+        </div>
+        <div className="stat-tile">
+          <strong>{filteredRecipes.length}</strong>
+          <span>current matches</span>
+        </div>
+      </div>
+
+      <div className="card toolbar-panel">
+        <div className="section-heading-row">
+          <div>
+            <h2 style={{ marginBottom: 6 }}>Filter the collection</h2>
+            <p>Search title, cuisine, course, difficulty, tags, or badge names.</p>
+          </div>
+          <div className="segmented-control" aria-label="Recipe language">
+            <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
+              EN
+            </button>
+            <button className={lang === "de" ? "button active" : "button"} type="button" onClick={() => setLang("de")}>
+              DE
+            </button>
+          </div>
+        </div>
+
+        <div className="toolbar-row">
+          <input className="input" placeholder="Search title, cuisine, course, difficulty, tags..." value={search} onChange={(event) => setSearch(event.target.value)} />
+
+          <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
+            <option value="">All cuisines</option>
+            {cuisines.map((cuisine) => (
+              <option key={cuisine} value={cuisine}>
+                {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
+              </option>
+            ))}
+          </select>
+          <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
+            <option value="">All courses</option>
+            {courses.map((course) => (
+              <option key={course} value={course}>
+                {lang === "de" ? recipeLabel(course, "course") : course}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {badges.length > 0 ? (
+          <div className="filter-chips">
+            <button className={selectedBadge === "" ? "button button-soft" : "button"} type="button" onClick={() => setSelectedBadge("")}>
+              All badges
+            </button>
+            {badges.map((badge) => (
+              <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {loading ? <div className="empty-state" style={{ marginTop: 16 }}>Loading recipes...</div> : null}
+      {!loading && upgrading ? <div className="empty-state" style={{ marginTop: 16 }}>Refreshing older imported recipes...</div> : null}
+      {!loading && filteredRecipes.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>No recipes match these filters yet.</div> : null}
 
       {categories.map((category) => (
         <section key={category} style={{ marginTop: 28 }}>
-          <h2 style={{ marginBottom: 12 }}>{category}</h2>
+          <div className="section-heading-row">
+            <div>
+              <h2 style={{ marginBottom: 6 }}>{category}</h2>
+              <p>{filteredRecipes.filter((recipe) => recipe.category === category).length} recipe{filteredRecipes.filter((recipe) => recipe.category === category).length === 1 ? "" : "s"}</p>
+            </div>
+          </div>
           <div className="recipe-card-grid">
             {filteredRecipes
               .filter((recipe) => recipe.category === category)
@@ -374,27 +414,33 @@ export default function RecipeIndexPage() {
                   <article key={recipe.id} className="card recipe-preview-card" style={{ overflow: "hidden" }}>
                     {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : <div className="recipe-card-photo recipe-card-photo-placeholder"><AppIcon name="recipe" size={30} /></div>}
 
-                    <div style={{ marginTop: coverImage ? 14 : 0 }}>
-                      <Link href={`/recipe/${recipe.id}`}>
-                        <h3 style={{ marginBottom: 8 }}>{lang === "de" && recipe.title_de ? recipe.title_de : recipe.title_en}</h3>
-                      </Link>
-                      <p style={{ marginBottom: 8 }}>{lang === "de" && recipe.description_de ? recipe.description_de : recipe.description_en}</p>
-                      <p style={{ marginBottom: 8 }}>{[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).join(" • ")}</p>
-                      <p style={{ marginBottom: 8 }}>{[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).join(" • ")}</p>
-                      <p style={{ marginBottom: 8 }}>
+                    <div className="recipe-card-body">
+                      <h3 className="recipe-card-title">
+                        <Link href={`/recipe/${recipe.id}`}>{lang === "de" && recipe.title_de ? recipe.title_de : recipe.title_en}</Link>
+                      </h3>
+                      <p className="recipe-card-description" style={{ marginBottom: 0 }}>{lang === "de" && recipe.description_de ? recipe.description_de : recipe.description_en}</p>
+                      <div className="recipe-card-meta">
+                        {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
+                          <span className="meta-pill" key={item}>{item}</span>
+                        ))}
+                        {[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).map((item) => (
+                          <span className="meta-pill" key={item}>{item}</span>
+                        ))}
+                      </div>
+                      <p style={{ marginBottom: 0 }}>
                         By {recipe.author_name}
                         {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
                       </p>
 
                       {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                        <div className="filter-chips" style={{ marginTop: 0 }}>
                           {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
                             <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
                           ))}
                         </div>
                       ) : null}
 
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div className="recipe-card-actions">
                         <Link href={`/edit/${recipe.id}`} className="button">
                           <AppIcon name="edit" size={16} />
                           Edit

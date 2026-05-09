@@ -114,6 +114,8 @@ export default function Home() {
   });
 
   const latestRecipes = filteredRecipes.slice(0, 6);
+  const cuisineCount = cuisines.length;
+  const badgeCount = badges.length;
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -159,16 +161,14 @@ export default function Home() {
     <main className="container">
       {/* This top block acts like a dashboard header: identity, auth, and big cookbook actions. */}
       <section className="hero-panel">
-        <div>
+        <div className="hero-copy">
           <p className="eyebrow">Private Recipe Studio</p>
           <h1>My Cookbook</h1>
-          <p style={{ marginBottom: 0 }}>
-            A private family cookbook with bilingual recipes, cover photos, structured methods, and all the people I learned from.
-          </p>
+          <p>A warm, private place for family recipes, bilingual notes, cover photos, and the cooks who taught each dish.</p>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          {user?.email ? <span style={{ fontSize: 12, opacity: 0.75 }}>{user.email}</span> : null}
+        <div className="hero-actions">
+          {user?.email ? <span className="user-pill">{user.email}</span> : null}
 
           {user ? (
             <button className="button" type="button" onClick={handleLogout}>
@@ -186,21 +186,30 @@ export default function Home() {
             <AppIcon name="add" size={16} />
             Add Recipe
           </Link>
-          {user ? (
-            <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
-              <AppIcon name="delete" size={16} />
-              Delete My Recipes
-            </button>
-          ) : null}
         </div>
       </section>
 
-      <div className="card card-accent" style={{ marginTop: 20 }}>
-        <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
-        <p style={{ marginBottom: 12 }}>
-          Home shows the newest recipes. The recipe index gives you the full structured collection with filtering and management.
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div className="dashboard-strip">
+        <div className="stat-tile">
+          <strong>{recipes.length}</strong>
+          <span>saved recipes</span>
+        </div>
+        <div className="stat-tile">
+          <strong>{cuisineCount}</strong>
+          <span>cuisines</span>
+        </div>
+        <div className="stat-tile">
+          <strong>{badgeCount}</strong>
+          <span>helpful badges</span>
+        </div>
+      </div>
+
+      <div className="card card-accent browse-panel">
+        <div>
+          <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
+          <p style={{ marginBottom: 0 }}>Start with the newest recipes here, or open the full index for category browsing and management.</p>
+        </div>
+        <div className="section-link-grid">
           <Link href="/recipes" className="button">
             <AppIcon name="book" size={16} />
             Open Recipe Index
@@ -209,55 +218,78 @@ export default function Home() {
             <AppIcon name="about" size={16} />
             About Me
           </Link>
+          {user ? (
+            <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
+              <AppIcon name="delete" size={16} />
+              Delete My Recipes
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, marginTop: 16 }}>
-        <button className="button" type="button" onClick={() => setLang("en")} style={{ background: lang === "en" ? "#f0d6c5" : undefined }}>
-          EN
-        </button>
-        <button className="button" type="button" onClick={() => setLang("de")} style={{ background: lang === "de" ? "#f0d6c5" : undefined }}>
-          DE
-        </button>
-      </div>
-
-      <input className="input" placeholder="Search recipes, cuisine, course, or badges..." value={search} onChange={(event) => setSearch(event.target.value)} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8, marginTop: 12 }}>
-        <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
-          <option value="">All cuisines</option>
-          {cuisines.map((cuisine) => (
-            <option key={cuisine} value={cuisine}>
-              {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
-            </option>
-          ))}
-        </select>
-        <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
-          <option value="">All courses</option>
-          {courses.map((course) => (
-            <option key={course} value={course}>
-              {lang === "de" ? recipeLabel(course, "course") : course}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {badges.length > 0 ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-          <button className="button" type="button" onClick={() => setSelectedBadge("")} style={{ background: selectedBadge === "" ? "#f0d6c5" : undefined }}>
-            All badges
-          </button>
-          {badges.map((badge) => (
-            <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
-          ))}
+      <div className="card toolbar-panel">
+        <div className="section-heading-row">
+          <div>
+            <h2 style={{ marginBottom: 6 }}>Find something good</h2>
+            <p>Search by title, cuisine, course, tag, or nutrition badge.</p>
+          </div>
+          <div className="segmented-control" aria-label="Recipe language">
+            <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
+              EN
+            </button>
+            <button className={lang === "de" ? "button active" : "button"} type="button" onClick={() => setLang("de")}>
+              DE
+            </button>
+          </div>
         </div>
-      ) : null}
 
-      {loading ? <p style={{ marginTop: 12 }}>Loading recipes...</p> : null}
-      {!loading && filteredRecipes.length === 0 ? <p style={{ marginTop: 12 }}>No recipes found yet.</p> : null}
+        <div className="toolbar-row">
+          <input className="input" placeholder="Search recipes, cuisine, course, or badges..." value={search} onChange={(event) => setSearch(event.target.value)} />
+
+          <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
+            <option value="">All cuisines</option>
+            {cuisines.map((cuisine) => (
+              <option key={cuisine} value={cuisine}>
+                {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
+              </option>
+            ))}
+          </select>
+          <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
+            <option value="">All courses</option>
+            {courses.map((course) => (
+              <option key={course} value={course}>
+                {lang === "de" ? recipeLabel(course, "course") : course}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {badges.length > 0 ? (
+          <div className="filter-chips">
+            <button className={selectedBadge === "" ? "button button-soft" : "button"} type="button" onClick={() => setSelectedBadge("")}>
+              All badges
+            </button>
+            {badges.map((badge) => (
+              <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {loading ? <div className="empty-state" style={{ marginTop: 16 }}>Loading recipes...</div> : null}
+      {!loading && filteredRecipes.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>No recipes found yet.</div> : null}
 
       <div style={{ marginTop: 18 }}>
-        <h2 style={{ marginBottom: 10 }}>Newest Recipes</h2>
+        <div className="section-heading-row">
+          <div>
+            <h2 style={{ marginBottom: 6 }}>Newest Recipes</h2>
+            <p>{filteredRecipes.length} matching recipe{filteredRecipes.length === 1 ? "" : "s"}</p>
+          </div>
+          <Link href="/recipes" className="button button-soft">
+            <AppIcon name="book" size={16} />
+            View All
+          </Link>
+        </div>
 
         <div className="recipe-card-grid">
           {latestRecipes.map((recipe) => {
@@ -267,30 +299,27 @@ export default function Home() {
               <article key={recipe.id} className="card recipe-preview-card" style={{ overflow: "hidden" }}>
                 {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : <div className="recipe-card-photo recipe-card-photo-placeholder"><AppIcon name="recipe" size={30} /></div>}
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    marginTop: coverImage ? 14 : 0,
-                  }}
-                >
-                  <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-                    <Link href={`/recipe/${recipe.id}`}>
-                      <h2 style={{ marginBottom: 6 }}>{getRecipeTitle(recipe, lang)}</h2>
-                    </Link>
-                    <p style={{ marginBottom: 6 }}>{[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).join(" • ")}</p>
-                    <p style={{ marginBottom: 6 }}>{[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).join(" • ")}</p>
-                    <p style={{ marginTop: 8, marginBottom: 0 }}>
+                <div className="recipe-card-body">
+                  <div>
+                    <h2 className="recipe-card-title">
+                      <Link href={`/recipe/${recipe.id}`}>{getRecipeTitle(recipe, lang)}</Link>
+                    </h2>
+                    <div className="recipe-card-meta">
+                      {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
+                        <span className="meta-pill" key={item}>{item}</span>
+                      ))}
+                      {[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).map((item) => (
+                        <span className="meta-pill" key={item}>{item}</span>
+                      ))}
+                    </div>
+                    <p style={{ marginTop: 10, marginBottom: 0 }}>
                       By {recipe.author_name}
                       {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
                     </p>
                   </div>
 
                   {user?.id === recipe.user_id ? (
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <div className="recipe-card-actions">
                       <Link href={`/edit/${recipe.id}`} className="button">
                         <AppIcon name="edit" size={16} />
                         Edit
@@ -301,15 +330,15 @@ export default function Home() {
                       </button>
                     </div>
                   ) : null}
-                </div>
 
-                {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-                    {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                      <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
-                    ))}
-                  </div>
-                ) : null}
+                  {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
+                    <div className="filter-chips" style={{ marginTop: 0 }}>
+                      {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
+                        <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </article>
             );
           })}
