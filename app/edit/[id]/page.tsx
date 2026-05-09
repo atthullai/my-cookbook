@@ -1,5 +1,10 @@
 "use client";
 
+// EDIT RECIPE PAGE MAP
+// This page is almost the same as Add Recipe, but it starts by loading an existing recipe.
+// It fills the shared RecipeForm with saved values, then updates the same Supabase row on save.
+// If add/edit behavior should match, change both app/add/page.tsx and this file carefully.
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";

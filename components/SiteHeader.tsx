@@ -1,5 +1,9 @@
 "use client";
 
+// SITE HEADER MAP
+// This is the navigation bar shown at the top of every page.
+// Add/remove nav links in navItems. The active link styling is calculated from the current URL.
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AppIcon from "@/components/AppIcon";
@@ -29,6 +33,8 @@ export default function SiteHeader() {
 
         <nav className="site-nav">
           {navItems.map((item) => {
+            // Mark the link active when the current page exactly matches it,
+            // or when we are inside that section, like /recipe/123 under Recipes.
             const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
 
             return (

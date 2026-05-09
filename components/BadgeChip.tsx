@@ -1,5 +1,9 @@
 "use client";
 
+// BADGE CHIP MAP
+// A badge chip is the little colored label like Veg, Egg, Spicy, Quick Meal, etc.
+// This component can render as a plain label or as a clickable filter button.
+
 import { getBadgeEmoji, getBadgeLabel } from "@/lib/recipe-types";
 
 type BadgeChipProps = {
@@ -11,6 +15,8 @@ type BadgeChipProps = {
 };
 
 export default function BadgeChip({ badge, lang, active = false, asButton = false, onClick }: BadgeChipProps) {
+  // Pick a color class by reading the badge text.
+  // If you add a new badge type, add its visual style here and in app/globals.css.
   const tone =
     badge.includes("Vegan") ? "chip-vegan" :
     badge.includes("Non-Veg") ? "chip-nonveg" :
@@ -39,6 +45,7 @@ export default function BadgeChip({ badge, lang, active = false, asButton = fals
   );
 
   if (asButton) {
+    // Filter chips need to be real buttons so keyboard users can tab to them and press Enter/Space.
     return (
       <button className={`chip chip-button ${tone}${active ? " chip-active" : ""}`} type="button" onClick={onClick}>
         {content}

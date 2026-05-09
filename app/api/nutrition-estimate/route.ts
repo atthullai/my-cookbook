@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { estimateNutritionFromIngredients } from "@/lib/nutrition-usda";
 import type { IngredientGroupDraft } from "@/lib/recipe-types";
 
+// NUTRITION ESTIMATE API MAP
+// The browser sends ingredient groups here.
+// The server asks USDA FoodData Central for approximate nutrients, then returns a NutritionDraft.
+
 export async function POST(request: Request) {
+  // Route Handler entry point. Next.js calls this for POST /api/nutrition-estimate.
   const body = (await request.json()) as {
     ingredientGroups?: unknown;
     servings?: unknown;

@@ -18,6 +18,11 @@ import type {
 } from "@/lib/recipe-types";
 import { normalizeRecipe, parseTagInput, serializeInstructionSections, splitRecipeSteps } from "@/lib/recipe-types";
 
+// RECIPE DATABASE MAP
+// Forms use friendly draft state like "title", "badges", and "ingredientGroups".
+// Supabase needs a clean database payload like title_en, ingredients, instruction_sections, etc.
+// This file is the translator between those two worlds.
+
 // This file is the boundary between form state and database shape.
 // Components talk in drafts; Supabase inserts/updates talk in clean payload objects.
 export function mapRecipeRows(rows: unknown[]): RecipeRecord[] {
@@ -25,6 +30,8 @@ export function mapRecipeRows(rows: unknown[]): RecipeRecord[] {
 }
 
 export function buildIngredientPayload(groups: IngredientGroupDraft[]): RecipeIngredientGroup[] {
+  // Remove empty ingredient rows and fill missing German labels with English.
+  // This keeps the saved recipe clean even if the form has blank rows.
   return groups
     .map((group) => {
       const items: RecipeIngredient[] = group.items
@@ -178,6 +185,8 @@ export function buildRecipePayload(input: {
   imageUrls: string;
   coverImageUrl: string;
 }) {
+  // This is the main save helper used by both Add Recipe and Edit Recipe.
+  // If a saved recipe field looks wrong in Supabase, check how it is built here.
   const instructionSections = buildInstructionSectionPayload(input.instructionSections);
   const stepsEn = serializeInstructionSections(instructionSections, "en");
   const stepsDe = serializeInstructionSections(instructionSections, "de");

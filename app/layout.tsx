@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
 
+// Baby-brain map:
+// - This file wraps every page in the app.
+// - Put things here only when they should appear everywhere, like the top navigation or global CSS.
+// - Page-specific content belongs in that page's own page.tsx file, not here.
+
 // This metadata is shared by the whole app unless a page overrides part of it.
 export const metadata: Metadata = {
   title: "My Cookbook",

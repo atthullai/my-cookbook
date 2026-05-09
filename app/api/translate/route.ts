@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
+// TRANSLATE API MAP
+// Browser pages call /api/translate when they need German text.
+// This keeps translation API keys on the server, away from the browser.
+// DeepL is used when DEEPL_API_KEY exists; MyMemory is the no-key fallback.
+
 const MAX_FALLBACK_CHARS = 400;
 
 function splitForFallback(text: string): string[] {
+  // The fallback translator works better with smaller chunks.
+  // Keep line breaks so recipe steps still look like recipe steps after translation.
   const normalizedText = text.replace(/\r\n/g, "\n");
   const lines = normalizedText.split("\n");
   const chunks: string[] = [];
@@ -41,6 +48,7 @@ function splitForFallback(text: string): string[] {
 }
 
 async function translateWithDeepL(text: string, apiKey: string): Promise<string> {
+  // DeepL is the nicer translator. The endpoint changes depending on free/pro keys.
   const endpoint =
     process.env.DEEPL_API_URL ||
     (apiKey.endsWith(":fx") ? "https://api-free.deepl.com/v2/translate" : "https://api.deepl.com/v2/translate");
@@ -75,6 +83,8 @@ async function translateWithDeepL(text: string, apiKey: string): Promise<string>
 }
 
 async function translateWithFallback(text: string): Promise<string> {
+  // Fallback path: free public translation service.
+  // It is less perfect, but it means saving still works even without a DeepL key.
   const chunks = splitForFallback(text);
   const translatedChunks = await Promise.all(
     chunks.map(async (chunk) => {
@@ -104,6 +114,7 @@ async function translateWithFallback(text: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  // Route Handler entry point. Next.js calls this for POST /api/translate.
   const body = (await request.json()) as {
     text?: unknown;
   };

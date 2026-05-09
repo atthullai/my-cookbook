@@ -1,6 +1,10 @@
 import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
 import { getBadgeLabel, getInstructionSections, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeNotes } from "@/lib/recipe-types";
 
+// RECIPE VIEW MAP
+// These helpers are only for displaying recipes nicely.
+// They do not save to the database. They prepare chips, links, cover images, and nutrition claim tags for the UI.
+
 // The recipe page renders normalized instruction sections, regardless of whether the row
 // came from the new structured editor or an older text-only recipe.
 export type InstructionSection = {
@@ -13,6 +17,7 @@ export function parseInstructionSections(recipe: RecipeRecord, lang: AppLanguage
 }
 
 export function extractLinks(recipe: RecipeRecord): string[] {
+  // Scan the source URL, video URL, steps, and notes for links so the recipe page can show them together.
   const links = new Set<string>();
   const urlPattern = /https?:\/\/[^\s)]+/g;
 
@@ -79,6 +84,8 @@ export function getRecipeCoverImage(recipe: RecipeRecord): string {
 }
 
 function parseNutrientValue(value: string | undefined): number | null {
+  // Nutrition fields are strings in the database because they come from editable text inputs.
+  // Convert only valid numbers; ignore blanks or weird text.
   if (!value) {
     return null;
   }

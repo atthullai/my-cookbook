@@ -1,5 +1,10 @@
 import type { IngredientGroupDraft, NutritionDraft } from "@/lib/recipe-types";
 
+// USDA NUTRITION MAP
+// This file estimates nutrition by searching the USDA FoodData Central API for each ingredient.
+// It is an estimate, not medical/legal nutrition labeling.
+// If USDA matching is weird, look at normalizeIngredientName(), searchFood(), and resolveGramWeight().
+
 const SEARCH_ENDPOINT = "https://api.nal.usda.gov/fdc/v1/foods/search";
 const FOOD_ENDPOINT = "https://api.nal.usda.gov/fdc/v1/food";
 
@@ -87,6 +92,8 @@ const GENERIC_UNIT_TO_GRAMS: Record<string, number> = {
 };
 
 function parseAmount(value: string): number | null {
+  // Understand simple amounts from the editor, like "2", "0.5", or "1/2".
+  // If the amount is too complicated, return null and skip that ingredient's measured amount.
   const trimmed = value.trim();
   if (!trimmed) return null;
 
@@ -109,6 +116,8 @@ function parseAmount(value: string): number | null {
 }
 
 function normalizeIngredientName(name: string): string {
+  // Search works better with the plain food name.
+  // "finely chopped onion, for serving" becomes closer to "onion".
   return name
     .split(",")[0]
     .split("/")[0]
@@ -233,6 +242,11 @@ export async function estimateNutritionFromIngredients(input: {
   ingredientGroups: IngredientGroupDraft[];
   servings: string;
 }): Promise<NutritionDraft> {
+  // Main nutrition flow:
+  // 1. Flatten all ingredient sections into one list.
+  // 2. Search USDA for each ingredient.
+  // 3. Convert ingredient amount/unit to grams.
+  // 4. Add nutrients together and divide by servings.
   const nutritionTotals = Object.fromEntries(
     Object.keys(blankNutritionDraft())
       .filter((key) => !["note_en", "note_de"].includes(key))

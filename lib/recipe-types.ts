@@ -1,5 +1,10 @@
 import type { User } from "@supabase/supabase-js";
 
+// RECIPE TYPES MAP
+// This is the app's dictionary.
+// It defines what a recipe, ingredient, instruction section, badge, nutrition block, and draft form object look like.
+// When the database shape changes, this is usually the first file to check.
+
 // Shared app-wide types live here so page components, form components, and helpers all
 // agree on the same recipe shape. This is what prevents "works on one page, breaks on another".
 export type AppLanguage = "en" | "de";
@@ -174,6 +179,8 @@ export type RecipeRecord = {
 };
 
 function normalizeString(value: unknown): string {
+  // Many database fields can be missing/null/old-shaped.
+  // This helper safely turns "not a string" into an empty string.
   return typeof value === "string" ? value : "";
 }
 
@@ -459,6 +466,9 @@ function normalizeInstructionSections(raw: Record<string, unknown>, stepsEn: str
 }
 
 export function normalizeRecipe(value: unknown): RecipeRecord {
+  // This is the big safety net.
+  // Supabase rows, imported recipes, and old prototype rows can all be a little different.
+  // normalizeRecipe turns them into one predictable RecipeRecord for the UI.
   const rawValue = value && typeof value === "object" ? value : {};
   const raw = rawValue as Record<string, unknown>;
   const titleEn = normalizeString(raw.title_en);

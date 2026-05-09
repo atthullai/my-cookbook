@@ -1,5 +1,10 @@
 type JsonLdValue = Record<string, unknown>;
 
+// RECIPE IMPORT MAP
+// This file takes a public recipe URL and tries to turn the webpage into an editable recipe draft.
+// Best case: the site has JSON-LD Recipe data. Fallback: we scrape common HTML patterns from known blogs.
+// The output is NOT saved here; app/add/page.tsx puts it into the editor first.
+
 export type ImportedRecipeDraft = {
   sourceUrl: string;
   title: string;
@@ -42,6 +47,8 @@ export type ImportedRecipeDraft = {
 };
 
 function decodeHtmlEntities(text: string): string {
+  // Websites often encode characters as &amp; or &quot;.
+  // This makes imported text readable again.
   return text
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
@@ -94,6 +101,8 @@ function flattenJsonLdRecipe(input: unknown): JsonLdValue | null {
 }
 
 function extractJsonLdRecipe(html: string): JsonLdValue | null {
+  // Recipe sites usually hide structured recipe data in application/ld+json script tags.
+  // Pull that out first because it is cleaner than scraping visible HTML.
   const scripts = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
 
   for (const match of scripts) {
@@ -178,6 +187,8 @@ function extractLegacyMethodSteps(html: string): string[] {
 }
 
 function extractLegacyRecipe(html: string, sourceUrl: URL): JsonLdValue | null {
+  // Some older recipe blogs do not provide clean JSON-LD.
+  // This fallback grabs ingredients and method steps from older HTML structures we know about.
   const ingredients = extractLegacyIngredients(html);
   const instructions = extractLegacyMethodSteps(html);
   const title = extractHeadingText(html) || extractMetaContent(html, "og:title");

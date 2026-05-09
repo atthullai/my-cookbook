@@ -1,5 +1,10 @@
 "use client";
 
+// RECIPE READER MAP
+// This file is the actual recipe reading/cooking page.
+// It controls language switching, serving-size scaling, ingredient checkboxes, equipment checkboxes, print, and nutrition display.
+// If the recipe page looks wrong or you want a new reader feature, this is the file to edit.
+
 import Image from "next/image";
 import { useState } from "react";
 import AppIcon from "@/components/AppIcon";
@@ -35,6 +40,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
   // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
   const parseAmount = (value: RecipeAmount): number | null => {
+    // Ingredient amounts can be "2", "0.5", "1/2", a number, or blank.
+    // This helper turns the ones we understand into a number so serving scaling can work.
     if (value === null || value === "") {
       return null;
     }
@@ -109,6 +116,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
   const nutritionItems = recipe.nutrition
     ? [
+        // This list decides which nutrition facts show up and what their labels are in English/German.
         { label_en: "Calories", label_de: "Kalorien", value: recipe.nutrition.calories_kcal, unit: "kcal" },
         { label_en: "Fat", label_de: "Fett", value: recipe.nutrition.fat_g, unit: "g" },
         { label_en: "Saturated Fat", label_de: "Gesattigte Fettsauren", value: recipe.nutrition.saturated_fat_g, unit: "g" },

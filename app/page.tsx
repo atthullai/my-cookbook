@@ -1,5 +1,10 @@
 "use client";
 
+// HOME PAGE MAP
+// This is the first screen after opening the site.
+// It loads the logged-in user's recipes, lets you search/filter them, and shows the newest cards.
+// If you want to change the homepage wording, hero buttons, stats, or recipe-card layout, start here.
+
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -12,6 +17,8 @@ import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
+  // These state values are the little memory boxes React keeps for this page.
+  // When a user types, clicks a filter, logs in, or data loads, these values change and the page redraws.
   // Home keeps just enough state for newest recipes plus quick filters.
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [user, setUser] = useState<AppUser | null>(null);
@@ -86,6 +93,8 @@ export default function Home() {
   );
 
   const filteredRecipes = recipes.filter((recipe) => {
+    // This combines the search text and the dropdown/chip filters.
+    // If a recipe passes every check below, it appears on the home page.
     const searchValue = search.trim().toLowerCase();
     const matchesSearch =
       !searchValue ||

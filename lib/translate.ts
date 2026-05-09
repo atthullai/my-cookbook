@@ -1,3 +1,7 @@
+// TRANSLATION HELPER MAP
+// Client-side pages call translateEnglishToGerman() instead of calling DeepL/MyMemory directly.
+// This keeps API details behind /api/translate and gives us one safe fallback behavior.
+
 // Client components call this helper, which in turn talks to a server Route Handler.
 // That lets us keep API keys on the server and avoid long browser URL requests.
 export async function translateEnglishToGerman(text: string): Promise<string> {

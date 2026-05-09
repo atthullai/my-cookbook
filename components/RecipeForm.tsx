@@ -1,5 +1,10 @@
 "use client";
 
+// RECIPE FORM MAP
+// This is the big editor used by both Add Recipe and Edit Recipe.
+// It does not save anything by itself. Parent pages pass in values and "onChange" functions.
+// Think of this as the visible form, and app/add + app/edit as the brains that save/load data.
+
 import Image from "next/image";
 import type { FormEvent } from "react";
 import type {
@@ -116,10 +121,13 @@ type RecipeFormProps = {
 };
 
 export default function RecipeForm(props: RecipeFormProps) {
+  // props.title, props.ingredients, etc. are the current form values.
+  // props.onTitleChange, props.onIngredientAdd, etc. are callbacks that update the parent page state.
   return (
     <form onSubmit={props.onSubmit} className="recipe-form">
       {/* Recipe identity and ownership fields sit first because they shape the whole record. */}
       <div className="card card-accent" style={{ marginBottom: 0 }}>
+        {/* Basic fields are grouped first because they make the recipe easy to browse later. */}
         <div className="section-heading-row">
           <div>
             <h2 style={{ marginBottom: 6 }}>Recipe Basics</h2>
@@ -169,6 +177,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
+        {/* Badges are quick filters. They are not required, but they make browsing much nicer. */}
         <h3 style={{ marginBottom: 8 }}>Quick Badge Filters</h3>
         <p style={{ marginBottom: 12 }}>These are the easy filter buttons shown on home and recipe index pages.</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -184,6 +193,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       {/* Ingredient sections are nested so the editor matches the structure shown on the recipe page. */}
       <div className="card" style={{ marginBottom: 0 }}>
+        {/* Ingredient sections are nested: section -> ingredient rows. */}
         <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Ingredient Sections</h3>
@@ -262,6 +272,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       {/* Instruction sections let you keep main steps, filling steps, garnish steps, and so on clearly separated. */}
       <div className="card" style={{ marginBottom: 0 }}>
+        {/* Steps are one-per-line so editing stays simple and the reader can display numbered lists. */}
         <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Instruction Sections</h3>
@@ -310,6 +321,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
+        {/* Step photos are optional. Leave this empty unless a recipe really benefits from process images. */}
         <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Step-by-Step Photos</h3>
@@ -359,6 +371,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       {/* Equipment is bilingual too, which lets the checklist switch cleanly with the language toggle. */}
       <div className="card" style={{ marginBottom: 0 }}>
+        {/* Nutrition values are per serving. Blank fields simply do not show on the recipe page. */}
         <h3 style={{ marginBottom: 8 }}>Equipment</h3>
         {props.equipment.map((item, index) => (
           <div key={`equipment-${index}`} className="three-field-row">

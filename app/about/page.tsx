@@ -1,5 +1,10 @@
 "use client";
 
+// ABOUT PAGE MAP
+// This page stores and shows your personal cookbook profile text.
+// The text is saved in the user_profiles table, separate from recipes.
+// Edit the DEFAULT_* constants below if you want the fallback text to change.
+
 import { useEffect, useState } from "react";
 import AppIcon from "@/components/AppIcon";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +56,7 @@ export default function AboutPage() {
   }, []);
 
   const handleSave = async () => {
+    // Save English text plus German text. If German is blank, the app tries to translate English for you.
     if (!userId) {
       alert("Please log in first.");
       return;

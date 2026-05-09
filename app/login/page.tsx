@@ -1,5 +1,9 @@
 "use client";
 
+// LOGIN PAGE MAP
+// This tiny page signs you into Supabase.
+// After login succeeds, it sends you back to "/" so the cookbook can load your private recipes.
+
 import { useState } from "react";
 import AppIcon from "@/components/AppIcon";
 import type { FormEvent } from "react";
@@ -11,6 +15,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    // Prevent the browser from doing a normal form submit/reload.
+    // React handles the login so we can show loading text and errors.
     event.preventDefault();
     setLoading(true);
 

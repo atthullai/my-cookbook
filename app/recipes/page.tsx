@@ -1,5 +1,10 @@
 "use client";
 
+// RECIPE INDEX MAP
+// This page is the full recipe library.
+// It loads every recipe for the logged-in user, groups recipes by category, and keeps the filters here.
+// Edit this file when you want to change the full browsing/searching experience.
+
 import Image from "next/image";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
@@ -13,6 +18,8 @@ import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view
 import { supabase } from "@/lib/supabase";
 
 export default function RecipeIndexPage() {
+  // This page has more state than home because it also upgrades older imported recipes.
+  // State is just "what the screen remembers right now".
   const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -25,6 +32,8 @@ export default function RecipeIndexPage() {
   );
 
   const loadRecipes = useEffectEvent(async () => {
+    // Only show recipes owned by the logged-in Supabase user.
+    // This keeps the private cookbook private on the client side too.
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -57,6 +66,8 @@ export default function RecipeIndexPage() {
   }, []);
 
   const recipeNeedsUpgrade = (recipe: RecipeRecord) =>
+    // Older imports may be missing cover photos, equipment, or structured instructions.
+    // Returning true here means "try to refresh this recipe quietly in the background".
     Boolean(
       recipe.source_url &&
         (!recipe.cover_image_url ||
@@ -267,6 +278,7 @@ export default function RecipeIndexPage() {
   );
 
   const filteredRecipes = recipes.filter((recipe) => {
+    // The index filter is intentionally broad: title, description, cuisine, difficulty, tags, and badges all count.
     const searchValue = search.trim().toLowerCase();
     const matchesSearch =
       !searchValue ||

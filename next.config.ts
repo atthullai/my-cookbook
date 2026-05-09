@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// NEXT CONFIG MAP
+// This is framework configuration, not UI code.
+// The image section tells Next.js which outside recipe-photo domains are allowed.
+
 const nextConfig: NextConfig = {
   // Recipe pages render source photos from the recipe blogs we import from.
   images: {

@@ -1,5 +1,10 @@
 "use client";
 
+// ADD RECIPE PAGE MAP
+// This page owns the "new recipe" draft.
+// All the many useState lines below are the editable form fields before they are saved to Supabase.
+// The visual form itself lives in components/RecipeForm.tsx so add and edit can share one editor.
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { FormEvent } from "react";
@@ -33,6 +38,8 @@ import { translateEnglishToGerman } from "@/lib/translate";
 // New recipes are authored through the same bilingual form shape that edit uses,
 // so create and update stay in sync as the recipe model grows.
 function slugify(text: string) {
+  // Turn a title like "Chicken Curry!" into "chicken-curry".
+  // Slugs are easier to read than random strings.
   return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
@@ -234,6 +241,8 @@ export default function AddRecipe() {
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    // This is the big "Save Recipe" button logic.
+    // It validates the required fields, auto-translates, builds the database payload, then inserts it.
     event.preventDefault();
 
     if (!user) {

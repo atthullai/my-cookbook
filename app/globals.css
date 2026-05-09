@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* GLOBAL CSS MAP
+   This file controls the app's shared look: colors, cards, buttons, forms, recipe cards, and responsive layout.
+   If something looks wrong across many pages, check here first.
+   If only one page looks wrong, check that page's JSX first, then come back here for shared class styles. */
+
 /* Shared design tokens for the cookbook color palette and depth. */
 :root {
   --background: #f7f3ea;

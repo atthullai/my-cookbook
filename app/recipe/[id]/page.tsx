@@ -1,5 +1,9 @@
 "use client";
 
+// RECIPE ROUTE WRAPPER MAP
+// This file reads the recipe id from the URL, loads that recipe from Supabase, and handles loading/not-found.
+// The pretty recipe display is in RecipeClient.tsx so this wrapper stays small.
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";

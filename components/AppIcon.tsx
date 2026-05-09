@@ -1,5 +1,10 @@
 "use client";
 
+// APP ICON MAP
+// This file keeps all tiny line icons in one place.
+// To add a new icon: add its name to IconName, add an SVG path in iconPaths, then use <AppIcon name="yourName" />.
+// The icons are intentionally simple so buttons and chips stay lightweight.
+
 import type { ReactNode } from "react";
 
 type IconName =
@@ -39,6 +44,8 @@ type AppIconProps = {
 };
 
 const iconPaths: Record<IconName, ReactNode> = {
+  // Each entry below is only the inside of the SVG.
+  // AppIcon wraps it with the shared size, stroke, and accessibility settings.
   home: <path d="M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5" />,
   book: (
     <>
