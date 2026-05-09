@@ -52,7 +52,7 @@ export default function RecipePage() {
   if (loading) {
     return (
       <main className="container">
-        <p>Loading...</p>
+        <div className="empty-state">Loading recipe...</div>
       </main>
     );
   }
@@ -60,15 +60,19 @@ export default function RecipePage() {
   if (!recipe) {
     return (
       <main className="container">
-        <Link href="/">← Back</Link>
-        <p style={{ marginTop: 16 }}>Recipe not found.</p>
+        <Link href="/" className="back-link">
+          Back to cookbook
+        </Link>
+        <div className="empty-state">Recipe not found.</div>
       </main>
     );
   }
 
   return (
     <main className="container">
-      <Link href="/">← Back</Link>
+      <Link href="/" className="back-link">
+        Back to cookbook
+      </Link>
       {/* The client component renders bilingual text, scaling, checklists, and print layout. */}
       <RecipeClient recipe={recipe} />
     </main>

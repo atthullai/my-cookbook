@@ -481,25 +481,35 @@ export default function AddRecipe() {
   if (loading) {
     return (
       <main className="container">
-        <p>Checking login...</p>
+        <div className="empty-state">Checking login...</div>
       </main>
     );
   }
 
   return (
     <main className="container">
-      <Link href="/">← Back</Link>
+      <Link href="/" className="back-link">
+        Back to cookbook
+      </Link>
 
-      <h1>Add Recipe</h1>
+      <section className="hero-panel">
+        <div className="hero-copy">
+          <p className="eyebrow">Recipe Builder</p>
+          <h1>Add Recipe</h1>
+          <p>Create a clean bilingual recipe with structured ingredients, timings, photos, notes, and cooking help.</p>
+        </div>
+      </section>
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <h2 style={{ marginBottom: 8 }}>Import From Source URL</h2>
-        <p style={{ marginBottom: 12 }}>
-          Paste a recipe link to prefill the draft. Cover photo, timings, cuisine, course, and ingredients are imported when available. Step-by-step photos stay empty unless you add them yourself.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+      <div className="card card-accent import-panel">
+        <div className="section-heading-row">
+          <div>
+            <h2 style={{ marginBottom: 8 }}>Import From Source URL</h2>
+            <p>Paste a recipe link to prefill the draft. Cover photo, timings, cuisine, course, and ingredients are imported when available.</p>
+          </div>
+        </div>
+        <div className="import-row">
           <input className="input" value={importUrl} onChange={(event) => setImportUrl(event.target.value)} placeholder="https://example.com/recipe" />
-          <button className="button" type="button" onClick={() => void handleImport()} disabled={importing}>
+          <button className="button button-soft" type="button" onClick={() => void handleImport()} disabled={importing}>
             {importing ? "Importing..." : "Import Recipe"}
           </button>
         </div>

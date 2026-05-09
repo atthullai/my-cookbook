@@ -117,46 +117,56 @@ type RecipeFormProps = {
 
 export default function RecipeForm(props: RecipeFormProps) {
   return (
-    <form onSubmit={props.onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+    <form onSubmit={props.onSubmit} className="recipe-form">
       {/* Recipe identity and ownership fields sit first because they shape the whole record. */}
-      <input className="input" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="Title (EN)" />
-      <input className="input" value={props.titleDe} onChange={(event) => props.onTitleDeChange(event.target.value)} placeholder="Title (DE)" />
-      <input className="input" value={props.authorName} onChange={(event) => props.onAuthorNameChange(event.target.value)} placeholder="Author name" />
-      <input
-        className="input"
-        value={props.learnedFrom}
-        onChange={(event) => props.onLearnedFromChange(event.target.value)}
-        placeholder="Learned from (mom, dad, granny, teacher...)"
-      />
+      <div className="card card-accent" style={{ marginBottom: 0 }}>
+        <div className="section-heading-row">
+          <div>
+            <h2 style={{ marginBottom: 6 }}>Recipe Basics</h2>
+            <p>Start with the identity, story, and quick labels people use while browsing.</p>
+          </div>
+        </div>
+        <div className="form-grid">
+          <input className="input" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="Title (EN)" />
+          <input className="input" value={props.titleDe} onChange={(event) => props.onTitleDeChange(event.target.value)} placeholder="Title (DE)" />
+          <input className="input" value={props.authorName} onChange={(event) => props.onAuthorNameChange(event.target.value)} placeholder="Author name" />
+          <input
+            className="input"
+            value={props.learnedFrom}
+            onChange={(event) => props.onLearnedFromChange(event.target.value)}
+            placeholder="Learned from (mom, dad, granny, teacher...)"
+          />
+        </div>
 
-      <textarea className="input" value={props.descriptionEn} onChange={(event) => props.onDescriptionEnChange(event.target.value)} placeholder="Description (EN)" />
-      <textarea className="input" value={props.descriptionDe} onChange={(event) => props.onDescriptionDeChange(event.target.value)} placeholder="Description (DE)" />
+        <textarea className="input" value={props.descriptionEn} onChange={(event) => props.onDescriptionEnChange(event.target.value)} placeholder="Description (EN)" />
+        <textarea className="input" value={props.descriptionDe} onChange={(event) => props.onDescriptionDeChange(event.target.value)} placeholder="Description (DE)" />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-        <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
-        <input className="input" value={props.cuisine} onChange={(event) => props.onCuisineChange(event.target.value)} placeholder="Cuisine" />
-        <input className="input" value={props.cuisineDe} onChange={(event) => props.onCuisineDeChange(event.target.value)} placeholder="Cuisine (DE)" />
-        <input className="input" value={props.course} onChange={(event) => props.onCourseChange(event.target.value)} placeholder="Course" />
-        <input className="input" value={props.courseDe} onChange={(event) => props.onCourseDeChange(event.target.value)} placeholder="Course (DE)" />
-        <select className="input" value={props.difficulty} onChange={(event) => props.onDifficultyChange(event.target.value)}>
-          <option value="">Difficulty</option>
-          {DIFFICULTY_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <input className="input" value={props.difficultyDe} onChange={(event) => props.onDifficultyDeChange(event.target.value)} placeholder="Difficulty (DE)" />
+        <div className="form-grid">
+          <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
+          <input className="input" value={props.cuisine} onChange={(event) => props.onCuisineChange(event.target.value)} placeholder="Cuisine" />
+          <input className="input" value={props.cuisineDe} onChange={(event) => props.onCuisineDeChange(event.target.value)} placeholder="Cuisine (DE)" />
+          <input className="input" value={props.course} onChange={(event) => props.onCourseChange(event.target.value)} placeholder="Course" />
+          <input className="input" value={props.courseDe} onChange={(event) => props.onCourseDeChange(event.target.value)} placeholder="Course (DE)" />
+          <select className="input" value={props.difficulty} onChange={(event) => props.onDifficultyChange(event.target.value)}>
+            <option value="">Difficulty</option>
+            {DIFFICULTY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <input className="input" value={props.difficultyDe} onChange={(event) => props.onDifficultyDeChange(event.target.value)} placeholder="Difficulty (DE)" />
+        </div>
+
+        <div className="form-grid-compact">
+          <input className="input" value={props.prepTime} onChange={(event) => props.onPrepTimeChange(event.target.value)} placeholder="Prep time" />
+          <input className="input" value={props.cookTime} onChange={(event) => props.onCookTimeChange(event.target.value)} placeholder="Cooking time" />
+          <input className="input" value={props.totalTime} onChange={(event) => props.onTotalTimeChange(event.target.value)} placeholder="Total time" />
+          <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
+        </div>
+
+        <input className="input" value={props.tags} onChange={(event) => props.onTagsChange(event.target.value)} placeholder="Tags (comma separated)" />
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
-        <input className="input" value={props.prepTime} onChange={(event) => props.onPrepTimeChange(event.target.value)} placeholder="Prep time" />
-        <input className="input" value={props.cookTime} onChange={(event) => props.onCookTimeChange(event.target.value)} placeholder="Cooking time" />
-        <input className="input" value={props.totalTime} onChange={(event) => props.onTotalTimeChange(event.target.value)} placeholder="Total time" />
-        <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
-      </div>
-
-      <input className="input" value={props.tags} onChange={(event) => props.onTagsChange(event.target.value)} placeholder="Tags (comma separated)" />
 
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Quick Badge Filters</h3>
@@ -174,7 +184,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       {/* Ingredient sections are nested so the editor matches the structure shown on the recipe page. */}
       <div className="card" style={{ marginBottom: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+        <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Ingredient Sections</h3>
             <p style={{ marginBottom: 0 }}>Use as many sections as you want: dough, filling, tempering, garnish, and so on.</p>
@@ -186,8 +196,8 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.ingredientGroups.map((group, groupIndex) => (
-          <div key={`group-${groupIndex}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 10 }}>
+          <div key={`group-${groupIndex}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+            <div className="three-field-row">
               <input
                 className="input"
                 value={group.group_en}
@@ -209,13 +219,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             {group.items.map((ingredient, ingredientIndex) => (
               <div
                 key={`ingredient-${groupIndex}-${ingredientIndex}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "110px 110px 1fr 1fr auto",
-                  gap: 8,
-                  marginBottom: 8,
-                  alignItems: "center",
-                }}
+                className="ingredient-row"
               >
                 <input
                   className="input"
@@ -258,7 +262,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       {/* Instruction sections let you keep main steps, filling steps, garnish steps, and so on clearly separated. */}
       <div className="card" style={{ marginBottom: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+        <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Instruction Sections</h3>
             <p style={{ marginBottom: 0 }}>Create sections like Dough, Filling, Assembly. Inside each section, use one step per line.</p>
@@ -270,8 +274,8 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.instructionSections.map((section, index) => (
-          <div key={`instruction-section-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 8 }}>
+          <div key={`instruction-section-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+            <div className="three-field-row">
               <input
                 className="input"
                 value={section.title_en}
@@ -306,7 +310,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+        <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Step-by-Step Photos</h3>
             <p style={{ marginBottom: 0 }}>Add these manually when you really want process photos. Imported recipes no longer auto-fill them.</p>
@@ -318,8 +322,8 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.stepPhotos.map((item, index) => (
-          <div key={`step-photo-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr auto", gap: 8, marginBottom: 8 }}>
+          <div key={`step-photo-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+            <div className="step-photo-row">
               <input
                 className="input"
                 value={item.step_number}
@@ -357,7 +361,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Equipment</h3>
         {props.equipment.map((item, index) => (
-          <div key={`equipment-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 8 }}>
+          <div key={`equipment-${index}`} className="three-field-row">
             <input
               className="input"
               placeholder="Equipment (EN)"
@@ -397,7 +401,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       <div className="card" style={{ marginBottom: 0 }}>
         <h3 style={{ marginBottom: 8 }}>Nutrition Facts</h3>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <div className="form-row-actions">
           <p style={{ marginBottom: 0 }}>
             Enter per-serving nutrition values manually, or estimate them from the ingredient list. Labels will show in English or German automatically on the recipe page.
           </p>
@@ -406,7 +410,7 @@ export default function RecipeForm(props: RecipeFormProps) {
             {props.estimatingNutrition ? "Estimating..." : "Estimate From Ingredients"}
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+        <div className="form-grid-compact">
           <input className="input" value={props.nutrition.calories_kcal} onChange={(event) => props.onNutritionChange("calories_kcal", event.target.value)} placeholder="Calories (kcal)" />
           <input className="input" value={props.nutrition.fat_g} onChange={(event) => props.onNutritionChange("fat_g", event.target.value)} placeholder="Fat (g)" />
           <input className="input" value={props.nutrition.saturated_fat_g} onChange={(event) => props.onNutritionChange("saturated_fat_g", event.target.value)} placeholder="Saturated Fat (g)" />
@@ -436,7 +440,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+        <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>FAQ</h3>
             <p style={{ marginBottom: 0 }}>Add common questions and answers for the recipe.</p>
@@ -448,7 +452,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.faq.map((item, index) => (
-          <div key={`faq-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`faq-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <input
               className="input"
               value={item.question_en}
@@ -482,7 +486,7 @@ export default function RecipeForm(props: RecipeFormProps) {
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10 }}>
+        <div className="form-row-actions">
           <div>
             <h3 style={{ marginBottom: 8 }}>Troubleshooting</h3>
             <p style={{ marginBottom: 0 }}>List common problems and how to fix them.</p>
@@ -494,7 +498,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.troubleshooting.map((item, index) => (
-          <div key={`troubleshooting-${index}`} className="card" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`troubleshooting-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <input
               className="input"
               value={item.issue_en}

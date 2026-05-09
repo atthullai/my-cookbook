@@ -32,16 +32,17 @@ export default function Login() {
   };
 
   return (
-    <main className="container" style={{ maxWidth: 520 }}>
+    <main className="container auth-shell">
       {/* Login stays intentionally simple because it only needs to unlock the private cookbook. */}
       <div className="hero-panel" style={{ marginBottom: 20 }}>
-        <div>
+        <div className="hero-copy">
           <p className="eyebrow">Private Access</p>
           <h1>Login</h1>
+          <p>Unlock your saved recipes, notes, imports, and family cookbook tools.</p>
         </div>
       </div>
 
-      <form onSubmit={handleLogin} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <form onSubmit={handleLogin} className="card auth-card">
         <input
           type="email"
           placeholder="Enter email"

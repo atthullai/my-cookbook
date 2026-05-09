@@ -460,15 +460,23 @@ export default function EditRecipe() {
   if (loading || !recipe) {
     return (
       <main className="container">
-        <p>Loading recipe...</p>
+        <div className="empty-state">Loading recipe...</div>
       </main>
     );
   }
 
   return (
     <main className="container">
-      <Link href="/">← Back</Link>
-      <h1>Edit Recipe</h1>
+      <Link href="/recipes" className="back-link">
+        Back to recipes
+      </Link>
+      <section className="hero-panel">
+        <div className="hero-copy">
+          <p className="eyebrow">Recipe Editor</p>
+          <h1>Edit Recipe</h1>
+          <p>Refine {recipe.title_en} with bilingual text, photos, nutrition, and cooking notes.</p>
+        </div>
+      </section>
 
       {/* The edit page reuses the same form as create so there is only one editor to maintain. */}
       <RecipeForm

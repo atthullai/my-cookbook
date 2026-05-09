@@ -139,78 +139,72 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     <div style={{ marginTop: 16 }}>
       {/* Keep header controls together because language and serving size both change the same recipe view. */}
       <div className="hero-panel" style={{ marginBottom: 20 }}>
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+        <div className="hero-copy">
           <p className="eyebrow">{lang === "de" ? "Rezeptseite" : "Recipe Page"}</p>
           <h1>{recipeTitle}</h1>
-          <p style={{ marginBottom: 0 }}>{recipe.category || "Uncategorized"}</p>
-          <p style={{ marginTop: 8, marginBottom: 0 }}>
+          <p>{recipeDescription || recipe.category || "Uncategorized"}</p>
+          <p style={{ marginTop: 8, marginBottom: 0, fontSize: "0.98rem" }}>
             By {recipe.author_name || "Atthuzhai"}
             {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
           </p>
-          <p style={{ marginTop: 8, marginBottom: 0 }}>
-            {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).join(" • ")}
-          </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0, marginLeft: "auto", justifyContent: "flex-end" }}>
+        <div className="hero-actions">
           <button className="button" type="button" onClick={handlePrint}>
             <AppIcon name="print" size={16} />
             Print
           </button>
-          <button className="button" type="button" onClick={() => setLang("en")}>
-            <AppIcon name="globe" size={16} />
-            EN
-          </button>
-          <button className="button" type="button" onClick={() => setLang("de")}>
-            <AppIcon name="globe" size={16} />
-            DE
-          </button>
+          <div className="segmented-control" aria-label="Recipe language">
+            <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
+              EN
+            </button>
+            <button className={lang === "de" ? "button active" : "button"} type="button" onClick={() => setLang("de")}>
+              DE
+            </button>
+          </div>
         </div>
       </div>
 
-      {coverImage ? (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <Image src={coverImage} alt={`${recipeTitle} cover`} className="recipe-cover-photo" width={1600} height={1000} />
-        </div>
-      ) : null}
+      <div className="recipe-detail-layout">
+        {coverImage ? (
+          <div className="card">
+            <Image src={coverImage} alt={`${recipeTitle} cover`} className="recipe-cover-photo" width={1600} height={1000} />
+          </div>
+        ) : null}
 
-      {recipeDescription ? (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Beschreibung" : "Description"}</h3>
-          <p style={{ marginBottom: 0 }}>{recipeDescription}</p>
-        </div>
-      ) : null}
+        <div className="card recipe-summary-card">
+          <h2 style={{ marginBottom: 10 }}>{lang === "de" ? "Auf einen Blick" : "At a Glance"}</h2>
+          <div className="recipe-card-meta">
+            {[recipe.category, getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
+              <span className="meta-pill" key={item}>{item}</span>
+            ))}
+            {highlights.map((highlight) => (
+              <span key={highlight} className="meta-pill">{highlight}</span>
+            ))}
+          </div>
 
-      {highlights.length > 0 ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-          {highlights.map((highlight) => (
-            <span key={highlight} className="chip">
-              {highlight}
-            </span>
-          ))}
-        </div>
-      ) : null}
+          {displayBadges.length > 0 ? (
+            <div className="filter-chips">
+              {displayBadges.map((badge) => (
+                <BadgeChip key={badge} badge={badge} lang={lang} />
+              ))}
+            </div>
+          ) : null}
 
-      {displayBadges.length > 0 ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          {displayBadges.map((badge) => (
-            <BadgeChip key={badge} badge={badge} lang={lang} />
-          ))}
+          {recipe.tags.length > 0 ? (
+            <div className="filter-chips">
+              {recipe.tags.map((tag) => (
+                <span key={`${recipe.id}-${tag}`} className="chip">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-
-      {recipe.tags.length > 0 ? (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-          {recipe.tags.map((tag) => (
-            <span key={`${recipe.id}-${tag}`} className="chip">
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      </div>
 
       {/* Jump links make longer recipes feel closer to the reference food sites. */}
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card card-accent" style={{ marginBottom: 20 }}>
         <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Springe zu" : "Jump To"}</h3>
         <div className="section-link-grid">
           <a className="button" href="#ingredients">
@@ -266,16 +260,15 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <p>{lang === "de" ? "Portionen" : "Servings"}</p>
+        <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Portionen" : "Servings"}</h3>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="segmented-control" aria-label="Serving multiplier">
           {[0.5, 1, 2].map((value) => (
             <button
               key={value}
-              className="button"
+              className={multiplier === value ? "button active" : "button"}
               type="button"
               onClick={() => setMultiplier(value)}
-              style={{ background: multiplier === value ? "#f0d6c5" : undefined }}
             >
               {value}x
             </button>
@@ -284,93 +277,72 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       </div>
 
       {/* Ingredients and equipment both use checklist-style interactions because they are "work through" sections. */}
-      <div id="ingredients" className="card" style={{ marginBottom: 24 }}>
-        <h3>{lang === "de" ? "Zutaten" : "Ingredients"}</h3>
+      <div className="reader-section-grid">
+        <div className="reader-stack">
+          <div id="ingredients" className="card">
+            <h3>{lang === "de" ? "Zutaten" : "Ingredients"}</h3>
 
-        {ingredientGroups.map((group, groupIndex) => (
-          <div key={`${group.group_en}-${groupIndex}`} style={{ marginBottom: 16 }}>
-            <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{getIngredientGroupLabel(group, lang)}</h4>
+            {ingredientGroups.map((group, groupIndex) => (
+              <div key={`${group.group_en}-${groupIndex}`} style={{ marginBottom: 16 }}>
+                <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{getIngredientGroupLabel(group, lang)}</h4>
 
-            {group.items.map((ingredient, ingredientIndex) => {
-              const itemId = `${groupIndex}-${ingredientIndex}`;
-              const isChecked = checked.includes(itemId);
-              const baseAmount = parseAmount(ingredient.amount);
-              const scaledAmount = baseAmount === null ? null : baseAmount * multiplier;
-              const amountLabel = scaledAmount === null ? "" : formatAmount(scaledAmount);
+                {group.items.map((ingredient, ingredientIndex) => {
+                  const itemId = `${groupIndex}-${ingredientIndex}`;
+                  const isChecked = checked.includes(itemId);
+                  const baseAmount = parseAmount(ingredient.amount);
+                  const scaledAmount = baseAmount === null ? null : baseAmount * multiplier;
+                  const amountLabel = scaledAmount === null ? "" : formatAmount(scaledAmount);
 
-              return (
-                <div
-                  key={itemId}
-                  onClick={() => toggleCheck(itemId)}
-                  style={{
-                    cursor: "pointer",
-                    opacity: isChecked ? 0.55 : 1,
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  <span className={isChecked ? "checkmark-box checked" : "checkmark-box"}>{isChecked ? "✓" : ""}</span>
-                  <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
-                    {amountLabel}
-                    {ingredient.unit ? ` ${ingredient.unit}` : ""}
-                    {getIngredientLabel(ingredient, lang) ? ` ${getIngredientLabel(ingredient, lang)}` : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      {recipe.equipment && recipe.equipment.length > 0 ? (
-        <div id="equipment" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Equipment" : "Equipment"}</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {recipe.equipment.map((item) => (
-              <button
-                key={item.label_en}
-                type="button"
-                onClick={() => toggleEquipmentCheck(item.label_en)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: 0,
-                  border: 0,
-                  textAlign: "left",
-                  cursor: "pointer",
-                  color: "inherit",
-                }}
-              >
-                <span className={checkedEquipment.includes(item.label_en) ? "checkmark-box checked" : "checkmark-box"}>
-                  {checkedEquipment.includes(item.label_en) ? "✓" : ""}
-                </span>
-                <span style={{ textDecoration: checkedEquipment.includes(item.label_en) ? "line-through" : "none" }}>
-                  {getEquipmentLabel(item, lang)}
-                </span>
-              </button>
+                  return (
+                    <button key={itemId} type="button" onClick={() => toggleCheck(itemId)} className="check-row" style={{ opacity: isChecked ? 0.55 : 1 }}>
+                      <span className={isChecked ? "checkmark-box checked" : "checkmark-box"}>{isChecked ? "✓" : ""}</span>
+                      <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
+                        {amountLabel}
+                        {ingredient.unit ? ` ${ingredient.unit}` : ""}
+                        {getIngredientLabel(ingredient, lang) ? ` ${getIngredientLabel(ingredient, lang)}` : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             ))}
           </div>
+
+          {recipe.equipment && recipe.equipment.length > 0 ? (
+            <div id="equipment" className="card">
+              <h3>{lang === "de" ? "Equipment" : "Equipment"}</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {recipe.equipment.map((item) => (
+                  <button key={item.label_en} type="button" onClick={() => toggleEquipmentCheck(item.label_en)} className="check-row">
+                    <span className={checkedEquipment.includes(item.label_en) ? "checkmark-box checked" : "checkmark-box"}>
+                      {checkedEquipment.includes(item.label_en) ? "✓" : ""}
+                    </span>
+                    <span style={{ textDecoration: checkedEquipment.includes(item.label_en) ? "line-through" : "none" }}>
+                      {getEquipmentLabel(item, lang)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
 
-      <div id="instructions" className="card" style={{ marginBottom: 20 }}>
-        <h3>{lang === "de" ? "Anleitung" : "Instructions"}</h3>
+        <div id="instructions" className="card">
+          <h3>{lang === "de" ? "Anleitung" : "Instructions"}</h3>
 
-        {recipeSections.map((section, sectionIndex) => (
-          <div key={`${section.title}-${sectionIndex}`} style={{ marginBottom: 16 }}>
-            {section.title && recipeSections.length > 1 ? <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{section.title}</h4> : null}
-            <ol style={{ marginBottom: 0, listStyle: "decimal", paddingLeft: "1.5rem" }}>
-              {section.steps.map((step, index) => (
-                <li key={`${section.title}-${index}`} style={{ listStyle: "decimal" }}>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </div>
-        ))}
+          {recipeSections.map((section, sectionIndex) => (
+            <div key={`${section.title}-${sectionIndex}`} style={{ marginBottom: 16 }}>
+              {section.title && recipeSections.length > 1 ? <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{section.title}</h4> : null}
+              <ol className="instruction-list">
+                {section.steps.map((step, index) => (
+                  <li key={`${section.title}-${index}`} style={{ listStyle: "decimal" }}>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
       </div>
 
       {stepPhotos.length > 0 ? (

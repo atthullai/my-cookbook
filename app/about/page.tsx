@@ -82,9 +82,10 @@ export default function AboutPage() {
   return (
     <main className="container">
       <div className="hero-panel" style={{ marginBottom: 20 }}>
-        <div>
+        <div className="hero-copy">
           <p className="eyebrow">Profile</p>
           <h1>About Me</h1>
+          <p>The story behind the cookbook, the recipes, and the people who shaped them.</p>
         </div>
       </div>
       <div className="card">
@@ -94,15 +95,15 @@ export default function AboutPage() {
             <p style={{ marginBottom: 0 }}>This page introduces the person behind the cookbook.</p>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="button" type="button" onClick={() => setLang("en")} style={{ background: lang === "en" ? "#f0d6c5" : undefined }}>
-              <AppIcon name="globe" size={16} />
-              EN
-            </button>
-            <button className="button" type="button" onClick={() => setLang("de")} style={{ background: lang === "de" ? "#f0d6c5" : undefined }}>
-              <AppIcon name="globe" size={16} />
-              DE
-            </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="segmented-control" aria-label="Profile language">
+              <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
+                EN
+              </button>
+              <button className={lang === "de" ? "button active" : "button"} type="button" onClick={() => setLang("de")}>
+                DE
+              </button>
+            </div>
             <button className="button button-primary" type="button" onClick={() => setEditing((current) => !current)}>
               <AppIcon name="edit" size={16} />
               {editing ? "Close Edit" : "Edit About Me"}
