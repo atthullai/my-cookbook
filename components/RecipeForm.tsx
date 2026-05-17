@@ -51,6 +51,7 @@ type RecipeFormProps = {
   storageEn: string;
   storageDe: string;
   nutrition: NutritionDraft;
+  nutritionEstimateMessage: string;
   faq: FaqDraft[];
   troubleshooting: TroubleshootingDraft[];
   stepPhotos: StepPhotoDraft[];
@@ -416,13 +417,19 @@ export default function RecipeForm(props: RecipeFormProps) {
         <h3 style={{ marginBottom: 8 }}>Nutrition Facts</h3>
         <div className="form-row-actions">
           <p style={{ marginBottom: 0 }}>
-            Enter per-serving nutrition values manually, or estimate them from the ingredient list. Labels will show in English or German automatically on the recipe page.
+            Enter per-serving nutrition values manually, or estimate them from the ingredient list. The estimator works best when amounts and units are filled in.
           </p>
           <button className="button" type="button" onClick={props.onEstimateNutrition} disabled={props.estimatingNutrition}>
             <AppIcon name="protein" size={16} />
             {props.estimatingNutrition ? "Estimating..." : "Estimate From Ingredients"}
           </button>
         </div>
+        {(props.nutritionEstimateMessage || props.nutrition.note_en) && (
+          <div className="nutrition-estimate-status" role="status">
+            <strong>Estimate status</strong>
+            <span>{props.nutritionEstimateMessage || props.nutrition.note_en}</span>
+          </div>
+        )}
         <div className="form-grid-compact">
           <input className="input" value={props.nutrition.calories_kcal} onChange={(event) => props.onNutritionChange("calories_kcal", event.target.value)} placeholder="Calories (kcal)" />
           <input className="input" value={props.nutrition.fat_g} onChange={(event) => props.onNutritionChange("fat_g", event.target.value)} placeholder="Fat (g)" />

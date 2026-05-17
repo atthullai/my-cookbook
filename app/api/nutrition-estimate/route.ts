@@ -21,12 +21,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const nutrition = await estimateNutritionFromIngredients({
+    const estimate = await estimateNutritionFromIngredients({
       ingredientGroups,
       servings,
     });
 
-    return NextResponse.json({ nutrition });
+    return NextResponse.json(estimate);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not estimate nutrition.";
     return NextResponse.json({ error: message }, { status: 400 });

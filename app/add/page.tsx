@@ -49,6 +49,7 @@ export default function AddRecipe() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
+  const [nutritionEstimateMessage, setNutritionEstimateMessage] = useState("");
   const [refreshingCoverPhoto, setRefreshingCoverPhoto] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -389,11 +390,12 @@ export default function AddRecipe() {
 
   const handleEstimateNutrition = async () => {
     if (!ingredientGroups.some((group) => group.items.some((ingredient) => ingredient.name_en.trim()))) {
-      alert("Please add ingredients first.");
+      setNutritionEstimateMessage("Add at least one ingredient before estimating nutrition.");
       return;
     }
 
     setEstimatingNutrition(true);
+    setNutritionEstimateMessage("");
 
     try {
       const response = await fetch("/api/nutrition-estimate", {
@@ -407,15 +409,29 @@ export default function AddRecipe() {
         }),
       });
 
-      const result = (await response.json()) as { nutrition?: NutritionDraft; error?: string };
+      const result = (await response.json()) as {
+        nutrition?: NutritionDraft;
+        meta?: {
+          ingredientCount: number;
+          matchedIngredients: number;
+          localFallbackIngredients?: number;
+          confidence: string;
+          unmatchedIngredients?: string[];
+        };
+        error?: string;
+      };
 
       if (!response.ok || !result.nutrition) {
         throw new Error(result.error || "Could not estimate nutrition.");
       }
 
       setNutrition(result.nutrition);
+      const matched = result.meta ? `${result.meta.matchedIngredients} of ${result.meta.ingredientCount}` : "Some";
+      const confidence = result.meta?.confidence ? ` ${result.meta.confidence}` : "";
+      const fallback = result.meta?.localFallbackIngredients ? ` ${result.meta.localFallbackIngredients} used the pantry fallback.` : "";
+      setNutritionEstimateMessage(`Estimated per serving: ${matched} ingredients matched.${fallback}${confidence ? ` Confidence: ${confidence.trim()}.` : ""}`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Could not estimate nutrition.");
+      setNutritionEstimateMessage(error instanceof Error ? error.message : "Could not estimate nutrition.");
     } finally {
       setEstimatingNutrition(false);
     }
@@ -552,6 +568,7 @@ export default function AddRecipe() {
         storageEn={storageEn}
         storageDe={storageDe}
         nutrition={nutrition}
+        nutritionEstimateMessage={nutritionEstimateMessage}
         faq={faq}
         troubleshooting={troubleshooting}
         stepPhotos={stepPhotos}

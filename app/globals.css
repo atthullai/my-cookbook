@@ -882,6 +882,27 @@ ul {
   margin-bottom: 10px;
 }
 
+.nutrition-estimate-status {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(36, 115, 110, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(36, 115, 110, 0.1), rgba(255, 250, 241, 0.92)),
+    var(--surface-strong);
+  padding: 12px 14px;
+}
+
+.nutrition-estimate-status strong {
+  color: #1f5f5b;
+  font-size: 0.92rem;
+}
+
+.nutrition-estimate-status span {
+  color: var(--muted);
+}
+
 .editor-subcard {
   border-color: rgba(77, 61, 48, 0.12);
   background: rgba(255, 255, 255, 0.42);
