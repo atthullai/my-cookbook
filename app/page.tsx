@@ -176,25 +176,42 @@ export default function Home() {
           <p>A warm, private place for family recipes, bilingual notes, cover photos, and the cooks who taught each dish.</p>
         </div>
 
-        <div className="hero-actions">
-          {user?.email ? <span className="user-pill">{user.email}</span> : null}
+        <div className="hero-side">
+          <div className="cookbook-graphic" aria-hidden="true">
+            <span className="steam-line steam-one" />
+            <span className="steam-line steam-two" />
+            <div className="plate-graphic">
+              <span className="plate-section plate-protein" />
+              <span className="plate-section plate-carb" />
+              <span className="plate-section plate-fiber" />
+            </div>
+            <div className="graphic-bars">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
 
-          {user ? (
-            <button className="button" type="button" onClick={handleLogout}>
-              <AppIcon name="logout" size={16} />
-              Logout
-            </button>
-          ) : (
-            <Link href="/login" className="button">
-              <AppIcon name="login" size={16} />
-              Login
+          <div className="hero-actions">
+            {user?.email ? <span className="user-pill">{user.email}</span> : null}
+
+            {user ? (
+              <button className="button" type="button" onClick={handleLogout}>
+                <AppIcon name="logout" size={16} />
+                Logout
+              </button>
+            ) : (
+              <Link href="/login" className="button">
+                <AppIcon name="login" size={16} />
+                Login
+              </Link>
+            )}
+
+            <Link href="/add" className="button button-primary">
+              <AppIcon name="add" size={16} />
+              Add Recipe
             </Link>
-          )}
-
-          <Link href="/add" className="button button-primary">
-            <AppIcon name="add" size={16} />
-            Add Recipe
-          </Link>
+          </div>
         </div>
       </section>
 

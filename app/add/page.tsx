@@ -279,11 +279,11 @@ export default function AddRecipe() {
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
         group_en: group.group_en,
-        group_de: group.group_en.trim() ? await translateEnglishToGerman(group.group_en) : "",
+        group_de: group.group_de || (group.group_en.trim() ? await translateEnglishToGerman(group.group_en) : ""),
         items: await Promise.all(
           group.items.map(async (ingredient) => ({
             ...ingredient,
-            name_de: ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : "",
+            name_de: ingredient.name_de || (ingredient.name_en.trim() ? await translateEnglishToGerman(ingredient.name_en) : ""),
           }))
         ),
       }))
@@ -292,58 +292,58 @@ export default function AddRecipe() {
     const translatedInstructionSections = await Promise.all(
       instructionSections.map(async (section) => ({
         title_en: section.title_en,
-        title_de: section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : "",
+        title_de: section.title_de || (section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : ""),
         steps_en: section.steps_en,
-        steps_de: section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : "",
+        steps_de: section.steps_de || (section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : ""),
       }))
     );
 
     const translatedEquipment = await Promise.all(
       equipment.map(async (item) => ({
         label_en: item.label_en,
-        label_de: item.label_en.trim() ? await translateEnglishToGerman(item.label_en) : "",
+        label_de: item.label_de || (item.label_en.trim() ? await translateEnglishToGerman(item.label_en) : ""),
       }))
     );
 
     const translatedFaq = await Promise.all(
       faq.map(async (item) => ({
         question_en: item.question_en,
-        question_de: item.question_en.trim() ? await translateEnglishToGerman(item.question_en) : "",
+        question_de: item.question_de || (item.question_en.trim() ? await translateEnglishToGerman(item.question_en) : ""),
         answer_en: item.answer_en,
-        answer_de: item.answer_en.trim() ? await translateEnglishToGerman(item.answer_en) : "",
+        answer_de: item.answer_de || (item.answer_en.trim() ? await translateEnglishToGerman(item.answer_en) : ""),
       }))
     );
 
     const translatedTroubleshooting = await Promise.all(
       troubleshooting.map(async (item) => ({
         issue_en: item.issue_en,
-        issue_de: item.issue_en.trim() ? await translateEnglishToGerman(item.issue_en) : "",
+        issue_de: item.issue_de || (item.issue_en.trim() ? await translateEnglishToGerman(item.issue_en) : ""),
         fix_en: item.fix_en,
-        fix_de: item.fix_en.trim() ? await translateEnglishToGerman(item.fix_en) : "",
+        fix_de: item.fix_de || (item.fix_en.trim() ? await translateEnglishToGerman(item.fix_en) : ""),
       }))
     );
 
     const translatedStepPhotos = await Promise.all(
       stepPhotos.map(async (item) => ({
         ...item,
-        caption_de: item.caption_en.trim() ? await translateEnglishToGerman(item.caption_en) : "",
+        caption_de: item.caption_de || (item.caption_en.trim() ? await translateEnglishToGerman(item.caption_en) : ""),
       }))
     );
 
     const translatedNutrition = {
       ...nutrition,
-      note_de: nutrition.note_en.trim() ? await translateEnglishToGerman(nutrition.note_en) : "",
+      note_de: nutrition.note_de || (nutrition.note_en.trim() ? await translateEnglishToGerman(nutrition.note_en) : ""),
     };
 
     // Build the final database row in one place so the component stays readable.
     const payload = buildRecipePayload({
       slug: slugify(title),
       titleEn: title,
-      titleDe: autoTitleDe,
+      titleDe: titleDe || autoTitleDe,
       authorName,
       learnedFrom,
       descriptionEn,
-      descriptionDe: autoDescriptionDe,
+      descriptionDe: descriptionDe || autoDescriptionDe,
       category,
       cuisine,
       cuisineDe: cuisineDe || autoCuisineDe,
@@ -359,11 +359,11 @@ export default function AddRecipe() {
       ingredientGroups: translatedGroups,
       instructionSections: translatedInstructionSections,
       notesEn,
-      notesDe: autoNotesDe,
+      notesDe: notesDe || autoNotesDe,
       tipsEn,
-      tipsDe: autoTipsDe,
+      tipsDe: tipsDe || autoTipsDe,
       storageEn,
-      storageDe: autoStorageDe,
+      storageDe: storageDe || autoStorageDe,
       nutrition: translatedNutrition,
       faq: translatedFaq,
       troubleshooting: translatedTroubleshooting,

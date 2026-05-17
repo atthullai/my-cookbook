@@ -24,7 +24,17 @@ import {
   getRecipeTips,
   getRecipeTitle,
 } from "@/lib/recipe-types";
-import { buildRecipeHighlights, deriveNutritionClaimTags, extractLinks, getRecipeCoverImage, hasNotes, parseInstructionSections } from "@/lib/recipe-view";
+import {
+  buildRecipeHighlights,
+  deriveNutritionClaimTags,
+  extractLinks,
+  getMacroBalance,
+  getNutritionHighlights,
+  getNutritionItems,
+  getRecipeCoverImage,
+  hasNotes,
+  parseInstructionSections,
+} from "@/lib/recipe-view";
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
@@ -36,7 +46,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const [checked, setChecked] = useState<string[]>([]);
   const [checkedEquipment, setCheckedEquipment] = useState<string[]>([]);
   const [lang, setLang] = useState<AppLanguage>("en");
-  const [showNutrition, setShowNutrition] = useState(false);
+  const [showNutrition, setShowNutrition] = useState(Boolean(recipe.nutrition));
 
   // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
   const parseAmount = (value: RecipeAmount): number | null => {
@@ -109,39 +119,13 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const stepPhotos = recipe.step_photos ?? [];
   const coverImage = getRecipeCoverImage(recipe);
   const displayBadges = [...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])];
+  const nutritionItems = getNutritionItems(recipe, lang);
+  const macroBalance = getMacroBalance(recipe);
+  const nutritionHighlights = getNutritionHighlights(recipe, lang);
 
   const handlePrint = () => {
     window.print();
   };
-
-  const nutritionItems = recipe.nutrition
-    ? [
-        // This list decides which nutrition facts show up and what their labels are in English/German.
-        { label_en: "Calories", label_de: "Kalorien", value: recipe.nutrition.calories_kcal, unit: "kcal" },
-        { label_en: "Fat", label_de: "Fett", value: recipe.nutrition.fat_g, unit: "g" },
-        { label_en: "Saturated Fat", label_de: "Gesattigte Fettsauren", value: recipe.nutrition.saturated_fat_g, unit: "g" },
-        { label_en: "Carbohydrates", label_de: "Kohlenhydrate", value: recipe.nutrition.carbs_g, unit: "g" },
-        { label_en: "Fiber", label_de: "Ballaststoffe", value: recipe.nutrition.fiber_g, unit: "g" },
-        { label_en: "Sugar", label_de: "Zucker", value: recipe.nutrition.sugar_g, unit: "g" },
-        { label_en: "Protein", label_de: "Protein", value: recipe.nutrition.protein_g, unit: "g" },
-        { label_en: "Sodium", label_de: "Natrium", value: recipe.nutrition.sodium_mg, unit: "mg" },
-        { label_en: "Cholesterol", label_de: "Cholesterin", value: recipe.nutrition.cholesterol_mg, unit: "mg" },
-        { label_en: "Potassium", label_de: "Kalium", value: recipe.nutrition.potassium_mg, unit: "mg" },
-        { label_en: "Calcium", label_de: "Kalzium", value: recipe.nutrition.calcium_mg, unit: "mg" },
-        { label_en: "Iron", label_de: "Eisen", value: recipe.nutrition.iron_mg, unit: "mg" },
-        { label_en: "Magnesium", label_de: "Magnesium", value: recipe.nutrition.magnesium_mg, unit: "mg" },
-        { label_en: "Phosphorus", label_de: "Phosphor", value: recipe.nutrition.phosphorus_mg, unit: "mg" },
-        { label_en: "Zinc", label_de: "Zink", value: recipe.nutrition.zinc_mg, unit: "mg" },
-        { label_en: "Vitamin A", label_de: "Vitamin A", value: recipe.nutrition.vitamin_a_mcg, unit: "mcg" },
-        { label_en: "Vitamin C", label_de: "Vitamin C", value: recipe.nutrition.vitamin_c_mg, unit: "mg" },
-        { label_en: "Vitamin D", label_de: "Vitamin D", value: recipe.nutrition.vitamin_d_mcg, unit: "mcg" },
-        { label_en: "Vitamin E", label_de: "Vitamin E", value: recipe.nutrition.vitamin_e_mg, unit: "mg" },
-        { label_en: "Vitamin K", label_de: "Vitamin K", value: recipe.nutrition.vitamin_k_mcg, unit: "mcg" },
-        { label_en: "Vitamin B6", label_de: "Vitamin B6", value: recipe.nutrition.vitamin_b6_mg, unit: "mg" },
-        { label_en: "Vitamin B12", label_de: "Vitamin B12", value: recipe.nutrition.vitamin_b12_mcg, unit: "mcg" },
-        { label_en: "Folate", label_de: "Folat", value: recipe.nutrition.folate_mcg, unit: "mcg" },
-      ].filter((item) => item.value.trim())
-    : [];
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -442,8 +426,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
-      <div className="card" style={{ marginTop: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="card nutrition-panel" style={{ marginTop: 20 }}>
+        <div className="nutrition-panel-header">
           <div>
             <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Nahrwerte" : "Nutrition Facts"}</h3>
             <p style={{ marginBottom: 0 }}>
@@ -459,23 +443,68 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
 
         {showNutrition ? (
-          <div style={{ marginTop: 16 }}>
+          <div className="nutrition-reveal">
             {recipe.nutrition ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <p style={{ marginBottom: 0 }}>
-                  {lang === "de"
-                    ? `Pro Portion, basierend auf ${recipe.servings || 1} Portion${recipe.servings === 1 ? "" : "en"}.`
-                    : `Per serving, based on ${recipe.servings || 1} serving${recipe.servings === 1 ? "" : "s"}.`}
-                </p>
+              <div className="nutrition-stack">
+                <div className="nutrition-hero">
+                  <div className="nutrition-calorie-dial" aria-label={lang === "de" ? "Kalorien pro Portion" : "Calories per serving"}>
+                    <span>{recipe.nutrition.calories_kcal || "--"}</span>
+                    <small>kcal</small>
+                  </div>
+                  <div>
+                    <p className="eyebrow">{lang === "de" ? "Pro Portion" : "Per serving"}</p>
+                    <p style={{ marginBottom: 0 }}>
+                      {lang === "de"
+                        ? `Basierend auf ${recipe.servings || 1} Portion${recipe.servings === 1 ? "" : "en"}.`
+                        : `Based on ${recipe.servings || 1} serving${recipe.servings === 1 ? "" : "s"}.`}
+                    </p>
+                    {nutritionHighlights.length > 0 ? (
+                      <div className="nutrition-highlight-row">
+                        {nutritionHighlights.map((item) => (
+                          <span key={item.key} className="nutrition-highlight">
+                            <strong>{item.dailyPercent}%</strong>
+                            {item.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+                {macroBalance.length > 0 ? (
+                  <div className="macro-card">
+                    <div className="macro-bar" aria-label={lang === "de" ? "Makronahrstoff-Verteilung" : "Macronutrient balance"}>
+                      {macroBalance.map((item) => (
+                        <span key={item.key} className={`macro-segment macro-${item.key}`} style={{ width: `${item.percent}%` }} />
+                      ))}
+                    </div>
+                    <div className="macro-legend">
+                      {macroBalance.map((item) => (
+                        <span key={item.key}>
+                          <i className={`macro-dot macro-${item.key}`} />
+                          {lang === "de" ? item.label_de : item.label_en}: {item.value}g
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="nutrition-fact-grid">
                   {nutritionItems.map((item) => (
-                    <div key={item.label_en} className="chip" style={{ justifyContent: "space-between" }}>
-                      <span>{lang === "de" ? item.label_de : item.label_en}</span>
-                      <strong>
-                        {item.value}
-                        {item.unit ? ` ${item.unit}` : ""}
-                      </strong>
+                    <div key={item.key} className={`nutrition-fact-card nutrition-${item.group}`}>
+                      <div className="nutrition-fact-topline">
+                        <span>{item.label}</span>
+                        <strong>
+                          {item.value}
+                          {item.unit ? ` ${item.unit}` : ""}
+                        </strong>
+                      </div>
+                      {item.dailyPercent !== null ? (
+                        <div className="nutrition-dv">
+                          <span style={{ width: `${Math.min(item.dailyPercent, 100)}%` }} />
+                          <small>{item.dailyPercent}% DV</small>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

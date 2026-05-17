@@ -41,8 +41,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 12%, rgba(36, 115, 110, 0.16), transparent 26%),
-    radial-gradient(circle at 86% 8%, rgba(196, 92, 54, 0.18), transparent 25%),
+    linear-gradient(120deg, rgba(36, 115, 110, 0.08), transparent 30%),
+    linear-gradient(240deg, rgba(196, 92, 54, 0.09), transparent 28%),
     linear-gradient(180deg, #f9f6ef 0%, var(--background) 46%, #eee5d8 100%);
   color: var(--foreground);
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
@@ -205,6 +205,7 @@ p {
   padding: 20px;
   margin-bottom: 14px;
   box-shadow: var(--shadow);
+  animation: rise-in 0.5s ease both;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
@@ -242,6 +243,7 @@ p {
 .button:hover {
   transform: translateY(-1px);
   border-color: rgba(180, 87, 44, 0.35);
+  box-shadow: 0 12px 28px rgba(78, 49, 28, 0.12);
 }
 
 /* Primary action variant for saves and important actions. */
@@ -519,6 +521,23 @@ ul {
   display: flex;
   min-height: 100%;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.recipe-preview-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 16px 0;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(90deg, var(--teal), var(--accent), var(--gold));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.28s ease;
+}
+
+.recipe-preview-card:hover::after {
+  transform: scaleX(1);
 }
 
 .recipe-card-body {
@@ -585,6 +604,7 @@ ul {
     linear-gradient(135deg, rgba(255, 252, 246, 0.96), rgba(255, 247, 235, 0.76)),
     linear-gradient(135deg, rgba(36, 115, 110, 0.12), rgba(196, 92, 54, 0.14));
   box-shadow: 0 24px 60px rgba(78, 49, 28, 0.1);
+  animation: rise-in 0.55s ease both;
 }
 
 .hero-copy {
@@ -603,6 +623,104 @@ ul {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.hero-side {
+  display: grid;
+  justify-items: end;
+  gap: 14px;
+}
+
+.cookbook-graphic {
+  position: relative;
+  width: 180px;
+  min-height: 134px;
+  display: grid;
+  place-items: end center;
+  padding-top: 18px;
+}
+
+.plate-graphic {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  overflow: hidden;
+  border: 1px solid rgba(77, 61, 48, 0.18);
+  border-radius: 50%;
+  background: #fffaf3;
+  box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.78), 0 18px 36px rgba(78, 49, 28, 0.12);
+  animation: slow-turn 14s linear infinite;
+}
+
+.plate-section {
+  position: absolute;
+  inset: 10px;
+  transform-origin: 50% 50%;
+  clip-path: polygon(50% 50%, 100% 0, 100% 100%);
+}
+
+.plate-protein {
+  background: rgba(68, 104, 176, 0.72);
+  transform: rotate(0deg);
+}
+
+.plate-carb {
+  background: rgba(183, 134, 29, 0.72);
+  transform: rotate(122deg);
+}
+
+.plate-fiber {
+  background: rgba(36, 115, 110, 0.72);
+  transform: rotate(242deg);
+}
+
+.steam-line {
+  position: absolute;
+  top: 0;
+  width: 24px;
+  height: 48px;
+  border-left: 2px solid rgba(147, 66, 34, 0.28);
+  border-radius: 50%;
+  animation: steam-rise 3.6s ease-in-out infinite;
+}
+
+.steam-one {
+  right: 66px;
+}
+
+.steam-two {
+  right: 96px;
+  animation-delay: 0.9s;
+}
+
+.graphic-bars {
+  position: absolute;
+  right: 4px;
+  bottom: 16px;
+  width: 54px;
+  display: grid;
+  gap: 6px;
+}
+
+.graphic-bars span {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(36, 115, 110, 0.72);
+  transform-origin: left center;
+  animation: pulse-bar 2.4s ease-in-out infinite;
+}
+
+.graphic-bars span:nth-child(2) {
+  width: 76%;
+  background: rgba(196, 92, 54, 0.72);
+  animation-delay: 0.25s;
+}
+
+.graphic-bars span:nth-child(3) {
+  width: 58%;
+  background: rgba(183, 134, 29, 0.72);
+  animation-delay: 0.5s;
 }
 
 .user-pill {
@@ -874,6 +992,277 @@ ul {
   border-color: transparent;
 }
 
+.nutrition-panel {
+  overflow: hidden;
+}
+
+.nutrition-panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nutrition-reveal {
+  margin-top: 16px;
+  animation: rise-in 0.38s ease both;
+}
+
+.nutrition-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nutrition-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(77, 61, 48, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(36, 115, 110, 0.12), rgba(196, 92, 54, 0.1)),
+    rgba(255, 250, 241, 0.72);
+  padding: 16px;
+}
+
+.nutrition-calorie-dial {
+  width: 116px;
+  height: 116px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border-radius: 50%;
+  border: 10px solid rgba(255, 255, 255, 0.76);
+  background:
+    conic-gradient(from 210deg, var(--accent), var(--gold), var(--teal), var(--accent)),
+    #fffaf3;
+  color: #fffaf3;
+  box-shadow: 0 18px 36px rgba(78, 49, 28, 0.14);
+  animation: glow-breathe 4s ease-in-out infinite;
+}
+
+.nutrition-calorie-dial span {
+  color: #fffaf3;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.nutrition-calorie-dial small {
+  color: rgba(255, 250, 243, 0.86);
+  font-weight: 700;
+}
+
+.nutrition-highlight-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.nutrition-highlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(36, 115, 110, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 0.4rem 0.62rem;
+  color: #2f7461;
+}
+
+.macro-card {
+  border: 1px solid rgba(77, 61, 48, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 250, 241, 0.62);
+  padding: 14px;
+}
+
+.macro-bar {
+  display: flex;
+  width: 100%;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(77, 61, 48, 0.1);
+}
+
+.macro-segment {
+  display: block;
+  min-width: 3px;
+  animation: bar-grow 0.8s ease both;
+}
+
+.macro-protein {
+  background: #4468b0;
+}
+
+.macro-carbs {
+  background: #b7861d;
+}
+
+.macro-fat {
+  background: #c45c36;
+}
+
+.macro-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.macro-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.macro-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  display: inline-block;
+  border-radius: 999px;
+}
+
+.nutrition-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.nutrition-fact-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(77, 61, 48, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 250, 241, 0.82);
+  padding: 12px;
+}
+
+.nutrition-energy {
+  border-color: rgba(196, 92, 54, 0.24);
+}
+
+.nutrition-macro {
+  border-color: rgba(68, 104, 176, 0.2);
+}
+
+.nutrition-mineral {
+  border-color: rgba(36, 115, 110, 0.2);
+}
+
+.nutrition-vitamin {
+  border-color: rgba(183, 134, 29, 0.22);
+}
+
+.nutrition-fact-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.nutrition-fact-topline strong {
+  white-space: nowrap;
+}
+
+.nutrition-dv {
+  display: grid;
+  gap: 5px;
+}
+
+.nutrition-dv span {
+  display: block;
+  height: 6px;
+  max-width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal), var(--gold));
+  animation: bar-grow 0.7s ease both;
+}
+
+.nutrition-dv small {
+  color: var(--muted);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slow-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes steam-rise {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(10px) scaleY(0.8);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-8px) scaleY(1);
+  }
+}
+
+@keyframes pulse-bar {
+  0%,
+  100% {
+    transform: scaleX(0.72);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes glow-breathe {
+  0%,
+  100% {
+    filter: saturate(0.96);
+    transform: scale(1);
+  }
+  50% {
+    filter: saturate(1.08);
+    transform: scale(1.025);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 /* Small rhythm helper for direct children inside the page container. */
 main.container > div + div,
 main.container > input,
@@ -914,6 +1303,24 @@ main.container > p {
 
   .hero-actions {
     justify-content: flex-start;
+  }
+
+  .hero-side {
+    justify-items: start;
+  }
+
+  .cookbook-graphic {
+    width: 150px;
+    min-height: 118px;
+  }
+
+  .plate-graphic {
+    width: 96px;
+    height: 96px;
+  }
+
+  .nutrition-hero {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-strip {
