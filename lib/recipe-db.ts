@@ -17,6 +17,7 @@ import type {
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
 import { normalizeRecipe, parseTagInput, serializeInstructionSections, splitRecipeSteps } from "@/lib/recipe-types";
+import { estimateIngredientWeightGrams, normalizeRecipeIngredientOntology, resolveIngredientEntity } from "@/lib/ingredient-ontology";
 
 // RECIPE DATABASE MAP
 // Forms use friendly draft state like "title", "badges", and "ingredientGroups".
@@ -36,12 +37,38 @@ export function buildIngredientPayload(groups: IngredientGroupDraft[]): RecipeIn
     .map((group) => {
       const items: RecipeIngredient[] = group.items
         .filter((ingredient) => ingredient.name_en.trim())
-        .map((ingredient) => ({
-          name_en: ingredient.name_en.trim(),
-          name_de: ingredient.name_de.trim() || ingredient.name_en.trim(),
-          amount: ingredient.amount.trim() ? ingredient.amount.trim() : null,
-          unit: ingredient.unit.trim(),
-        }));
+        .map((ingredient) => {
+          const baseIngredient: RecipeIngredient = {
+            id: "",
+            ingredientId: "",
+            canonicalName: ingredient.name_en.trim().toLowerCase(),
+            name_en: ingredient.name_en.trim(),
+            name_de: ingredient.name_de.trim() || ingredient.name_en.trim(),
+            amount: ingredient.amount.trim() ? ingredient.amount.trim() : null,
+            quantity: ingredient.amount.trim() ? ingredient.amount.trim() : null,
+            unit: ingredient.unit.trim(),
+            preparation: ingredient.preparation?.trim() ?? "",
+            optional: Boolean(ingredient.optional),
+            garnish: Boolean(ingredient.garnish),
+            approximate: Boolean(ingredient.approximate),
+            estimatedWeightGrams: null,
+            defaultUnit: "",
+          };
+          const entity = resolveIngredientEntity(baseIngredient.name_en);
+          const ontology = normalizeRecipeIngredientOntology(baseIngredient);
+          const estimatedWeightGrams = estimateIngredientWeightGrams(baseIngredient);
+
+          return {
+            ...baseIngredient,
+            id: `${group.group_en.trim() || "Main"}-${baseIngredient.name_en}-${baseIngredient.unit}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            ingredientId: ontology.ingredientId,
+            canonicalName: entity?.canonicalName ?? baseIngredient.canonicalName,
+            quantity: ontology.quantity,
+            unit: ontology.unit,
+            estimatedWeightGrams,
+            defaultUnit: entity?.defaultUnit ?? "",
+          };
+        });
 
       return {
         group_en: group.group_en.trim() || "Main",

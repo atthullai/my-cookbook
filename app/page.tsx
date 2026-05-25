@@ -14,6 +14,7 @@ import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
 import { getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
+import { nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
@@ -123,6 +124,10 @@ export default function Home() {
   });
 
   const latestRecipes = filteredRecipes.slice(0, 6);
+  const todayPick = filteredRecipes.find((recipe) => recipe.course?.toLowerCase().includes("dinner")) ?? filteredRecipes[0];
+  const pantrySuggestions = filteredRecipes
+    .filter((recipe) => recipe.ingredients.some((group) => group.items.some((item) => /rice|dal|onion|tomato|salt|oil/i.test(item.name_en))))
+    .slice(0, 3);
   const cuisineCount = cuisines.length;
   const badgeCount = badges.length;
 
@@ -230,6 +235,56 @@ export default function Home() {
         </div>
       </div>
 
+      <section className="dashboard-command-grid" aria-label="Cooking dashboard">
+        <div className="card today-card">
+          <p className="eyebrow">What to cook today</p>
+          {todayPick ? (
+            <>
+              <h2>{getRecipeTitle(todayPick, lang)}</h2>
+              <p>{todayPick.description_en || [todayPick.cuisine, todayPick.course].filter(Boolean).join(" • ")}</p>
+              <Link href={`/recipe/${todayPick.id}`} className="button button-primary">
+                <AppIcon name="quick" size={16} />
+                Start cooking
+              </Link>
+            </>
+          ) : (
+            <p>No recipe data yet. Add a recipe or import one to start planning.</p>
+          )}
+        </div>
+        <div className="card meal-plan-card">
+          <p className="eyebrow">Weekly meal overview</p>
+          <div className="meal-week-grid">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, dayIndex) => (
+              <div key={stableCompositeId("week", day)} className="meal-day">
+                <strong>{day}</strong>
+                <span>{filteredRecipes[dayIndex % Math.max(filteredRecipes.length, 1)]?.title_en || "Plan meal"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card pantry-card">
+          <p className="eyebrow">Pantry suggestions</p>
+          <div className="compact-list">
+            {(pantrySuggestions.length > 0 ? pantrySuggestions : latestRecipes.slice(0, 3)).map((recipe) => (
+              <Link key={stableCompositeId("pantry", recipe.id)} href={`/recipe/${recipe.id}`}>
+                {getRecipeTitle(recipe, lang)}
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div className="card grocery-card">
+          <p className="eyebrow">Quick grocery actions</p>
+          <div className="section-link-grid">
+            <Link href="/recipes" className="button">
+              Generate list
+            </Link>
+            <Link href="/add" className="button">
+              Add pantry item
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <div className="card card-accent browse-panel">
         <div>
           <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
@@ -296,7 +351,7 @@ export default function Home() {
               All badges
             </button>
             {badges.map((badge) => (
-              <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
+              <BadgeChip key={stableCompositeId("home-filter", badge)} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
             ))}
           </div>
         ) : null}
@@ -332,10 +387,14 @@ export default function Home() {
                     </h2>
                     <div className="recipe-card-meta">
                       {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
-                        <span className="meta-pill" key={item}>{item}</span>
+                        <span className="meta-pill" key={stableCompositeId(recipe.id, "meta", item)}>{item}</span>
                       ))}
-                      {[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).map((item) => (
-                        <span className="meta-pill" key={item}>{item}</span>
+                      {[
+                        ["prep", recipe.prep_time],
+                        ["cook", recipe.cook_time],
+                        ["total", recipe.total_time],
+                      ].filter((item): item is [string, string] => Boolean(item[1])).map(([slot, item]) => (
+                        <span className="meta-pill" key={recipeTimingId(recipe.id, slot, item)}>{item}</span>
                       ))}
                     </div>
                     <p style={{ marginTop: 10, marginBottom: 0 }}>
@@ -360,7 +419,7 @@ export default function Home() {
                   {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
                     <div className="filter-chips" style={{ marginTop: 0 }}>
                       {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                        <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
+                        <BadgeChip key={badge.startsWith("Good") || badge.startsWith("Excellent") ? nutritionTagId(recipe.id, badge) : recipeBadgeId(recipe.id, badge)} badge={badge} lang={lang} />
                       ))}
                     </div>
                   ) : null}

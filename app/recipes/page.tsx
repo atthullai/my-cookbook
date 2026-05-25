@@ -15,6 +15,7 @@ import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
 import { EMPTY_NUTRITION, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty } from "@/lib/recipe-types";
 import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
+import { nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
 import { supabase } from "@/lib/supabase";
 
 export default function RecipeIndexPage() {
@@ -398,7 +399,7 @@ export default function RecipeIndexPage() {
               All badges
             </button>
             {badges.map((badge) => (
-              <BadgeChip key={badge} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
+              <BadgeChip key={stableCompositeId("index-filter", badge)} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
             ))}
           </div>
         ) : null}
@@ -433,10 +434,14 @@ export default function RecipeIndexPage() {
                       <p className="recipe-card-description" style={{ marginBottom: 0 }}>{lang === "de" && recipe.description_de ? recipe.description_de : recipe.description_en}</p>
                       <div className="recipe-card-meta">
                         {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
-                          <span className="meta-pill" key={item}>{item}</span>
+                          <span className="meta-pill" key={stableCompositeId(recipe.id, "meta", item)}>{item}</span>
                         ))}
-                        {[recipe.prep_time, recipe.cook_time, recipe.total_time].filter(Boolean).map((item) => (
-                          <span className="meta-pill" key={item}>{item}</span>
+                        {[
+                          ["prep", recipe.prep_time],
+                          ["cook", recipe.cook_time],
+                          ["total", recipe.total_time],
+                        ].filter((item): item is [string, string] => Boolean(item[1])).map(([slot, item]) => (
+                          <span className="meta-pill" key={recipeTimingId(recipe.id, slot, item)}>{item}</span>
                         ))}
                       </div>
                       <p style={{ marginBottom: 0 }}>
@@ -447,7 +452,7 @@ export default function RecipeIndexPage() {
                       {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
                         <div className="filter-chips" style={{ marginTop: 0 }}>
                           {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                            <BadgeChip key={`${recipe.id}-${badge}`} badge={badge} lang={lang} />
+                            <BadgeChip key={badge.startsWith("Good") || badge.startsWith("Excellent") ? nutritionTagId(recipe.id, badge) : recipeBadgeId(recipe.id, badge)} badge={badge} lang={lang} />
                           ))}
                         </div>
                       ) : null}

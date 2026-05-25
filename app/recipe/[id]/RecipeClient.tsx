@@ -6,7 +6,7 @@
 // If the recipe page looks wrong or you want a new reader feature, this is the file to edit.
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppIcon from "@/components/AppIcon";
 import BadgeChip from "@/components/BadgeChip";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
@@ -35,6 +35,8 @@ import {
   hasNotes,
   parseInstructionSections,
 } from "@/lib/recipe-view";
+import { calculateHealthScore, normalizeRecipeIngredientOntology } from "@/lib/ingredient-ontology";
+import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
@@ -43,10 +45,19 @@ type RecipeClientProps = {
 export default function RecipeClient({ recipe }: RecipeClientProps) {
   // These local UI states are purely for the reader experience and are not persisted to the database.
   const [multiplier, setMultiplier] = useState(1);
-  const [checked, setChecked] = useState<string[]>([]);
+  const checkedStorageKey = `cookbook:recipe:${recipe.id}:checked-ingredients`;
+  const [checked, setChecked] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    const stored = window.localStorage.getItem(checkedStorageKey);
+    return stored ? (JSON.parse(stored) as string[]) : [];
+  });
   const [checkedEquipment, setCheckedEquipment] = useState<string[]>([]);
   const [lang, setLang] = useState<AppLanguage>("en");
   const [showNutrition, setShowNutrition] = useState(Boolean(recipe.nutrition));
+  const [activeStep, setActiveStep] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [isCookingMode, setIsCookingMode] = useState(false);
 
   // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
   const parseAmount = (value: RecipeAmount): number | null => {
@@ -122,13 +133,46 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const nutritionItems = getNutritionItems(recipe, lang);
   const macroBalance = getMacroBalance(recipe);
   const nutritionHighlights = getNutritionHighlights(recipe, lang);
+  const healthScore = calculateHealthScore(recipe.nutrition ?? null);
+  const allSteps = useMemo(
+    () =>
+      recipeSections.flatMap((section) =>
+        section.steps.map((step, index) => ({
+          section: section.title,
+          step,
+          id: cookingStepId(recipe.id, section.title, step, index),
+        }))
+      ),
+    [recipe.id, recipeSections]
+  );
+  useEffect(() => {
+    window.localStorage.setItem(checkedStorageKey, JSON.stringify(checked));
+  }, [checked, checkedStorageKey]);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    const interval = window.setInterval(() => {
+      setTimerSeconds((current) => {
+        const next = Math.max(0, current - 1);
+        if (next === 0) {
+          window.setTimeout(() => setTimerRunning(false), 0);
+        }
+        return next;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [timerRunning]);
 
   const handlePrint = () => {
     window.print();
   };
 
+  const timerLabel = `${Math.floor(timerSeconds / 60)
+    .toString()
+    .padStart(2, "0")}:${(timerSeconds % 60).toString().padStart(2, "0")}`;
+
   return (
-    <div style={{ marginTop: 16 }}>
+    <div className={isCookingMode ? "cooking-mode-shell" : ""} style={{ marginTop: 16 }}>
       {/* Keep header controls together because language and serving size both change the same recipe view. */}
       <div className="hero-panel" style={{ marginBottom: 20 }}>
         <div className="hero-copy">
@@ -145,6 +189,10 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <button className="button" type="button" onClick={handlePrint}>
             <AppIcon name="print" size={16} />
             Print
+          </button>
+          <button className="button button-primary" type="button" onClick={() => setIsCookingMode((current) => !current)}>
+            <AppIcon name="quick" size={16} />
+            {isCookingMode ? "Exit Cooking" : "Cooking Mode"}
           </button>
           <div className="segmented-control" aria-label="Recipe language">
             <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
@@ -168,17 +216,17 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <h2 style={{ marginBottom: 10 }}>{lang === "de" ? "Auf einen Blick" : "At a Glance"}</h2>
           <div className="recipe-card-meta">
             {[recipe.category, getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
-              <span className="meta-pill" key={item}>{item}</span>
+              <span className="meta-pill" key={stableCompositeId(recipe.id, "summary", item)}>{item}</span>
             ))}
             {highlights.map((highlight) => (
-              <span key={highlight} className="meta-pill">{highlight}</span>
+              <span key={recipeTimingId(recipe.id, "highlight", highlight)} className="meta-pill">{highlight}</span>
             ))}
           </div>
 
           {displayBadges.length > 0 ? (
             <div className="filter-chips">
               {displayBadges.map((badge) => (
-                <BadgeChip key={badge} badge={badge} lang={lang} />
+                <BadgeChip key={recipeBadgeId(recipe.id, badge)} badge={badge} lang={lang} />
               ))}
             </div>
           ) : null}
@@ -186,7 +234,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           {recipe.tags.length > 0 ? (
             <div className="filter-chips">
               {recipe.tags.map((tag) => (
-                <span key={`${recipe.id}-${tag}`} className="chip">
+                <span key={stableCompositeId(recipe.id, "tag", tag)} className="chip">
                   {tag}
                 </span>
               ))}
@@ -266,7 +314,38 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             </button>
           ))}
         </div>
+        <p style={{ marginTop: 10, marginBottom: 0 }}>
+          {lang === "de" ? "Mengen skalieren sauber von der Basisportion." : "Amounts scale cleanly from the base serving size."}
+        </p>
       </div>
+
+      <div className="cooking-toolbar" aria-label="Cooking controls">
+        <button className="button" type="button" onClick={() => setActiveStep((current) => Math.max(0, current - 1))}>
+          Previous
+        </button>
+        <span className="toolbar-status">
+          Step {allSteps.length === 0 ? 0 : activeStep + 1} / {allSteps.length}
+        </span>
+        <button className="button" type="button" onClick={() => setActiveStep((current) => Math.min(Math.max(allSteps.length - 1, 0), current + 1))}>
+          Next
+        </button>
+        <button className="button button-soft" type="button" onClick={() => setTimerSeconds(300)}>
+          5 min
+        </button>
+        <button className="button button-soft" type="button" onClick={() => setTimerSeconds(600)}>
+          10 min
+        </button>
+        <button className="button" type="button" onClick={() => setTimerRunning((current) => !current)} disabled={timerSeconds === 0}>
+          {timerRunning ? "Pause" : "Start"} {timerLabel}
+        </button>
+      </div>
+
+      {isCookingMode && allSteps[activeStep] ? (
+        <div className="card cooking-focus-card">
+          <p className="eyebrow">{allSteps[activeStep].section}</p>
+          <h2>{allSteps[activeStep].step}</h2>
+        </div>
+      ) : null}
 
       {/* Ingredients and equipment both use checklist-style interactions because they are "work through" sections. */}
       <div className="reader-section-grid">
@@ -275,15 +354,16 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             <h3>{lang === "de" ? "Zutaten" : "Ingredients"}</h3>
 
             {ingredientGroups.map((group, groupIndex) => (
-              <div key={`${group.group_en}-${groupIndex}`} style={{ marginBottom: 16 }}>
+              <div key={ingredientGroupId(recipe.id, group.group_en, groupIndex)} style={{ marginBottom: 16 }}>
                 <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{getIngredientGroupLabel(group, lang)}</h4>
 
                 {group.items.map((ingredient, ingredientIndex) => {
-                  const itemId = `${groupIndex}-${ingredientIndex}`;
+                  const itemId = ingredientRowId(recipe.id, group.group_en, getIngredientLabel(ingredient, lang), ingredientIndex);
                   const isChecked = checked.includes(itemId);
                   const baseAmount = parseAmount(ingredient.amount);
                   const scaledAmount = baseAmount === null ? null : baseAmount * multiplier;
                   const amountLabel = scaledAmount === null ? "" : formatAmount(scaledAmount);
+                  const ontology = normalizeRecipeIngredientOntology(ingredient);
 
                   return (
                     <button key={itemId} type="button" onClick={() => toggleCheck(itemId)} className="check-row" style={{ opacity: isChecked ? 0.55 : 1 }}>
@@ -292,7 +372,11 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                         {amountLabel}
                         {ingredient.unit ? ` ${ingredient.unit}` : ""}
                         {getIngredientLabel(ingredient, lang) ? ` ${getIngredientLabel(ingredient, lang)}` : ""}
+                        {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
+                        {ingredient.optional ? " (optional)" : ""}
+                        {ingredient.garnish ? " (garnish)" : ""}
                       </span>
+                      <span className="ingredient-weight">{ontology.estimatedWeightGrams}g est.</span>
                     </button>
                   );
                 })}
@@ -305,7 +389,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
               <h3>{lang === "de" ? "Equipment" : "Equipment"}</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {recipe.equipment.map((item) => (
-                  <button key={item.label_en} type="button" onClick={() => toggleEquipmentCheck(item.label_en)} className="check-row">
+                  <button key={stableCompositeId(recipe.id, "equipment", item.label_en)} type="button" onClick={() => toggleEquipmentCheck(item.label_en)} className="check-row">
                     <span className={checkedEquipment.includes(item.label_en) ? "checkmark-box checked" : "checkmark-box"}>
                       {checkedEquipment.includes(item.label_en) ? "✓" : ""}
                     </span>
@@ -323,11 +407,11 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <h3>{lang === "de" ? "Anleitung" : "Instructions"}</h3>
 
           {recipeSections.map((section, sectionIndex) => (
-            <div key={`${section.title}-${sectionIndex}`} style={{ marginBottom: 16 }}>
+            <div key={stableCompositeId(recipe.id, "section", section.title, sectionIndex)} style={{ marginBottom: 16 }}>
               {section.title && recipeSections.length > 1 ? <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{section.title}</h4> : null}
               <ol className="instruction-list">
                 {section.steps.map((step, index) => (
-                  <li key={`${section.title}-${index}`} style={{ listStyle: "decimal" }}>
+                  <li key={cookingStepId(recipe.id, section.title, step, index)} className={allSteps[activeStep]?.step === step ? "active-step" : ""} style={{ listStyle: "decimal" }}>
                     {step}
                   </li>
                 ))}
@@ -342,7 +426,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <h3>{lang === "de" ? "Schritt-fur-Schritt Fotos" : "Step-by-Step Photos"}</h3>
           <div className="photo-grid">
             {stepPhotos.map((item, index) => (
-              <div key={`${item.image_url}-${index}`}>
+              <div key={stableCompositeId(recipe.id, "step-photo", item.image_url, item.step_number, index)}>
                 <Image
                   src={item.image_url}
                   alt={`${recipeTitle} step ${item.step_number || index + 1}`}
@@ -379,7 +463,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <h3>FAQ</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {faqItems.map((item, index) => (
-              <div key={`${item.question_en}-${index}`}>
+              <div key={stableCompositeId(recipe.id, "faq", item.question_en, index)}>
                 <h4 style={{ marginBottom: 6 }}>{lang === "de" ? item.question_de || item.question_en : item.question_en}</h4>
                 <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
                   {lang === "de" ? item.answer_de || item.answer_en : item.answer_en}
@@ -395,7 +479,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <h3>{lang === "de" ? "Fehlersuche" : "Troubleshooting"}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {troubleshootingItems.map((item, index) => (
-              <div key={`${item.issue_en}-${index}`}>
+              <div key={stableCompositeId(recipe.id, "troubleshooting", item.issue_en, index)}>
                 <h4 style={{ marginBottom: 6 }}>{lang === "de" ? item.issue_de || item.issue_en : item.issue_en}</h4>
                 <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
                   {lang === "de" ? item.fix_de || item.fix_en : item.fix_en}
@@ -425,6 +509,25 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         </div>
       ) : null}
+
+      <div className="reader-section-grid">
+        <div className="card">
+          <h3>{lang === "de" ? "Ersetzungen" : "Substitutions"}</h3>
+          <div className="compact-list">
+            <span>Ghee {"->"} neutral oil or butter</span>
+            <span>Coriander leaves {"->"} parsley or mint</span>
+            <span>Chili heat {"->"} paprika for a softer family version</span>
+          </div>
+        </div>
+        <div className="card">
+          <h3>{lang === "de" ? "Aehnliche Rezepte" : "Related Recipes"}</h3>
+          <p style={{ marginBottom: 0 }}>
+            {recipe.course || recipe.cuisine
+              ? `Browse more ${[recipe.cuisine, recipe.course].filter(Boolean).join(" ")} recipes from the index.`
+              : "Related recipe matching will use cuisine, course, ingredient overlap, and recent cooking history."}
+          </p>
+        </div>
+      </div>
 
       <div className="card nutrition-panel" style={{ marginTop: 20 }}>
         <div className="nutrition-panel-header">
@@ -461,7 +564,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                     {nutritionHighlights.length > 0 ? (
                       <div className="nutrition-highlight-row">
                         {nutritionHighlights.map((item) => (
-                          <span key={item.key} className="nutrition-highlight">
+                          <span key={nutritionTagId(recipe.id, item.key)} className="nutrition-highlight">
                             <strong>{item.dailyPercent}%</strong>
                             {item.label}
                           </span>
@@ -475,12 +578,12 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   <div className="macro-card">
                     <div className="macro-bar" aria-label={lang === "de" ? "Makronahrstoff-Verteilung" : "Macronutrient balance"}>
                       {macroBalance.map((item) => (
-                        <span key={item.key} className={`macro-segment macro-${item.key}`} style={{ width: `${item.percent}%` }} />
+                        <span key={nutritionTagId(recipe.id, item.key)} className={`macro-segment macro-${item.key}`} style={{ width: `${item.percent}%` }} />
                       ))}
                     </div>
                     <div className="macro-legend">
                       {macroBalance.map((item) => (
-                        <span key={item.key}>
+                        <span key={nutritionTagId(recipe.id, `legend-${item.key}`)}>
                           <i className={`macro-dot macro-${item.key}`} />
                           {lang === "de" ? item.label_de : item.label_en}: {item.value}g
                         </span>
@@ -490,8 +593,16 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                 ) : null}
 
                 <div className="nutrition-fact-grid">
+                  {healthScore !== null ? (
+                    <div className="nutrition-fact-card nutrition-energy">
+                      <div className="nutrition-fact-topline">
+                        <span>{lang === "de" ? "Gesundheitswert" : "Health score"}</span>
+                        <strong>{healthScore}/100</strong>
+                      </div>
+                    </div>
+                  ) : null}
                   {nutritionItems.map((item) => (
-                    <div key={item.key} className={`nutrition-fact-card nutrition-${item.group}`}>
+                    <div key={nutritionTagId(recipe.id, item.key)} className={`nutrition-fact-card nutrition-${item.group}`}>
                       <div className="nutrition-fact-topline">
                         <span>{item.label}</span>
                         <strong>

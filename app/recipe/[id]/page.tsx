@@ -20,13 +20,38 @@ export default function RecipePage() {
   // This wrapper fetches the recipe; RecipeClient handles display logic and interactions.
   const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const fetchRecipe = async () => {
+    setLoading(true);
+    setErrorMessage("");
+
+    if (!recipeId) {
+      setRecipe(null);
+      setErrorMessage("Invalid recipe URL");
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase.from("recipes").select("*").eq("id", recipeId).single();
+
+    if (error || !data) {
+      setRecipe(null);
+      setErrorMessage(error?.message || "This recipe may have been deleted");
+    } else {
+      setRecipe(normalizeRecipe(data));
+    }
+
+    setLoading(false);
+  };
 
   useEffect(() => {
     // Guard against setting state if the component unmounts before Supabase returns.
     let isMounted = true;
 
-    const fetchRecipe = async () => {
+    const loadRecipe = async () => {
       if (!recipeId) {
+        setErrorMessage("Invalid recipe URL");
         setLoading(false);
         return;
       }
@@ -38,6 +63,7 @@ export default function RecipePage() {
 
       if (error || !data) {
         setRecipe(null);
+        setErrorMessage(error?.message || "This recipe may have been deleted");
       } else {
         // Convert the raw DB row into the normalized front-end recipe shape.
         setRecipe(normalizeRecipe(data));
@@ -46,7 +72,7 @@ export default function RecipePage() {
       setLoading(false);
     };
 
-    void fetchRecipe();
+    void loadRecipe();
 
     return () => {
       isMounted = false;
@@ -56,7 +82,30 @@ export default function RecipePage() {
   if (loading) {
     return (
       <main className="container">
-        <div className="empty-state">Loading recipe...</div>
+        <div className="skeleton-page" aria-label="Recipe is still loading">
+          <div className="skeleton-line wide" />
+          <div className="skeleton-line" />
+          <div className="skeleton-card" />
+          <div className="skeleton-grid">
+            <div className="skeleton-card" />
+            <div className="skeleton-card" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!recipeId) {
+    return (
+      <main className="container">
+        <Link href="/" className="back-link">
+          Back to cookbook
+        </Link>
+        <div className="empty-state empty-state-action">
+          <h1>Invalid recipe URL</h1>
+          <p>This recipe link does not include a valid recipe id.</p>
+          <Link href="/recipes" className="button button-primary">Open recipe index</Link>
+        </div>
       </main>
     );
   }
@@ -67,7 +116,16 @@ export default function RecipePage() {
         <Link href="/" className="back-link">
           Back to cookbook
         </Link>
-        <div className="empty-state">Recipe not found.</div>
+        <div className="empty-state empty-state-action">
+          <h1>Recipe not found</h1>
+          <p>{errorMessage || "This recipe may have been deleted, private, still importing, or unavailable offline."}</p>
+          <div className="section-link-grid">
+            <button className="button button-primary" type="button" onClick={() => void fetchRecipe()}>
+              Retry
+            </button>
+            <Link href="/recipes" className="button">Open recipe index</Link>
+          </div>
+        </div>
       </main>
     );
   }

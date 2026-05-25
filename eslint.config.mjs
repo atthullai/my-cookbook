@@ -17,6 +17,19 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "JSXAttribute[name.name='key'] JSXExpressionContainer > Identifier[name=/^(index|.*Index)$/]",
+          message:
+            "Do not use array indexes as React keys. Use a stable recipe, ingredient, badge, timing, nutrition, or step id.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

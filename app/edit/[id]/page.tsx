@@ -229,7 +229,7 @@ export default function EditRecipe() {
   const updateIngredientGroup = (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => {
     setIngredientGroups((current) => current.map((group, index) => (index === groupIndex ? { ...group, [field]: value } : group)));
   };
-  const updateIngredient = (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string) => {
+  const updateIngredient = (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string | boolean) => {
     setIngredientGroups((current) =>
       current.map((group, currentGroupIndex) =>
         currentGroupIndex === groupIndex

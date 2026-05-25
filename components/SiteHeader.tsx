@@ -11,6 +11,8 @@ import AppIcon from "@/components/AppIcon";
 const navItems = [
   { href: "/", label: "Home", icon: "home" as const },
   { href: "/recipes", label: "Recipes", icon: "book" as const },
+  { href: "/planner", label: "Planner", icon: "quick" as const },
+  { href: "/pantry", label: "Pantry", icon: "onepot" as const },
   { href: "/about", label: "About Me", icon: "about" as const },
   { href: "/add", label: "Add Recipe", icon: "add" as const },
 ];

@@ -1,4 +1,5 @@
 import type { IngredientGroupDraft, NutritionDraft } from "@/lib/recipe-types";
+import { estimateIngredientWeightGrams } from "@/lib/ingredient-ontology";
 
 // USDA NUTRITION MAP
 // This file estimates nutrition by searching the USDA FoodData Central API for each ingredient.
@@ -158,8 +159,16 @@ const GENERIC_UNIT_TO_GRAMS: Record<string, number> = {
   pounds: 453.59,
   pinch: 0.35,
   dash: 0.6,
+  handful: 18,
+  handfuls: 18,
+  sprig: 2,
+  sprigs: 2,
+  leaf: 0.12,
+  leaves: 0.12,
   clove: 3,
   cloves: 3,
+  bunch: 30,
+  bunches: 30,
   slice: 28,
   slices: 28,
   piece: 50,
@@ -562,7 +571,23 @@ export async function estimateNutritionFromIngredients(input: {
     }
 
     const quantity = resolveIngredientQuantity(ingredient.amount, ingredient.unit);
-    const grams = resolveGramWeight(searchResult, quantity.amount, quantity.unit, foodQuery);
+    const ontologyGrams = estimateIngredientWeightGrams({
+      id: "",
+      ingredientId: "",
+      canonicalName: foodQuery,
+      name_en: ingredient.name_en,
+      name_de: ingredient.name_de,
+      amount: ingredient.amount,
+      quantity: ingredient.amount,
+      unit: ingredient.unit,
+      preparation: ingredient.preparation ?? "",
+      optional: Boolean(ingredient.optional),
+      garnish: Boolean(ingredient.garnish),
+      approximate: Boolean(ingredient.approximate),
+      estimatedWeightGrams: null,
+      defaultUnit: "",
+    });
+    const grams = ontologyGrams || resolveGramWeight(searchResult, quantity.amount, quantity.unit, foodQuery);
 
     if (!grams) {
       unmatchedIngredients.push(ingredient.name_en.trim());
@@ -594,11 +619,11 @@ export async function estimateNutritionFromIngredients(input: {
   const fallbackTextDe = localFallbackIngredients > 0 ? ` ${localFallbackIngredients} mit lokalem Fallback erkannt.` : "";
   const noteEn =
     matchedIngredients > 0
-      ? `Estimated from ${sourceText} (${matchedIngredients} of ${ingredients.length} ingredients matched, ${confidence} confidence).${fallbackText} Review for recipe yield, frying, evaporation, and brand-specific products.${missed ? ` Unmatched: ${missed}.` : ""}`
+      ? `Estimated from ${sourceText} with normalized gram conversion (${matchedIngredients} of ${ingredients.length} ingredients matched, ${confidence} confidence). Pinches, leaves, garnish, optional, and to-taste items are handled with low-impact rules. Review for recipe yield, frying oil absorption, evaporation, cooking loss, and brand-specific products.${fallbackText}${missed ? ` Unmatched: ${missed}.` : ""}`
       : "USDA could not confidently match the current ingredient list yet. Please review ingredient names, amounts, and units or enter nutrition manually if needed.";
   const noteDe =
     matchedIngredients > 0
-      ? `Geschaetzt aus ${sourceTextDe} (${matchedIngredients} von ${ingredients.length} Zutaten erkannt, Vertrauen ${confidenceDe}).${fallbackTextDe} Bitte fuer Ausbeute, Frittieren, Verdunstung und konkrete Marken pruefen.${missed ? ` Nicht erkannt: ${missed}.` : ""}`
+      ? `Geschaetzt aus ${sourceTextDe} mit normalisierter Gramm-Umrechnung (${matchedIngredients} von ${ingredients.length} Zutaten erkannt, Vertrauen ${confidenceDe}). Prisen, Blaetter, Garnitur, optionale Zutaten und "nach Geschmack" werden niedrig gewichtet. Bitte Ausbeute, Frittieroel-Aufnahme, Verdunstung, Kochverlust und konkrete Marken pruefen.${fallbackTextDe}${missed ? ` Nicht erkannt: ${missed}.` : ""}`
       : "USDA konnte die aktuelle Zutatenliste noch nicht sicher zuordnen. Bitte pruefe Zutatenbezeichnungen, Mengen und Einheiten oder trage die Nahrwerte manuell ein.";
 
   return {

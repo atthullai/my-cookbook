@@ -61,10 +61,20 @@ export const BADGE_LABELS_DE: Record<(typeof BADGE_OPTIONS)[number], string> = {
 };
 
 export type RecipeIngredient = {
+  id: string;
+  ingredientId: string;
+  canonicalName: string;
   name_en: string;
   name_de: string;
   amount: RecipeAmount;
+  quantity: RecipeAmount;
   unit: string;
+  preparation: string;
+  optional: boolean;
+  garnish: boolean;
+  approximate: boolean;
+  estimatedWeightGrams: number | null;
+  defaultUnit: string;
 };
 
 export type RecipeIngredientGroup = {
@@ -211,12 +221,30 @@ function normalizeIngredient(value: unknown): RecipeIngredient {
   const item = value && typeof value === "object" ? value : {};
   const raw = item as Record<string, unknown>;
   const legacyName = normalizeString(raw.name);
+  const nameEn = normalizeString(raw.name_en) || legacyName;
+  const amount = normalizeAmount(raw.amount);
+  const quantity = normalizeAmount(raw.quantity) ?? amount;
 
   return {
-    name_en: normalizeString(raw.name_en) || legacyName,
-    name_de: normalizeString(raw.name_de) || legacyName,
-    amount: normalizeAmount(raw.amount),
+    id: normalizeString(raw.id),
+    ingredientId: normalizeString(raw.ingredientId) || normalizeString(raw.ingredient_id),
+    canonicalName: normalizeString(raw.canonicalName) || normalizeString(raw.canonical_name) || nameEn.toLowerCase(),
+    name_en: nameEn,
+    name_de: normalizeString(raw.name_de) || legacyName || nameEn,
+    amount,
+    quantity,
     unit: normalizeString(raw.unit),
+    preparation: normalizeString(raw.preparation),
+    optional: Boolean(raw.optional),
+    garnish: Boolean(raw.garnish),
+    approximate: Boolean(raw.approximate),
+    estimatedWeightGrams:
+      typeof raw.estimatedWeightGrams === "number"
+        ? raw.estimatedWeightGrams
+        : typeof raw.estimated_weight_grams === "number"
+          ? raw.estimated_weight_grams
+          : null,
+    defaultUnit: normalizeString(raw.defaultUnit) || normalizeString(raw.default_unit),
   };
 }
 
@@ -780,6 +808,10 @@ export type IngredientDraft = {
   name_de: string;
   amount: string;
   unit: string;
+  preparation?: string;
+  optional?: boolean;
+  garnish?: boolean;
+  approximate?: boolean;
 };
 
 export const EMPTY_INGREDIENT: IngredientDraft = {
@@ -787,6 +819,10 @@ export const EMPTY_INGREDIENT: IngredientDraft = {
   name_de: "",
   amount: "",
   unit: "",
+  preparation: "",
+  optional: false,
+  garnish: false,
+  approximate: false,
 };
 
 export type IngredientGroupDraft = {

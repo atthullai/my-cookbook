@@ -20,6 +20,7 @@ import type {
 import AppIcon from "@/components/AppIcon";
 import BadgeChip from "@/components/BadgeChip";
 import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
+import { stableCompositeId } from "@/lib/stable-ids";
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -89,7 +90,7 @@ type RecipeFormProps = {
   onIngredientGroupChange: (groupIndex: number, field: keyof Omit<IngredientGroupDraft, "items">, value: string) => void;
   onIngredientAdd: (groupIndex: number) => void;
   onIngredientRemove: (groupIndex: number, ingredientIndex: number) => void;
-  onIngredientChange: (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string) => void;
+  onIngredientChange: (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string | boolean) => void;
   onInstructionSectionAdd: () => void;
   onInstructionSectionRemove: (index: number) => void;
   onInstructionSectionChange: (index: number, field: keyof InstructionSectionDraft, value: string) => void;
@@ -207,7 +208,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.ingredientGroups.map((group, groupIndex) => (
-          <div key={`group-${groupIndex}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={stableCompositeId("form-ingredient-group", group.group_en, group.group_de, groupIndex)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <div className="three-field-row">
               <input
                 className="input"
@@ -229,7 +230,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
             {group.items.map((ingredient, ingredientIndex) => (
               <div
-                key={`ingredient-${groupIndex}-${ingredientIndex}`}
+                key={stableCompositeId("form-ingredient", group.group_en, ingredient.name_en, ingredient.unit, ingredientIndex)}
                 className="ingredient-row"
               >
                 <input
@@ -256,6 +257,36 @@ export default function RecipeForm(props: RecipeFormProps) {
                   value={ingredient.name_de}
                   onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_de", event.target.value)}
                 />
+                <input
+                  className="input"
+                  placeholder="Preparation"
+                  value={ingredient.preparation ?? ""}
+                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "preparation", event.target.value)}
+                />
+                <label className="mini-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(ingredient.approximate)}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "approximate", event.target.checked)}
+                  />
+                  Approx
+                </label>
+                <label className="mini-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(ingredient.optional)}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "optional", event.target.checked)}
+                  />
+                  Optional
+                </label>
+                <label className="mini-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(ingredient.garnish)}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "garnish", event.target.checked)}
+                  />
+                  Garnish
+                </label>
                 <button className="button" type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}>
                   <AppIcon name="delete" size={16} />
                   Remove
@@ -286,7 +317,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.instructionSections.map((section, index) => (
-          <div key={`instruction-section-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={stableCompositeId("form-instruction-section", section.title_en, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <div className="three-field-row">
               <input
                 className="input"
@@ -335,7 +366,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.stepPhotos.map((item, index) => (
-          <div key={`step-photo-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={stableCompositeId("form-step-photo", item.image_url, item.step_number, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <div className="step-photo-row">
               <input
                 className="input"
@@ -375,7 +406,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         {/* Nutrition values are per serving. Blank fields simply do not show on the recipe page. */}
         <h3 style={{ marginBottom: 8 }}>Equipment</h3>
         {props.equipment.map((item, index) => (
-          <div key={`equipment-${index}`} className="three-field-row">
+          <div key={stableCompositeId("form-equipment", item.label_en, index)} className="three-field-row">
             <input
               className="input"
               placeholder="Equipment (EN)"
@@ -472,7 +503,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.faq.map((item, index) => (
-          <div key={`faq-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={stableCompositeId("form-faq", item.question_en, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <input
               className="input"
               value={item.question_en}
@@ -518,7 +549,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.troubleshooting.map((item, index) => (
-          <div key={`troubleshooting-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={stableCompositeId("form-troubleshooting", item.issue_en, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <input
               className="input"
               value={item.issue_en}
