@@ -10,6 +10,8 @@ import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import AppIcon from "@/components/AppIcon";
 import BadgeChip from "@/components/BadgeChip";
+import { useToast } from "@/components/ToastProvider";
+import { apiRequest } from "@/lib/api-client";
 import { buildRecipePayload, mapRecipeRows } from "@/lib/recipe-db";
 import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
 import { EMPTY_NUTRITION, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty } from "@/lib/recipe-types";
@@ -28,6 +30,8 @@ export default function RecipeIndexPage() {
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedBadge, setSelectedBadge] = useState("");
   const [upgrading, setUpgrading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const { notify } = useToast();
   const [lang, setLang] = useState<AppLanguage>(() =>
     typeof navigator !== "undefined" && navigator.language.toLowerCase().includes("de") ? "de" : "en"
   );
@@ -41,6 +45,7 @@ export default function RecipeIndexPage() {
 
     if (!user) {
       setRecipes([]);
+      setLoadError("");
       setLoading(false);
       return;
     }
@@ -53,9 +58,11 @@ export default function RecipeIndexPage() {
       .order("title_en", { ascending: true });
 
     if (error) {
-      alert(error.message);
+      setLoadError(error.message);
+      notify({ tone: "error", title: "Could not load recipe index", message: "Please retry when the connection settles." });
       setRecipes([]);
     } else {
+      setLoadError("");
       setRecipes(mapRecipeRows(data ?? []));
     }
 
@@ -88,28 +95,22 @@ export default function RecipeIndexPage() {
 
     try {
       for (const recipe of candidates) {
-        const importResponse = await fetch("/api/import-recipe", {
+        const importResult = await apiRequest<{ recipe?: ImportedRecipeDraft; error?: string }>("/api/import-recipe", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url: recipe.source_url }),
+          body: { url: recipe.source_url },
+          retries: 1,
+          timeoutMs: 18000,
         });
 
-        const importResult = (await importResponse.json()) as { recipe?: ImportedRecipeDraft; error?: string };
-
-        if (!importResponse.ok || !importResult.recipe) {
+        if (!importResult.recipe) {
           continue;
         }
 
         const imported = importResult.recipe;
-        const nutritionResponse = !recipe.nutrition
-          ? await fetch("/api/nutrition-estimate", {
+        const nutritionResult = !recipe.nutrition
+          ? await apiRequest<{ nutrition?: typeof EMPTY_NUTRITION }>("/api/nutrition-estimate", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
+              body: {
                 ingredientGroups:
                   recipe.ingredients.length > 0
                     ? recipe.ingredients.map((group) => ({
@@ -133,11 +134,11 @@ export default function RecipeIndexPage() {
                         })),
                       })),
                 servings: recipe.servings ? String(recipe.servings) : imported.servings,
-              }),
+              },
+              retries: 1,
             })
           : null;
 
-        const nutritionResult = nutritionResponse ? ((await nutritionResponse.json()) as { nutrition?: typeof EMPTY_NUTRITION }) : null;
         const upgradedPayload = buildRecipePayload({
           slug: recipe.slug,
           titleEn: recipe.title_en,
@@ -250,6 +251,8 @@ export default function RecipeIndexPage() {
       }
 
       await loadRecipes();
+    } catch {
+      notify({ tone: "info", title: "Background refresh paused", message: "Imported recipe enrichment will retry next time." });
     } finally {
       setUpgrading(false);
     }
@@ -405,9 +408,17 @@ export default function RecipeIndexPage() {
         ) : null}
       </div>
 
-      {loading ? <div className="empty-state" style={{ marginTop: 16 }}>Loading recipes...</div> : null}
+      {loading ? <div className="skeleton-page" style={{ marginTop: 16 }}><div className="skeleton-line" /><div className="skeleton-card" /></div> : null}
       {!loading && upgrading ? <div className="empty-state" style={{ marginTop: 16 }}>Refreshing older imported recipes...</div> : null}
-      {!loading && filteredRecipes.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>No recipes match these filters yet.</div> : null}
+      {!loading && loadError ? (
+        <div className="empty-state empty-state-action illustrated-empty" style={{ marginTop: 16 }}>
+          <div className="empty-illustration steam-cup" aria-hidden="true"><span /><span /><span /></div>
+          <h2>Recipe index could not load</h2>
+          <p>{loadError}</p>
+          <button className="button button-primary" type="button" onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      ) : null}
+      {!loading && !loadError && filteredRecipes.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>No recipes match these filters yet.</div> : null}
 
       {categories.map((category) => (
         <section key={category} style={{ marginTop: 28 }}>

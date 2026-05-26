@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { FormEvent } from "react";
 import RecipeForm from "@/components/RecipeForm";
+import { useToast } from "@/components/ToastProvider";
+import { apiRequest } from "@/lib/api-client";
 import { buildRecipePayload } from "@/lib/recipe-db";
 import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import type {
@@ -44,6 +46,7 @@ function slugify(text: string) {
 }
 
 export default function AddRecipe() {
+  const { notify } = useToast();
   // Each piece of form state mirrors one part of the Supabase recipe record.
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -381,9 +384,11 @@ export default function AddRecipe() {
     setSaving(false);
 
     if (error) {
-      alert(error.message);
+      notify({ tone: "error", title: "Recipe was not saved", message: error.message });
       return;
     }
+
+    notify({ tone: "success", title: "Recipe saved", message: "Your family recipe is now in the cookbook." });
 
     window.location.href = "/recipes";
   };
@@ -398,18 +403,7 @@ export default function AddRecipe() {
     setNutritionEstimateMessage("");
 
     try {
-      const response = await fetch("/api/nutrition-estimate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ingredientGroups,
-          servings,
-        }),
-      });
-
-      const result = (await response.json()) as {
+      const result = await apiRequest<{
         nutrition?: NutritionDraft;
         meta?: {
           ingredientCount: number;
@@ -419,9 +413,15 @@ export default function AddRecipe() {
           unmatchedIngredients?: string[];
         };
         error?: string;
-      };
+      }>("/api/nutrition-estimate", {
+        method: "POST",
+        body: {
+          ingredientGroups,
+          servings,
+        },
+      });
 
-      if (!response.ok || !result.nutrition) {
+      if (!result.nutrition) {
         throw new Error(result.error || "Could not estimate nutrition.");
       }
 
@@ -430,8 +430,11 @@ export default function AddRecipe() {
       const confidence = result.meta?.confidence ? ` ${result.meta.confidence}` : "";
       const fallback = result.meta?.localFallbackIngredients ? ` ${result.meta.localFallbackIngredients} used the pantry fallback.` : "";
       setNutritionEstimateMessage(`Estimated per serving: ${matched} ingredients matched.${fallback}${confidence ? ` Confidence: ${confidence.trim()}.` : ""}`);
+      notify({ tone: "success", title: "Nutrition estimated", message: "Review the per-serving values before saving." });
     } catch (error) {
-      setNutritionEstimateMessage(error instanceof Error ? error.message : "Could not estimate nutrition.");
+      const message = error instanceof Error ? error.message : "Could not estimate nutrition.";
+      setNutritionEstimateMessage(message);
+      notify({ tone: "error", title: "Nutrition estimate failed", message });
     } finally {
       setEstimatingNutrition(false);
     }
@@ -439,30 +442,27 @@ export default function AddRecipe() {
 
   const handleImport = async () => {
     if (!importUrl.trim()) {
-      alert("Please paste a recipe link first.");
+      notify({ tone: "info", title: "Paste a recipe link first" });
       return;
     }
 
     setImporting(true);
 
     try {
-      const response = await fetch("/api/import-recipe", {
+      const result = await apiRequest<{ recipe?: ImportedRecipeDraft; error?: string }>("/api/import-recipe", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: importUrl.trim() }),
+        body: { url: importUrl.trim() },
+        timeoutMs: 18000,
       });
 
-      const result = (await response.json()) as { recipe?: ImportedRecipeDraft; error?: string };
-
-      if (!response.ok || !result.recipe) {
+      if (!result.recipe) {
         throw new Error(result.error || "Could not import recipe.");
       }
 
       applyImportedRecipe(result.recipe);
+      notify({ tone: "success", title: "Recipe imported", message: "Review the draft, then save it to your cookbook." });
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Could not import recipe.");
+      notify({ tone: "error", title: "Import failed", message: error instanceof Error ? error.message : "Could not import recipe." });
     } finally {
       setImporting(false);
     }
@@ -472,32 +472,29 @@ export default function AddRecipe() {
     const lookupUrl = sourceUrl.trim() || importUrl.trim();
 
     if (!lookupUrl) {
-      alert("Please add a source URL first.");
+      notify({ tone: "info", title: "Add a source URL first" });
       return;
     }
 
     setRefreshingCoverPhoto(true);
 
     try {
-      const response = await fetch("/api/import-recipe", {
+      const result = await apiRequest<{ recipe?: ImportedRecipeDraft; error?: string }>("/api/import-recipe", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: lookupUrl }),
+        body: { url: lookupUrl },
+        timeoutMs: 18000,
       });
 
-      const result = (await response.json()) as { recipe?: ImportedRecipeDraft; error?: string };
-
-      if (!response.ok || !result.recipe?.coverImageUrl) {
+      if (!result.recipe?.coverImageUrl) {
         throw new Error(result.error || "Could not find a cover photo from the source page.");
       }
 
       setSourceUrl(result.recipe.sourceUrl);
       setCoverImageUrl(result.recipe.coverImageUrl);
       setImageUrls(`${result.recipe.coverImageUrl}\n`);
+      notify({ tone: "success", title: "Cover photo refreshed" });
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Could not refresh the cover photo.");
+      notify({ tone: "error", title: "Cover refresh failed", message: error instanceof Error ? error.message : "Could not refresh the cover photo." });
     } finally {
       setRefreshingCoverPhoto(false);
     }

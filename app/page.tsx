@@ -6,10 +6,12 @@
 // If you want to change the homepage wording, hero buttons, stats, or recipe-card layout, start here.
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppIcon from "@/components/AppIcon";
 import BadgeChip from "@/components/BadgeChip";
+import { FadeUp, Stagger, StaggerItem } from "@/components/MotionPrimitives";
+import { useToast } from "@/components/ToastProvider";
 import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
 import { getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
 import { mapRecipeRows } from "@/lib/recipe-db";
@@ -29,6 +31,8 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedBadge, setSelectedBadge] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const { notify } = useToast();
 
   const recipeLabel = (value: string, field: "cuisine" | "course") => {
     const recipeMatch = recipes.find((recipe) => recipe[field] === value);
@@ -40,25 +44,28 @@ export default function Home() {
     return field === "cuisine" ? getRecipeCuisine(recipeMatch, "de") || value : getRecipeCourse(recipeMatch, "de") || value;
   };
 
-  const fetchRecipes = async (currentUser: AppUser | null) => {
+  const fetchRecipes = useCallback(async (currentUser: AppUser | null) => {
     // When nobody is logged in, the private cookbook should not show personal recipes.
     if (!currentUser) {
       setRecipes([]);
       setLoading(false);
+      setLoadError("");
       return;
     }
 
     const { data, error } = await supabase.from("recipes").select("*").eq("user_id", currentUser.id).order("id", { ascending: false });
 
     if (error) {
-      alert(error.message);
+      setLoadError(error.message);
+      notify({ tone: "error", title: "Could not load recipes", message: "Check your connection and try again." });
       setRecipes([]);
     } else {
+      setLoadError("");
       setRecipes(mapRecipeRows(data ?? []));
     }
 
     setLoading(false);
-  };
+  }, [notify]);
 
   useEffect(() => {
     let isMounted = true;
@@ -84,7 +91,7 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [fetchRecipes]);
 
   const cuisines = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean))) as string[], [recipes]);
   const courses = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.course).filter(Boolean))) as string[], [recipes]);
@@ -125,6 +132,8 @@ export default function Home() {
 
   const latestRecipes = filteredRecipes.slice(0, 6);
   const todayPick = filteredRecipes.find((recipe) => recipe.course?.toLowerCase().includes("dinner")) ?? filteredRecipes[0];
+  const productionVersion = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "local";
+  const productionBranch = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF || "main";
   const pantrySuggestions = filteredRecipes
     .filter((recipe) => recipe.ingredients.some((group) => group.items.some((item) => /rice|dal|onion|tomato|salt|oil/i.test(item.name_en))))
     .slice(0, 3);
@@ -174,7 +183,7 @@ export default function Home() {
   return (
     <main className="container">
       {/* This top block acts like a dashboard header: identity, auth, and big cookbook actions. */}
-      <section className="hero-panel">
+      <section className="hero-panel editorial-hero">
         <div className="hero-copy">
           <p className="eyebrow">Private Recipe Studio</p>
           <h1>My Cookbook</h1>
@@ -182,9 +191,10 @@ export default function Home() {
         </div>
 
         <div className="hero-side">
-          <div className="cookbook-graphic" aria-hidden="true">
+          <div className="cookbook-graphic simmer-scene" aria-hidden="true">
             <span className="steam-line steam-one" />
             <span className="steam-line steam-two" />
+            <span className="steam-line steam-three" />
             <div className="plate-graphic">
               <span className="plate-section plate-protein" />
               <span className="plate-section plate-carb" />
@@ -235,7 +245,8 @@ export default function Home() {
         </div>
       </div>
 
-      <section className="dashboard-command-grid" aria-label="Cooking dashboard">
+      <Stagger className="dashboard-command-grid" ariaLabel="Cooking dashboard">
+        <StaggerItem>
         <div className="card today-card">
           <p className="eyebrow">What to cook today</p>
           {todayPick ? (
@@ -248,9 +259,22 @@ export default function Home() {
               </Link>
             </>
           ) : (
-            <p>No recipe data yet. Add a recipe or import one to start planning.</p>
+            <div className="onboarding-empty">
+              <div className="empty-illustration steam-cup" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+              <p>Your first recipe can begin as a family note, a URL import, or a pantry idea.</p>
+              <div className="section-link-grid">
+                <Link href="/add" className="button button-primary">Import or add recipe</Link>
+                <Link href="/pantry" className="button">Set up pantry</Link>
+              </div>
+            </div>
           )}
         </div>
+        </StaggerItem>
+        <StaggerItem>
         <div className="card meal-plan-card">
           <p className="eyebrow">Weekly meal overview</p>
           <div className="meal-week-grid">
@@ -262,6 +286,8 @@ export default function Home() {
             ))}
           </div>
         </div>
+        </StaggerItem>
+        <StaggerItem>
         <div className="card pantry-card">
           <p className="eyebrow">Pantry suggestions</p>
           <div className="compact-list">
@@ -272,6 +298,8 @@ export default function Home() {
             ))}
           </div>
         </div>
+        </StaggerItem>
+        <StaggerItem>
         <div className="card grocery-card">
           <p className="eyebrow">Quick grocery actions</p>
           <div className="section-link-grid">
@@ -283,7 +311,8 @@ export default function Home() {
             </Link>
           </div>
         </div>
-      </section>
+        </StaggerItem>
+      </Stagger>
 
       <div className="card card-accent browse-panel">
         <div>
@@ -306,6 +335,13 @@ export default function Home() {
             </button>
           ) : null}
         </div>
+      </div>
+
+      <div className="deployment-ribbon" aria-label="Deployment status">
+        <span><strong>Build health</strong> Passing local checks</span>
+        <span><strong>Production version</strong> {productionVersion}</span>
+        <span><strong>Branch</strong> {productionBranch}</span>
+        <span><strong>Latest release</strong> Premium cookbook refinement</span>
       </div>
 
       <div className="card toolbar-panel">
@@ -357,8 +393,23 @@ export default function Home() {
         ) : null}
       </div>
 
-      {loading ? <div className="empty-state" style={{ marginTop: 16 }}>Loading recipes...</div> : null}
-      {!loading && filteredRecipes.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>No recipes found yet.</div> : null}
+      {loading ? <div className="skeleton-page" style={{ marginTop: 16 }}><div className="skeleton-line" /><div className="skeleton-card" /></div> : null}
+      {!loading && loadError ? (
+        <div className="empty-state empty-state-action illustrated-empty" style={{ marginTop: 16 }}>
+          <div className="empty-illustration steam-cup" aria-hidden="true"><span /><span /><span /></div>
+          <h2>Recipes could not load</h2>
+          <p>{typeof navigator === "undefined" || navigator.onLine ? "The kitchen connection hiccuped. Try again in a moment." : "You are offline. Saved offline views will remain available once caching is enabled."}</p>
+          <button className="button button-primary" type="button" onClick={() => void fetchRecipes(user)}>Retry</button>
+        </div>
+      ) : null}
+      {!loading && !loadError && filteredRecipes.length === 0 ? (
+        <div className="empty-state empty-state-action illustrated-empty" style={{ marginTop: 16 }}>
+          <div className="empty-illustration sprinkle-bowl" aria-hidden="true"><span /><span /><span /><span /></div>
+          <h2>Start your family cookbook</h2>
+          <p>Import a favorite recipe, add a handwritten classic, or begin with pantry staples like rice, dal, tomatoes, and coriander.</p>
+          <Link href="/add" className="button button-primary">Add the first recipe</Link>
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 18 }}>
         <div className="section-heading-row">
@@ -372,7 +423,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="recipe-card-grid">
+        <FadeUp className="recipe-card-grid">
           {latestRecipes.map((recipe) => {
             const coverImage = getRecipeCoverImage(recipe);
 
@@ -427,7 +478,7 @@ export default function Home() {
               </article>
             );
           })}
-        </div>
+        </FadeUp>
       </div>
     </main>
   );

@@ -4,6 +4,8 @@
 
 // Client components call this helper, which in turn talks to a server Route Handler.
 // That lets us keep API keys on the server and avoid long browser URL requests.
+import { apiRequest } from "@/lib/api-client";
+
 export async function translateEnglishToGerman(text: string): Promise<string> {
   const trimmedText = text.trim();
 
@@ -13,23 +15,16 @@ export async function translateEnglishToGerman(text: string): Promise<string> {
   }
 
   try {
-    const response = await fetch("/api/translate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text: trimmedText,
-      }),
-    });
-
-    if (!response.ok) {
-      return trimmedText;
-    }
-
-    const data = (await response.json()) as {
+    const data = await apiRequest<{
       translation?: string;
-    };
+    }>("/api/translate", {
+      method: "POST",
+      body: {
+        text: trimmedText,
+      },
+      retries: 1,
+      timeoutMs: 9000,
+    });
 
     // Fall back to the original text if the API returns an unexpected shape.
     return data.translation?.trim() || trimmedText;

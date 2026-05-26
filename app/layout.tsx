@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
+import { ToastProvider } from "@/components/ToastProvider";
 import "./globals.css";
 
 // Baby-brain map:
@@ -23,8 +24,10 @@ export default function RootLayout({
     // and the single global stylesheet import.
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <SiteHeader />
-        {children}
+        <ToastProvider>
+          <SiteHeader />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
