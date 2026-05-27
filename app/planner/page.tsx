@@ -614,14 +614,14 @@ export default function PlannerPage() {
                   </p>
 
                   <div className="relative mb-3">
-                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2"
+                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none"
                       style={{ color: "var(--muted)", opacity: 0.6 }} />
                     <input
                       type="search"
                       placeholder="Search…"
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 rounded-xl text-xs focus:outline-none"
+                      className="w-full pl-10 pr-3 py-2 rounded-xl text-xs focus:outline-none"
                       style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
                     />
                   </div>

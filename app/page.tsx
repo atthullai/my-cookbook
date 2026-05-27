@@ -421,12 +421,12 @@ export default function Home() {
               </p>
             </div>
             <div className="flex-1 relative max-w-xs">
-              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)", opacity: 0.6 }} />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none" style={{ color: "var(--muted)", opacity: 0.6 }} />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search recipes…"
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm focus:outline-none transition"
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm focus:outline-none transition"
                 style={{
                   background: "var(--surface)",
                   border: "1px solid var(--border)",

@@ -187,13 +187,13 @@ export default function RecipesPage() {
           {/* ── Search + filter toggle ──────────────────────────────── */}
           <div className="flex gap-2 mb-4">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none" style={{ color: "var(--muted)" }} />
               <input
                 type="search"
                 placeholder="Search recipes…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
                 style={{
                   border: "1px solid var(--border)",
                   background: "var(--surface)",
