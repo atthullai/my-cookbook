@@ -22,6 +22,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import KolamDivider from "@/components/KolamDivider";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "produce":         "🥦",
@@ -232,41 +233,49 @@ export default function PantryPage() {
   return (
     <>
       <Toaster position="top-right" />
-      <main className="max-w-5xl mx-auto px-4 py-8 min-h-screen">
+      <main className="max-w-5xl mx-auto px-4 py-8 min-h-screen" style={{ background: "var(--parchment, #fdf8f0)" }}>
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Pantry</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5"
+              style={{ color: "var(--accent)", opacity: 0.8 }}>
+              Your Kitchen Store
+            </p>
+            <h1 className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>Pantry</h1>
+            <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
               {items.length} item{items.length !== 1 ? "s" : ""} tracked
             </p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={suggestRecipes}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
+              style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
             >
               <ChefHat size={16} /> Suggest Recipes
             </button>
             <button type="button" onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setShowForm((s) => !s); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
+              style={{ background: "var(--accent)", color: "#fff" }}
             >
               <Plus size={16} /> Add Item
             </button>
           </div>
         </div>
 
+        <KolamDivider color="rgba(200, 140, 30, 0.2)" animateOnView={false} className="mb-5" />
+
         {/* Sort bar */}
         <div className="flex items-center gap-2 mb-5">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort:</span>
+          <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Sort:</span>
           {(["name","expiry","category"] as SortOption[]).map((s) => (
             <button key={s} type="button" onClick={() => setSortBy(s)}
-              className={[
-                "px-3 py-1.5 rounded-lg text-xs font-medium border transition capitalize",
-                sortBy === s
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
-              ].join(" ")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border transition capitalize"
+              style={{
+                background: sortBy === s ? "var(--accent)" : "var(--surface)",
+                color: sortBy === s ? "#fff" : "var(--foreground)",
+                borderColor: sortBy === s ? "var(--accent)" : "var(--border)",
+              }}
             >
               {s}
             </button>
@@ -282,13 +291,15 @@ export default function PantryPage() {
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden mb-6"
             >
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 shadow-sm">
+              <div className="rounded-2xl p-5 space-y-4 shadow-sm"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              >
                 <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">
+                  <h2 className="font-semibold" style={{ color: "var(--foreground)" }}>
                     {editTarget ? "Edit Item" : "Add Item"}
                   </h2>
                   <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}>
-                    <X size={16} className="text-gray-400 hover:text-gray-700" />
+                    <X size={16} style={{ color: "var(--muted)" }} />
                   </button>
                 </div>
 
@@ -296,24 +307,28 @@ export default function PantryPage() {
                   <input
                     type="text" placeholder="Name *" value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
                   <div className="flex gap-2">
                     <input
                       type="number" placeholder="Qty" value={form.quantity}
                       onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                      className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      className="w-24 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     />
                     <input
                       type="text" placeholder="Unit (e.g. g, ml)" value={form.unit}
                       onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      className="flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     />
                   </div>
                   <select
                     value={form.category}
                     onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ShoppingCategory }))}
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   >
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
@@ -322,18 +337,21 @@ export default function PantryPage() {
                   <input
                     type="date" placeholder="Expiry date" value={form.expiryDate}
                     onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
                 </div>
 
                 <div className="flex justify-end gap-2 pt-1">
                   <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                    className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
+                    className="px-4 py-2 rounded-xl text-sm font-medium transition"
+                    style={{ color: "var(--muted)" }}
                   >
                     Cancel
                   </button>
                   <button type="button" onClick={saveItem} disabled={isSaving}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 transition"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-60 transition"
+                    style={{ background: "var(--accent)", color: "#fff" }}
                   >
                     {isSaving ? "Saving…" : <><Check size={14} /> {editTarget ? "Update" : "Add"}</>}
                   </button>
@@ -347,7 +365,8 @@ export default function PantryPage() {
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 animate-pulse">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-24 bg-gray-200 rounded-2xl" />
+              <div key={i} className="h-24 rounded-2xl"
+                style={{ background: "rgba(180, 120, 30, 0.1)" }} />
             ))}
           </div>
         )}
@@ -356,8 +375,8 @@ export default function PantryPage() {
         {!loading && items.length === 0 && (
           <div className="text-center py-20">
             <span className="text-7xl block mb-4" aria-hidden="true">🥫</span>
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">Your pantry is empty</h2>
-            <p className="text-gray-400 text-sm">Start tracking what you have at home.</p>
+            <h2 className="text-xl font-semibold mb-2" style={{ color: "var(--foreground)" }}>Your pantry is empty</h2>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>Start tracking what you have at home.</p>
           </div>
         )}
 
@@ -375,7 +394,8 @@ export default function PantryPage() {
                 <motion.div
                   key={item.id}
                   variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3"
+                  className="rounded-2xl shadow-sm p-4 flex flex-col gap-3"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
                 >
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-2">
@@ -383,7 +403,7 @@ export default function PantryPage() {
                       <span className="text-xl" aria-hidden="true">
                         {CATEGORY_ICONS[item.category]}
                       </span>
-                      <p className="font-semibold text-sm text-gray-900 leading-tight">{item.name}</p>
+                      <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>
                       {STATUS_LABELS[status]}
@@ -391,15 +411,16 @@ export default function PantryPage() {
                   </div>
 
                   {/* Quantity & expiry */}
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="font-medium text-gray-700">{item.quantity} {item.unit}</span>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
+                    <span className="font-medium" style={{ color: "var(--foreground)" }}>{item.quantity} {item.unit}</span>
                     {item.expiryDate && <span>· exp {new Date(item.expiryDate).toLocaleDateString("en-GB", { day:"numeric", month:"short" })}</span>}
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 mt-auto pt-1 border-t border-gray-50">
+                  <div className="flex gap-2 mt-auto pt-1" style={{ borderTop: "1px solid var(--border)" }}>
                     <button type="button" onClick={() => openEdit(item)}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg transition"
+                      style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}
                     >
                       <Pencil size={11} /> Edit
                     </button>
@@ -441,7 +462,7 @@ export default function PantryPage() {
                     {suggestions.map((r) => (
                       <li key={r.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                         <span className="text-xl">{r.imageUrl ? "🍽️" : "🍳"}</span>
-                        <a href={`/recipes/${r.id}`} className="text-sm font-medium text-indigo-700 hover:underline">
+                        <a href={`/recipes/${r.id}`} className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
                           {r.title}
                         </a>
                       </li>
