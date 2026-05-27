@@ -1,485 +1,564 @@
 "use client";
 
-// HOME PAGE MAP
-// This is the first screen after opening the site.
-// It loads the logged-in user's recipes, lets you search/filter them, and shows the newest cards.
-// If you want to change the homepage wording, hero buttons, stats, or recipe-card layout, start here.
-
-import Image from "next/image";
+/**
+ * Home — /
+ *
+ * Hero: authentic cooking animation (clay pot + steam + floating spices)
+ * Stats strip, quick-nav cards, today's pick, recipe grid with search/filter.
+ * Uses the new RecipeCard + adapter so the display matches the rest of the rebuilt UI.
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import AppIcon from "@/components/AppIcon";
-import BadgeChip from "@/components/BadgeChip";
-import { FadeUp, Stagger, StaggerItem } from "@/components/MotionPrimitives";
-import { useToast } from "@/components/ToastProvider";
-import type { AppLanguage, AppUser, RecipeRecord } from "@/lib/recipe-types";
-import { getRecipeCourse, getRecipeCuisine, getRecipeDifficulty, getRecipeTitle } from "@/lib/recipe-types";
-import { mapRecipeRows } from "@/lib/recipe-db";
-import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
-import { nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  BookOpen, CalendarDays, ShoppingCart, Leaf,
+  Plus, LogOut, LogIn, Search, X,
+} from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
+
 import { supabase } from "@/lib/supabase";
+import { mapRecipeRows } from "@/lib/recipe-db";
+import { toRecipeSummaries } from "@/lib/recipe-adapter";
+import type { AppUser, RecipeRecord } from "@/lib/recipe-types";
+import RecipeCard from "@/components/RecipeCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Cooking Animation
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FLOATING_SPICES = [
+  { emoji: "🌶️", left: "6%",  startY: "72%", delay: 0.3  },
+  { emoji: "🧄",  left: "16%", startY: "74%", delay: 2.1  },
+  { emoji: "🫚",  left: "76%", startY: "73%", delay: 0.9  },
+  { emoji: "🌿",  left: "84%", startY: "71%", delay: 2.7  },
+  { emoji: "⭐",  left: "28%", startY: "75%", delay: 1.5  },
+  { emoji: "🍅",  left: "69%", startY: "75%", delay: 3.3  },
+  { emoji: "🧅",  left: "50%", startY: "70%", delay: 1.8  },
+];
+
+function SteamWisp({ cx, delay }: { cx: number; delay: number }) {
+  // Each wisp morphs between a left-leaning and right-leaning bezier
+  return (
+    <motion.path
+      d={`M ${cx} 68 C ${cx - 7} 52 ${cx + 7} 38 ${cx} 22 C ${cx - 7} 6 ${cx + 7} -8 ${cx} -22`}
+      fill="none"
+      stroke="rgba(255,255,255,0.75)"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      initial={{ pathLength: 0, opacity: 0, y: 0 }}
+      animate={{
+        pathLength: [0, 1, 1, 0],
+        opacity:    [0, 0.7, 0.5, 0],
+        y:          [0, -8, -16, -24],
+      }}
+      transition={{
+        duration:    2.8,
+        delay,
+        repeat:      Infinity,
+        repeatDelay: 0.2,
+        ease:        "easeInOut",
+      }}
+    />
+  );
+}
+
+function CookingAnimation() {
+  return (
+    <div className="relative w-72 h-72 mx-auto select-none" aria-hidden="true">
+
+      {/* Warm radial glow behind the pot */}
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 70%, rgba(251,146,60,0.35) 0%, rgba(251,191,36,0.15) 45%, transparent 70%)",
+        }}
+      />
+
+      {/* SVG: pot body + steam */}
+      <svg
+        viewBox="0 0 200 200"
+        className="absolute inset-0 w-full h-full overflow-visible"
+      >
+        <defs>
+          <linearGradient id="hpPotSide" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stopColor="#92400e" />
+            <stop offset="35%"  stopColor="#d97706" />
+            <stop offset="65%"  stopColor="#b45309" />
+            <stop offset="100%" stopColor="#78350f" />
+          </linearGradient>
+          <linearGradient id="hpRim" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#fef3c7" />
+            <stop offset="100%" stopColor="#fcd34d" />
+          </linearGradient>
+          <radialGradient id="hpBubble" cx="40%" cy="35%">
+            <stop offset="0%"   stopColor="#fed7aa" />
+            <stop offset="100%" stopColor="#f97316" />
+          </radialGradient>
+          <filter id="hpShadow">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#92400e" floodOpacity="0.35" />
+          </filter>
+        </defs>
+
+        {/* ── Left handle ─────────────────────────────────────────── */}
+        <path
+          d="M 44 90 Q 22 90 20 106 Q 18 122 44 124"
+          fill="none" stroke="#78350f" strokeWidth="8" strokeLinecap="round"
+        />
+        <path
+          d="M 44 90 Q 22 90 20 106 Q 18 122 44 124"
+          fill="none" stroke="#d97706" strokeWidth="4" strokeLinecap="round" opacity="0.4"
+        />
+
+        {/* ── Right handle ─────────────────────────────────────────── */}
+        <path
+          d="M 156 90 Q 178 90 180 106 Q 182 122 156 124"
+          fill="none" stroke="#78350f" strokeWidth="8" strokeLinecap="round"
+        />
+        <path
+          d="M 156 90 Q 178 90 180 106 Q 182 122 156 124"
+          fill="none" stroke="#d97706" strokeWidth="4" strokeLinecap="round" opacity="0.4"
+        />
+
+        {/* ── Pot body ─────────────────────────────────────────────── */}
+        <motion.path
+          d="M 44 82 L 42 155 Q 42 170 100 170 Q 158 170 158 155 L 156 82 Z"
+          fill="url(#hpPotSide)"
+          filter="url(#hpShadow)"
+          animate={{ y: [0, -2, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        {/* Pot body highlight (left edge shine) */}
+        <path
+          d="M 52 90 Q 50 120 52 155"
+          fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="4" strokeLinecap="round"
+        />
+
+        {/* ── Rim ──────────────────────────────────────────────────── */}
+        <motion.ellipse
+          cx="100" cy="82" rx="56" ry="14"
+          fill="url(#hpRim)"
+          animate={{ y: [0, -2, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        {/* ── Simmering content ────────────────────────────────────── */}
+        <motion.ellipse
+          cx="100" cy="82" rx="46" ry="10"
+          fill="url(#hpBubble)"
+          animate={{ y: [0, -2, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        {/* ── Simmer bubbles ───────────────────────────────────────── */}
+        {[
+          { cx: 83,  cy: 80, r: 3.2, delay: 0    },
+          { cx: 105, cy: 79, r: 2.2, delay: 0.8  },
+          { cx: 94,  cy: 83, r: 2.8, delay: 1.6  },
+          { cx: 115, cy: 80, r: 2,   delay: 0.4  },
+          { cx: 73,  cy: 81, r: 2,   delay: 1.2  },
+        ].map((b, i) => (
+          <motion.circle
+            key={i}
+            cx={b.cx} cy={b.cy} r={b.r}
+            fill="rgba(255,255,255,0.55)"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.2, 0], opacity: [0, 0.9, 0] }}
+            transition={{ duration: 1.4, delay: b.delay, repeat: Infinity, repeatDelay: 0.6 }}
+          />
+        ))}
+
+        {/* ── Steam wisps ──────────────────────────────────────────── */}
+        <SteamWisp cx={78}  delay={0}   />
+        <SteamWisp cx={100} delay={0.7} />
+        <SteamWisp cx={122} delay={1.4} />
+      </svg>
+
+      {/* ── Floating spice emojis (HTML, outside SVG for crisp emoji render) ── */}
+      {FLOATING_SPICES.map(({ emoji, left, startY, delay }) => (
+        <motion.span
+          key={emoji}
+          className="absolute text-xl pointer-events-none"
+          style={{ left, top: startY }}
+          initial={{ opacity: 0, y: 0 }}
+          animate={{
+            opacity: [0, 1, 1, 0],
+            y:       [0, -28, -56, -84],
+          }}
+          transition={{
+            duration:    3.5,
+            delay,
+            repeat:      Infinity,
+            repeatDelay: 0.6,
+            ease:        "easeOut",
+          }}
+        >
+          {emoji}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick-nav card
+// ─────────────────────────────────────────────────────────────────────────────
+function NavCard({
+  icon, label, href, color, delay,
+}: { icon: React.ReactNode; label: string; href: string; color: string; delay: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4 }}
+    >
+      <Link
+        href={href}
+        className={`flex flex-col items-center gap-2 py-4 px-3 rounded-2xl ${color} border border-white/50 shadow-sm hover:shadow-md transition-shadow text-center`}
+      >
+        <div className="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center">
+          {icon}
+        </div>
+        <span className="text-xs font-semibold text-gray-700">{label}</span>
+      </Link>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
-  // These state values are the little memory boxes React keeps for this page.
-  // When a user types, clicks a filter, logs in, or data loads, these values change and the page redraws.
-  // Home keeps just enough state for newest recipes plus quick filters.
-  const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [lang, setLang] = useState<AppLanguage>("en");
-  const [search, setSearch] = useState("");
-  const [selectedCuisine, setSelectedCuisine] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedBadge, setSelectedBadge] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const { notify } = useToast();
+  const [records,       setRecords]       = useState<RecipeRecord[]>([]);
+  const [user,          setUser]          = useState<AppUser | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [search,        setSearch]        = useState("");
+  const [deleteTarget,  setDeleteTarget]  = useState<string | null>(null);
+  const [isDeleting,    setIsDeleting]    = useState(false);
 
-  const recipeLabel = (value: string, field: "cuisine" | "course") => {
-    const recipeMatch = recipes.find((recipe) => recipe[field] === value);
-
-    if (!recipeMatch) {
-      return value;
-    }
-
-    return field === "cuisine" ? getRecipeCuisine(recipeMatch, "de") || value : getRecipeCourse(recipeMatch, "de") || value;
-  };
-
-  const fetchRecipes = useCallback(async (currentUser: AppUser | null) => {
-    // When nobody is logged in, the private cookbook should not show personal recipes.
-    if (!currentUser) {
-      setRecipes([]);
-      setLoading(false);
-      setLoadError("");
-      return;
-    }
-
-    const { data, error } = await supabase.from("recipes").select("*").eq("user_id", currentUser.id).order("id", { ascending: false });
-
-    if (error) {
-      setLoadError(error.message);
-      notify({ tone: "error", title: "Could not load recipes", message: "Check your connection and try again." });
-      setRecipes([]);
-    } else {
-      setLoadError("");
-      setRecipes(mapRecipeRows(data ?? []));
-    }
-
+  // ── Load ──────────────────────────────────────────────────────────────────
+  const loadRecipes = useCallback(async (currentUser: AppUser | null) => {
+    if (!currentUser) { setRecords([]); setLoading(false); return; }
+    const { data, error } = await supabase
+      .from("recipes")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("id", { ascending: false });
+    if (error) { toast.error("Could not load recipes"); }
+    else { setRecords(mapRecipeRows(data ?? [])); }
     setLoading(false);
-  }, [notify]);
+  }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const load = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
-      if (!isMounted) return;
-
-      setUser(currentUser);
-
-      // The UI defaults to the browser language, but users can still toggle manually later.
-      const browserLang = navigator.language.toLowerCase();
-      setLang(browserLang.includes("de") ? "de" : "en");
-
-      await fetchRecipes(currentUser);
+    let alive = true;
+    const run = async () => {
+      const { data: { user: u } } = await supabase.auth.getUser();
+      if (!alive) return;
+      setUser(u);
+      await loadRecipes(u);
     };
+    void run();
+    return () => { alive = false; };
+  }, [loadRecipes]);
 
-    void load();
+  // ── Convert to display type ───────────────────────────────────────────────
+  const summaries = useMemo(() => toRecipeSummaries(records), [records]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [fetchRecipes]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return summaries;
+    return summaries.filter((s) =>
+      [s.title, s.cuisine, s.category ?? "", s.tags.join(" ")]
+        .join(" ").toLowerCase().includes(q)
+    );
+  }, [summaries, search]);
 
-  const cuisines = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean))) as string[], [recipes]);
-  const courses = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.course).filter(Boolean))) as string[], [recipes]);
-  const badges = useMemo(
-    () => Array.from(new Set(recipes.flatMap((recipe) => [...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")]))).sort(),
-    [recipes]
-  );
-
-  const filteredRecipes = recipes.filter((recipe) => {
-    // This combines the search text and the dropdown/chip filters.
-    // If a recipe passes every check below, it appears on the home page.
-    const searchValue = search.trim().toLowerCase();
-    const matchesSearch =
-      !searchValue ||
-      [
-        recipe.title_en,
-        recipe.title_de ?? "",
-        recipe.category ?? "",
-        recipe.cuisine ?? "",
-        recipe.cuisine_de ?? "",
-        recipe.course ?? "",
-        recipe.course_de ?? "",
-        recipe.tags.join(" "),
-        recipe.badges.join(" "),
-        deriveNutritionClaimTags(recipe, "en").join(" "),
-        deriveNutritionClaimTags(recipe, "de").join(" "),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(searchValue);
-
-    const matchesCuisine = !selectedCuisine || recipe.cuisine === selectedCuisine;
-    const matchesCourse = !selectedCourse || recipe.course === selectedCourse;
-    const matchesBadge = !selectedBadge || [...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].includes(selectedBadge);
-
-    return matchesSearch && matchesCuisine && matchesCourse && matchesBadge;
-  });
-
-  const latestRecipes = filteredRecipes.slice(0, 6);
-  const todayPick = filteredRecipes.find((recipe) => recipe.course?.toLowerCase().includes("dinner")) ?? filteredRecipes[0];
-  const productionVersion = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "local";
-  const productionBranch = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF || "main";
-  const pantrySuggestions = filteredRecipes
-    .filter((recipe) => recipe.ingredients.some((group) => group.items.some((item) => /rice|dal|onion|tomato|salt|oil/i.test(item.name_en))))
-    .slice(0, 3);
-  const cuisineCount = cuisines.length;
-  const badgeCount = badges.length;
-
+  // ── Auth ──────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    await supabase.auth.signOut();
     window.location.reload();
   };
 
-  const handleDelete = async (recipeId: number) => {
-    const confirmed = window.confirm("Delete this recipe?");
-    if (!confirmed) return;
-
-    const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
-    if (error) {
-      alert(error.message);
-      return;
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    const numId = parseInt(deleteTarget);
+    const { error } = await supabase.from("recipes").delete().eq("id", numId);
+    if (error) { toast.error(error.message); }
+    else {
+      setRecords((prev) => prev.filter((r) => r.id !== numId));
+      toast.success("Recipe deleted");
     }
-
-    setRecipes((current) => current.filter((recipe) => recipe.id !== recipeId));
+    setIsDeleting(false);
+    setDeleteTarget(null);
   };
 
-  const handleDeleteAllRecipes = async () => {
-    if (!user) {
-      alert("Please log in first.");
-      return;
-    }
-
-    const confirmed = window.confirm("Delete all your saved recipes?");
-    if (!confirmed) return;
-
-    const { error } = await supabase.from("recipes").delete().eq("user_id", user.id);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setRecipes([]);
-  };
+  const todayPick = filtered.find((s) => s.category?.toLowerCase().includes("dinner")) ?? filtered[0];
+  const latest = filtered.slice(0, 9);
 
   return (
-    <main className="container">
-      {/* This top block acts like a dashboard header: identity, auth, and big cookbook actions. */}
-      <section className="hero-panel editorial-hero">
-        <div className="hero-copy">
-          <p className="eyebrow">Private Recipe Studio</p>
-          <h1>My Cookbook</h1>
-          <p>A warm, private place for family recipes, bilingual notes, cover photos, and the cooks who taught each dish.</p>
-        </div>
+    <>
+      <Toaster position="top-right" />
+      <main className="min-h-screen">
 
-        <div className="hero-side">
-          <div className="cookbook-graphic simmer-scene" aria-hidden="true">
-            <span className="steam-line steam-one" />
-            <span className="steam-line steam-two" />
-            <span className="steam-line steam-three" />
-            <div className="plate-graphic">
-              <span className="plate-section plate-protein" />
-              <span className="plate-section plate-carb" />
-              <span className="plate-section plate-fiber" />
+        {/* ── Hero ──────────────────────────────────────────────────────── */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 px-4 pt-14 pb-10">
+          {/* subtle texture */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-40"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 75% 55%, rgba(234,88,12,0.18) 0%, transparent 55%), radial-gradient(circle at 20% 30%, rgba(251,191,36,0.14) 0%, transparent 50%)",
+            }}
+          />
+
+          <div className="relative max-w-5xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-10">
+
+            {/* Left: text */}
+            <div className="flex-1 text-center lg:text-left">
+              <motion.p
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3"
+              >
+                Private Recipe Studio
+              </motion.p>
+
+              <motion.h1
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="text-5xl sm:text-6xl font-extrabold text-gray-900 leading-tight mb-5"
+              >
+                My<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
+                  Cookbook
+                </span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22 }}
+                className="text-gray-500 text-base sm:text-lg max-w-md mx-auto lg:mx-0 mb-8 leading-relaxed"
+              >
+                A warm, private place for family recipes — bilingual, beautifully tagged,
+                and always within reach.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.32 }}
+                className="flex flex-wrap gap-3 justify-center lg:justify-start"
+              >
+                <Link
+                  href="/add"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white text-sm font-semibold rounded-xl hover:bg-orange-600 transition shadow-md"
+                >
+                  <Plus size={16} /> Add Recipe
+                </Link>
+                <Link
+                  href="/recipes"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition shadow-sm"
+                >
+                  <BookOpen size={16} /> Browse All
+                </Link>
+                {user ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition"
+                  >
+                    <LogOut size={14} /> Logout
+                  </button>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition"
+                  >
+                    <LogIn size={14} /> Login
+                  </Link>
+                )}
+              </motion.div>
+
+              {/* Stats */}
+              {records.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex gap-5 mt-8 justify-center lg:justify-start"
+                >
+                  {[
+                    { value: records.length, label: "recipes" },
+                    { value: new Set(records.map((r) => r.cuisine).filter(Boolean)).size, label: "cuisines" },
+                    { value: new Set(records.flatMap((r) => r.badges)).size, label: "tags" },
+                  ].map(({ value, label }) => (
+                    <div key={label} className="text-center">
+                      <p className="text-2xl font-extrabold text-gray-900">{value}</p>
+                      <p className="text-xs text-gray-500">{label}</p>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
             </div>
-            <div className="graphic-bars">
-              <span />
-              <span />
-              <span />
+
+            {/* Right: animation */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.08, duration: 0.7, ease: "easeOut" }}
+              className="flex-shrink-0 w-72"
+            >
+              <CookingAnimation />
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ── Quick nav ─────────────────────────────────────────────────────── */}
+        <section className="max-w-5xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-4 gap-3 sm:gap-4">
+            <NavCard icon={<BookOpen size={20} className="text-indigo-600" />}   label="Recipes"  href="/recipes"          color="bg-indigo-50"  delay={0.1} />
+            <NavCard icon={<CalendarDays size={20} className="text-violet-600" />} label="Planner"  href="/planner"          color="bg-violet-50"  delay={0.15} />
+            <NavCard icon={<ShoppingCart size={20} className="text-sky-600" />}    label="Shopping" href="/planner/shopping"  color="bg-sky-50"     delay={0.2} />
+            <NavCard icon={<Leaf size={20} className="text-green-600" />}          label="Pantry"   href="/pantry"           color="bg-green-50"   delay={0.25} />
+          </div>
+        </section>
+
+        {/* ── Today's pick ──────────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {!loading && todayPick && (
+            <motion.section
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="max-w-5xl mx-auto px-4 pb-6"
+            >
+              <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-md">
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-orange-100 uppercase tracking-widest mb-1">
+                    What to cook today
+                  </p>
+                  <h2 className="text-xl font-bold text-white mb-1">{todayPick.title}</h2>
+                  <p className="text-sm text-orange-100 opacity-90">
+                    {todayPick.cuisine} · {todayPick.prepTimeMinutes + todayPick.cookTimeMinutes} min · serves {todayPick.servings}
+                  </p>
+                </div>
+                <Link
+                  href={`/recipes/${todayPick.id}`}
+                  className="flex-shrink-0 px-5 py-2.5 bg-white text-orange-600 font-semibold text-sm rounded-xl hover:bg-orange-50 transition shadow-sm"
+                >
+                  Start cooking →
+                </Link>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+
+        {/* ── Recipe grid ───────────────────────────────────────────────────── */}
+        <section className="max-w-5xl mx-auto px-4 pb-16">
+          {/* Search bar */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search recipes…"
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
+            <span className="text-sm text-gray-400 hidden sm:block">
+              {filtered.length} recipe{filtered.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
-          <div className="hero-actions">
-            {user?.email ? <span className="user-pill">{user.email}</span> : null}
-
-            {user ? (
-              <button className="button" type="button" onClick={handleLogout}>
-                <AppIcon name="logout" size={16} />
-                Logout
-              </button>
-            ) : (
-              <Link href="/login" className="button">
-                <AppIcon name="login" size={16} />
-                Login
-              </Link>
-            )}
-
-            <Link href="/add" className="button button-primary">
-              <AppIcon name="add" size={16} />
-              Add Recipe
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <div className="dashboard-strip">
-        <div className="stat-tile">
-          <strong>{recipes.length}</strong>
-          <span>saved recipes</span>
-        </div>
-        <div className="stat-tile">
-          <strong>{cuisineCount}</strong>
-          <span>cuisines</span>
-        </div>
-        <div className="stat-tile">
-          <strong>{badgeCount}</strong>
-          <span>helpful badges</span>
-        </div>
-      </div>
-
-      <Stagger className="dashboard-command-grid" ariaLabel="Cooking dashboard">
-        <StaggerItem>
-        <div className="card today-card">
-          <p className="eyebrow">What to cook today</p>
-          {todayPick ? (
-            <>
-              <h2>{getRecipeTitle(todayPick, lang)}</h2>
-              <p>{todayPick.description_en || [todayPick.cuisine, todayPick.course].filter(Boolean).join(" • ")}</p>
-              <Link href={`/recipe/${todayPick.id}`} className="button button-primary">
-                <AppIcon name="quick" size={16} />
-                Start cooking
-              </Link>
-            </>
-          ) : (
-            <div className="onboarding-empty">
-              <div className="empty-illustration steam-cup" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-              <p>Your first recipe can begin as a family note, a URL import, or a pantry idea.</p>
-              <div className="section-link-grid">
-                <Link href="/add" className="button button-primary">Import or add recipe</Link>
-                <Link href="/pantry" className="button">Set up pantry</Link>
-              </div>
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="rounded-2xl overflow-hidden border border-gray-100">
+                  <div className="h-28 bg-gray-200" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
-        </StaggerItem>
-        <StaggerItem>
-        <div className="card meal-plan-card">
-          <p className="eyebrow">Weekly meal overview</p>
-          <div className="meal-week-grid">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, dayIndex) => (
-              <div key={stableCompositeId("week", day)} className="meal-day">
-                <strong>{day}</strong>
-                <span>{filteredRecipes[dayIndex % Math.max(filteredRecipes.length, 1)]?.title_en || "Plan meal"}</span>
+
+          {/* Empty state */}
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-20">
+              <span className="text-6xl block mb-4" aria-hidden="true">🍳</span>
+              <h2 className="text-lg font-semibold text-gray-700 mb-2">
+                {records.length === 0 ? "Your cookbook is empty" : "No recipes match"}
+              </h2>
+              <p className="text-sm text-gray-400 mb-5">
+                {records.length === 0
+                  ? "Add your first family recipe to get started."
+                  : "Try a different search term."}
+              </p>
+              {records.length === 0 && (
+                <Link href="/add" className="text-sm text-orange-600 hover:underline">
+                  Add the first recipe →
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* Recipe grid */}
+          {!loading && latest.length > 0 && (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-800">
+                  {search ? "Results" : "Newest Recipes"}
+                </h2>
+                {!search && filtered.length > 9 && (
+                  <Link href="/recipes" className="text-sm text-indigo-600 hover:underline">
+                    View all {filtered.length} →
+                  </Link>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-        </StaggerItem>
-        <StaggerItem>
-        <div className="card pantry-card">
-          <p className="eyebrow">Pantry suggestions</p>
-          <div className="compact-list">
-            {(pantrySuggestions.length > 0 ? pantrySuggestions : latestRecipes.slice(0, 3)).map((recipe) => (
-              <Link key={stableCompositeId("pantry", recipe.id)} href={`/recipe/${recipe.id}`}>
-                {getRecipeTitle(recipe, lang)}
-              </Link>
-            ))}
-          </div>
-        </div>
-        </StaggerItem>
-        <StaggerItem>
-        <div className="card grocery-card">
-          <p className="eyebrow">Quick grocery actions</p>
-          <div className="section-link-grid">
-            <Link href="/recipes" className="button">
-              Generate list
-            </Link>
-            <Link href="/add" className="button">
-              Add pantry item
-            </Link>
-          </div>
-        </div>
-        </StaggerItem>
-      </Stagger>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {latest.map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onEdit={() => { window.location.assign(`/edit/${recipe.id}`); }}
+                    onDelete={() => setDeleteTarget(recipe.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      </main>
 
-      <div className="card card-accent browse-panel">
-        <div>
-          <h2 style={{ marginBottom: 8 }}>Browse the Cookbook</h2>
-          <p style={{ marginBottom: 0 }}>Start with the newest recipes here, or open the full index for category browsing and management.</p>
-        </div>
-        <div className="section-link-grid">
-          <Link href="/recipes" className="button">
-            <AppIcon name="book" size={16} />
-            Open Recipe Index
-          </Link>
-          <Link href="/about" className="button">
-            <AppIcon name="about" size={16} />
-            About Me
-          </Link>
-          {user ? (
-            <button className="button button-danger" type="button" onClick={() => void handleDeleteAllRecipes()}>
-              <AppIcon name="delete" size={16} />
-              Delete My Recipes
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="deployment-ribbon" aria-label="Deployment status">
-        <span><strong>Build health</strong> Passing local checks</span>
-        <span><strong>Production version</strong> {productionVersion}</span>
-        <span><strong>Branch</strong> {productionBranch}</span>
-        <span><strong>Latest release</strong> Premium cookbook refinement</span>
-      </div>
-
-      <div className="card toolbar-panel">
-        <div className="section-heading-row">
-          <div>
-            <h2 style={{ marginBottom: 6 }}>Find something good</h2>
-            <p>Search by title, cuisine, course, tag, or nutrition badge.</p>
-          </div>
-          <div className="segmented-control" aria-label="Recipe language">
-            <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
-              EN
-            </button>
-            <button className={lang === "de" ? "button active" : "button"} type="button" onClick={() => setLang("de")}>
-              DE
-            </button>
-          </div>
-        </div>
-
-        <div className="toolbar-row">
-          <input className="input" placeholder="Search recipes, cuisine, course, or badges..." value={search} onChange={(event) => setSearch(event.target.value)} />
-
-          <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
-            <option value="">All cuisines</option>
-            {cuisines.map((cuisine) => (
-              <option key={cuisine} value={cuisine}>
-                {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
-              </option>
-            ))}
-          </select>
-          <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
-            <option value="">All courses</option>
-            {courses.map((course) => (
-              <option key={course} value={course}>
-                {lang === "de" ? recipeLabel(course, "course") : course}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {badges.length > 0 ? (
-          <div className="filter-chips">
-            <button className={selectedBadge === "" ? "button button-soft" : "button"} type="button" onClick={() => setSelectedBadge("")}>
-              All badges
-            </button>
-            {badges.map((badge) => (
-              <BadgeChip key={stableCompositeId("home-filter", badge)} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {loading ? <div className="skeleton-page" style={{ marginTop: 16 }}><div className="skeleton-line" /><div className="skeleton-card" /></div> : null}
-      {!loading && loadError ? (
-        <div className="empty-state empty-state-action illustrated-empty" style={{ marginTop: 16 }}>
-          <div className="empty-illustration steam-cup" aria-hidden="true"><span /><span /><span /></div>
-          <h2>Recipes could not load</h2>
-          <p>{typeof navigator === "undefined" || navigator.onLine ? "The kitchen connection hiccuped. Try again in a moment." : "You are offline. Saved offline views will remain available once caching is enabled."}</p>
-          <button className="button button-primary" type="button" onClick={() => void fetchRecipes(user)}>Retry</button>
-        </div>
-      ) : null}
-      {!loading && !loadError && filteredRecipes.length === 0 ? (
-        <div className="empty-state empty-state-action illustrated-empty" style={{ marginTop: 16 }}>
-          <div className="empty-illustration sprinkle-bowl" aria-hidden="true"><span /><span /><span /><span /></div>
-          <h2>Start your family cookbook</h2>
-          <p>Import a favorite recipe, add a handwritten classic, or begin with pantry staples like rice, dal, tomatoes, and coriander.</p>
-          <Link href="/add" className="button button-primary">Add the first recipe</Link>
-        </div>
-      ) : null}
-
-      <div style={{ marginTop: 18 }}>
-        <div className="section-heading-row">
-          <div>
-            <h2 style={{ marginBottom: 6 }}>Newest Recipes</h2>
-            <p>{filteredRecipes.length} matching recipe{filteredRecipes.length === 1 ? "" : "s"}</p>
-          </div>
-          <Link href="/recipes" className="button button-soft">
-            <AppIcon name="book" size={16} />
-            View All
-          </Link>
-        </div>
-
-        <FadeUp className="recipe-card-grid">
-          {latestRecipes.map((recipe) => {
-            const coverImage = getRecipeCoverImage(recipe);
-
-            return (
-              <article key={recipe.id} className="card recipe-preview-card" style={{ overflow: "hidden" }}>
-                {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : <div className="recipe-card-photo recipe-card-photo-placeholder"><AppIcon name="recipe" size={30} /></div>}
-
-                <div className="recipe-card-body">
-                  <div>
-                    <h2 className="recipe-card-title">
-                      <Link href={`/recipe/${recipe.id}`}>{getRecipeTitle(recipe, lang)}</Link>
-                    </h2>
-                    <div className="recipe-card-meta">
-                      {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
-                        <span className="meta-pill" key={stableCompositeId(recipe.id, "meta", item)}>{item}</span>
-                      ))}
-                      {[
-                        ["prep", recipe.prep_time],
-                        ["cook", recipe.cook_time],
-                        ["total", recipe.total_time],
-                      ].filter((item): item is [string, string] => Boolean(item[1])).map(([slot, item]) => (
-                        <span className="meta-pill" key={recipeTimingId(recipe.id, slot, item)}>{item}</span>
-                      ))}
-                    </div>
-                    <p style={{ marginTop: 10, marginBottom: 0 }}>
-                      By {recipe.author_name}
-                      {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
-                    </p>
-                  </div>
-
-                  {user?.id === recipe.user_id ? (
-                    <div className="recipe-card-actions">
-                      <Link href={`/edit/${recipe.id}`} className="button">
-                        <AppIcon name="edit" size={16} />
-                        Edit
-                      </Link>
-                      <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
-                        <AppIcon name="delete" size={16} />
-                        Delete
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
-                    <div className="filter-chips" style={{ marginTop: 0 }}>
-                      {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                        <BadgeChip key={badge.startsWith("Good") || badge.startsWith("Excellent") ? nutritionTagId(recipe.id, badge) : recipeBadgeId(recipe.id, badge)} badge={badge} lang={lang} />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
-        </FadeUp>
-      </div>
-    </main>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete this recipe?"
+        message="This will permanently remove the recipe and cannot be undone."
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setDeleteTarget(null)}
+        loading={isDeleting}
+      />
+    </>
   );
 }
