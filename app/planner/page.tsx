@@ -173,8 +173,8 @@ export default function PlannerPage() {
       const [mealsRes, recipesRes] = await Promise.all([
         supabase.from("planned_meals").select("*")
           .eq("user_id", user.id)
-          .gte("date", weekStart)
-          .lte("date", weekEnd),
+          .gte("meal_date", weekStart)
+          .lte("meal_date", weekEnd),
         supabase.from("recipes").select("*").eq("user_id", user.id),
       ]);
 
@@ -183,10 +183,10 @@ export default function PlannerPage() {
 
       const mealRows: PlannedMeal[] = (mealsRes.data ?? []).map((row) => ({
         id:       row.id,
-        date:     row.date,
-        slot:     row.slot as MealSlot,
+        date:     row.meal_date as string,
+        slot:     row.meal_slot as MealSlot,
         recipeId: String(row.recipe_id),
-        servings: row.servings,
+        servings: (row.servings as number) ?? 1,
         notes:    row.notes ?? undefined,
       }));
 
@@ -229,8 +229,8 @@ export default function PlannerPage() {
 
       const { data, error } = await supabase.from("planned_meals").insert({
         user_id:   user.id,
-        date,
-        slot,
+        meal_date: date,
+        meal_slot: slot,
         recipe_id: parseInt(recipeId),
         servings:  1,
       }).select().single();
@@ -238,11 +238,11 @@ export default function PlannerPage() {
       if (error) throw error;
 
       const newMeal: PlannedMeal = {
-        id:       data.id,
-        date:     data.date,
-        slot:     data.slot,
+        id:       data.id as string,
+        date:     data.meal_date as string,
+        slot:     data.meal_slot as MealSlot,
         recipeId: String(data.recipe_id),
-        servings: data.servings,
+        servings: (data.servings as number) ?? 1,
       };
       setPlannedMeals((prev) => [...prev, newMeal]);
       toast.success("Added to planner");

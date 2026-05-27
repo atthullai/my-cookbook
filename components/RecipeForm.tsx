@@ -7,6 +7,7 @@
 
 import Image from "next/image";
 import type { FormEvent } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type {
   EquipmentDraft,
   FaqDraft,
@@ -18,9 +19,41 @@ import type {
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
-import BadgeChip from "@/components/BadgeChip";
 import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
+import { getEquipmentIcon } from "@/lib/ingredient-icons";
 import { stableCompositeId } from "@/lib/stable-ids";
+
+// ── Badge metadata ─────────────────────────────────────────────────────────────
+const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
+  "Veg":          { emoji: "🥦", bg: "bg-green-100",   text: "text-green-800",   ring: "ring-green-400" },
+  "Non-Veg":      { emoji: "🍗", bg: "bg-red-100",     text: "text-red-800",     ring: "ring-red-400" },
+  "Egg":          { emoji: "🥚", bg: "bg-yellow-100",  text: "text-yellow-800",  ring: "ring-yellow-400" },
+  "Vegan":        { emoji: "🌱", bg: "bg-emerald-100", text: "text-emerald-800", ring: "ring-emerald-400" },
+  "Spicy":        { emoji: "🌶️", bg: "bg-orange-100",  text: "text-orange-800",  ring: "ring-orange-400" },
+  "High Protein": { emoji: "💪", bg: "bg-blue-100",    text: "text-blue-800",    ring: "ring-blue-400" },
+  "Quick Meal":   { emoji: "⚡", bg: "bg-indigo-100",  text: "text-indigo-800",  ring: "ring-indigo-400" },
+  "One Pot":      { emoji: "🥘", bg: "bg-amber-100",   text: "text-amber-800",   ring: "ring-amber-400" },
+  "Festival":     { emoji: "🎉", bg: "bg-purple-100",  text: "text-purple-800",  ring: "ring-purple-400" },
+  "Breakfast":    { emoji: "🌅", bg: "bg-sky-100",     text: "text-sky-800",     ring: "ring-sky-400" },
+  "Lunch":        { emoji: "☀️", bg: "bg-yellow-50",   text: "text-yellow-900",  ring: "ring-yellow-300" },
+  "Dinner":       { emoji: "🌙", bg: "bg-violet-100",  text: "text-violet-800",  ring: "ring-violet-400" },
+  "Dessert":      { emoji: "🍰", bg: "bg-pink-100",    text: "text-pink-800",    ring: "ring-pink-400" },
+};
+
+// ── Unit options ───────────────────────────────────────────────────────────────
+const UNIT_OPTIONS = [
+  "",
+  // Volume
+  "ml", "L", "tsp", "tbsp", "cup", "fl oz",
+  // Weight
+  "g", "kg", "oz", "lb",
+  // Count / natural
+  "piece", "pieces", "slice", "slices", "bunch", "handful", "sprig",
+  // Packaged
+  "can", "packet", "sachet",
+  // Pinch / taste
+  "pinch", "to taste",
+];
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -180,14 +213,60 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       <div className="card" style={{ marginBottom: 0 }}>
         {/* Badges are quick filters. They are not required, but they make browsing much nicer. */}
-        <h3 style={{ marginBottom: 8 }}>Quick Badge Filters</h3>
-        <p style={{ marginBottom: 12 }}>These are the easy filter buttons shown on home and recipe index pages.</p>
+        <h3 style={{ marginBottom: 6 }}>Quick Badge Filters</h3>
+        <p style={{ marginBottom: 14, fontSize: 13, color: "#6b7280" }}>
+          Tap to toggle. Selected badges appear highlighted with a check — they show as filter chips across the app.
+        </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {BADGE_OPTIONS.map((badge) => {
             const isActive = props.badges.includes(badge);
+            const meta = BADGE_META[badge] ?? { emoji: "🏷️", bg: "bg-gray-100", text: "text-gray-700", ring: "ring-gray-300" };
 
             return (
-              <BadgeChip key={badge} badge={badge} lang="en" active={isActive} asButton onClick={() => props.onBadgeToggle(badge)} />
+              <motion.button
+                key={badge}
+                type="button"
+                onClick={() => props.onBadgeToggle(badge)}
+                whileHover={{ scale: 1.07, y: -1 }}
+                whileTap={{ scale: 0.91 }}
+                animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                transition={{ type: "spring", stiffness: 420, damping: 18 }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "7px 13px",
+                  borderRadius: 9999,
+                  border: "2px solid transparent",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  userSelect: "none",
+                  outline: "none",
+                  transition: "background 0.15s, box-shadow 0.15s",
+                  ...(isActive
+                    ? { boxShadow: `0 0 0 2px rgba(0,0,0,0.06)` }
+                    : { background: "#f9fafb", border: "2px solid #e5e7eb", color: "#6b7280" }),
+                }}
+                className={isActive ? `${meta.bg} ${meta.text} ring-2 ${meta.ring}` : ""}
+              >
+                <span style={{ fontSize: 15, lineHeight: 1 }}>{meta.emoji}</span>
+                <span>{badge}</span>
+                <AnimatePresence>
+                  {isActive && (
+                    <motion.span
+                      key="check"
+                      initial={{ scale: 0, opacity: 0, width: 0 }}
+                      animate={{ scale: 1, opacity: 1, width: "auto" }}
+                      exit={{ scale: 0, opacity: 0, width: 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                      style={{ fontSize: 12, fontWeight: 700, overflow: "hidden" }}
+                    >
+                      ✓
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             );
           })}
         </div>
@@ -239,12 +318,16 @@ export default function RecipeForm(props: RecipeFormProps) {
                   value={ingredient.amount}
                   onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "amount", event.target.value)}
                 />
-                <input
+                <select
                   className="input"
-                  placeholder="Unit"
                   value={ingredient.unit}
                   onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "unit", event.target.value)}
-                />
+                  title="Unit"
+                >
+                  {UNIT_OPTIONS.map((u) => (
+                    <option key={u} value={u}>{u || "— unit —"}</option>
+                  ))}
+                </select>
                 <input
                   className="input"
                   placeholder="Ingredient (EN)"
@@ -405,26 +488,55 @@ export default function RecipeForm(props: RecipeFormProps) {
       <div className="card" style={{ marginBottom: 0 }}>
         {/* Nutrition values are per serving. Blank fields simply do not show on the recipe page. */}
         <h3 style={{ marginBottom: 8 }}>Equipment</h3>
-        {props.equipment.map((item, index) => (
-          <div key={stableCompositeId("form-equipment", item.label_en, index)} className="three-field-row">
-            <input
-              className="input"
-              placeholder="Equipment (EN)"
-              value={item.label_en}
-              onChange={(event) => props.onEquipmentChange(index, "label_en", event.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="Equipment (DE)"
-              value={item.label_de}
-              onChange={(event) => props.onEquipmentChange(index, "label_de", event.target.value)}
-            />
-            <button className="button" type="button" onClick={() => props.onEquipmentRemove(index)}>
-              <AppIcon name="delete" size={16} />
-              Remove
-            </button>
-          </div>
-        ))}
+        {props.equipment.map((item, index) => {
+          const equipIcon = getEquipmentIcon(item.label_en || item.label_de || "");
+          return (
+            <div
+              key={stableCompositeId("form-equipment", item.label_en, index)}
+              style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
+            >
+              {/* Equipment icon */}
+              <motion.span
+                key={item.label_en}
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                style={{
+                  fontSize: 24,
+                  width: 40,
+                  height: 40,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#f3f4f6",
+                  borderRadius: 10,
+                  flexShrink: 0,
+                }}
+                title={item.label_en || "Equipment"}
+              >
+                {equipIcon.emoji}
+              </motion.span>
+              <input
+                className="input"
+                style={{ flex: 1 }}
+                placeholder="Equipment (EN)"
+                value={item.label_en}
+                onChange={(event) => props.onEquipmentChange(index, "label_en", event.target.value)}
+              />
+              <input
+                className="input"
+                style={{ flex: 1 }}
+                placeholder="Equipment (DE)"
+                value={item.label_de}
+                onChange={(event) => props.onEquipmentChange(index, "label_de", event.target.value)}
+              />
+              <button className="button" type="button" onClick={() => props.onEquipmentRemove(index)}>
+                <AppIcon name="delete" size={16} />
+                Remove
+              </button>
+            </div>
+          );
+        })}
 
         <button className="button" type="button" onClick={props.onEquipmentAdd}>
           <AppIcon name="add" size={16} />

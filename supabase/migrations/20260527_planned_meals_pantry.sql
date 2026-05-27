@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS planned_meals (
   recipe_id   BIGINT      REFERENCES recipes(id) ON DELETE SET NULL,
   meal_date   DATE        NOT NULL,
   meal_slot   TEXT        NOT NULL CHECK (meal_slot IN ('breakfast','lunch','dinner','snack')),
+  servings    INTEGER     DEFAULT 1,
   note        TEXT,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
 

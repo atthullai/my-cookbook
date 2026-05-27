@@ -13,19 +13,15 @@ export type AppUser = User;
 export type RecipeAmount = string | number | null;
 
 export const DIFFICULTY_OPTIONS = [
-  "Easy",
   "Beginner",
   "Intermediate",
   "Advanced",
-  "Expert",
 ] as const;
 
 export const DIFFICULTY_LABELS_DE: Record<(typeof DIFFICULTY_OPTIONS)[number], string> = {
-  Easy: "Einfach",
-  Beginner: "Anfanger",
+  Beginner: "Anfänger",
   Intermediate: "Mittel",
   Advanced: "Fortgeschritten",
-  Expert: "Experte",
 };
 
 export const BADGE_OPTIONS = [

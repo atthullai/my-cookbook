@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Plus, Trash2, Loader2, Calculator, ChevronDown, ChevronUp,
+  ArrowLeft, Plus, Trash2, Loader2, Calculator, ChevronDown, ChevronUp, Link2, X,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -137,6 +137,71 @@ export default function AddRecipePage() {
   const [tags,        setTags]        = useState<RecipeTag[]>([]);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([emptyIngredient()]);
   const [steps,       setSteps]       = useState<StepRow[]>([emptyStep()]);
+
+  // ── URL import state ────────────────────────────────────────────────────────
+  const [importUrl,      setImportUrl]      = useState("");
+  const [isImporting,    setIsImporting]    = useState(false);
+
+  const handleImport = useCallback(async () => {
+    if (!importUrl.trim()) { toast.error("Paste a recipe URL first"); return; }
+    setIsImporting(true);
+    try {
+      const res = await fetch("/api/import-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: importUrl.trim() }),
+      });
+      const json = await res.json() as {
+        recipe?: {
+          title?: string; description?: string; cuisine?: string;
+          prepTime?: string; cookTime?: string; servings?: string;
+          notesEn?: string; sourceUrl?: string;
+          ingredients?: Array<{ group_en?: string; items?: Array<{ amount?: string; unit?: string; name_en?: string }> }>;
+          instructionSections?: Array<{ steps_en?: string[] }>;
+        };
+        error?: string;
+      };
+      if (!json.recipe) throw new Error(json.error ?? "Could not import recipe");
+
+      const r = json.recipe;
+      if (r.title)       setTitle(r.title);
+      if (r.description) setDescription(r.description);
+      if (r.prepTime)    setPrepTime(r.prepTime.replace(/\D/g, ""));
+      if (r.cookTime)    setCookTime(r.cookTime.replace(/\D/g, ""));
+      if (r.servings)    setServings(r.servings.replace(/\D/g, "") || "4");
+      if (r.notesEn)     setNotes(r.notesEn);
+
+      // Flatten ingredient groups into rows
+      const importedIngredients = (r.ingredients ?? []).flatMap((g) =>
+        (g.items ?? []).map((item) => ({
+          id:       uid(),
+          name:     item.name_en ?? "",
+          quantity: item.amount ?? "",
+          unit:     item.unit ?? "",
+          notes:    "",
+        }))
+      );
+      if (importedIngredients.length > 0) setIngredients(importedIngredients);
+
+      // Flatten instruction sections into step rows
+      const importedSteps = (r.instructionSections ?? []).flatMap((sec) =>
+        (sec.steps_en ?? []).map((instruction) => ({
+          id:          uid(),
+          instruction,
+          duration:    "",
+          tip:         "",
+        }))
+      );
+      if (importedSteps.length > 0) setSteps(importedSteps);
+
+      setImportUrl("");
+      toast.success("Recipe imported! Review and save.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setIsImporting(false);
+    }
+  }, [importUrl]);
 
   // ── Nutrition state ──────────────────────────────────────────────────────────
   const [nutritionPreview, setNutritionPreview] = useState<NutritionInfo | null>(null);
@@ -363,6 +428,42 @@ export default function AddRecipePage() {
         </div>
 
         <div className="space-y-8">
+
+          {/* ── Import from URL ────────────────────────────────────────────── */}
+          <section className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl border border-indigo-100 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Link2 size={16} className="text-indigo-500" />
+              <h2 className="font-semibold text-indigo-900 text-sm">Import from a website or blog</h2>
+            </div>
+            <p className="text-xs text-indigo-600 mb-3 leading-relaxed">
+              Paste a URL from any cooking website — ingredients, steps, and timings will be imported automatically.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void handleImport(); }}
+                placeholder="https://www.example.com/recipe/..."
+                className="flex-1 px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+              />
+              {importUrl && (
+                <button type="button" onClick={() => setImportUrl("")}
+                  className="p-2.5 text-gray-400 hover:text-gray-600 transition">
+                  <X size={14} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleImport()}
+                disabled={isImporting || !importUrl.trim()}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50 flex-shrink-0"
+              >
+                {isImporting
+                  ? <><Loader2 size={14} className="animate-spin" /> Importing…</>
+                  : <><Link2 size={14} /> Import</>}
+              </button>
+            </div>
+          </section>
 
           {/* ── Basics ─────────────────────────────────────────────────────── */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
