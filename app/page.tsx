@@ -194,7 +194,7 @@ export default function Home() {
                   opacity: 0.85,
                 }}
               >
-                A Tamil Family Kitchen
+                Heirloom Collection
               </motion.p>
 
               {/* Main heading — large, editorial, serif */}

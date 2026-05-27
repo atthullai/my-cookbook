@@ -8,6 +8,7 @@
 import Image from "next/image";
 import type { FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import type {
   EquipmentDraft,
   FaqDraft,
@@ -186,7 +187,30 @@ export default function RecipeForm(props: RecipeFormProps) {
 
         <div className="form-grid">
           <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
-          <input className="input" value={props.cuisine} onChange={(event) => props.onCuisineChange(event.target.value)} placeholder="Cuisine" />
+          {/* ── Cuisine origin: grouped dropdown ─────────────────────── */}
+          <select
+            className="input"
+            value={props.cuisine}
+            onChange={(event) => props.onCuisineChange(event.target.value)}
+          >
+            <option value="">— Select Cuisine —</option>
+            <optgroup label="🇮🇳 Indian Regional">
+              {INDIAN_CUISINE_ORIGINS.map((o) => {
+                const t = getCuisineTheme(o);
+                return (
+                  <option key={o} value={o}>{t.emoji} {t.label}</option>
+                );
+              })}
+            </optgroup>
+            <optgroup label="🌍 World Kitchen">
+              {ALL_CUISINE_ORIGINS.filter((o) => !INDIAN_CUISINE_ORIGINS.includes(o)).map((o) => {
+                const t = getCuisineTheme(o);
+                return (
+                  <option key={o} value={o}>{t.emoji} {t.label}</option>
+                );
+              })}
+            </optgroup>
+          </select>
           <input className="input" value={props.cuisineDe} onChange={(event) => props.onCuisineDeChange(event.target.value)} placeholder="Cuisine (DE)" />
           <input className="input" value={props.course} onChange={(event) => props.onCourseChange(event.target.value)} placeholder="Course" />
           <input className="input" value={props.courseDe} onChange={(event) => props.onCourseDeChange(event.target.value)} placeholder="Course (DE)" />

@@ -1,45 +1,55 @@
 "use client";
 
 /**
- * About — /about
+ * About Me — /about
  *
- * Emotional storytelling page.
- * - Hero: warm gradient, "Every Recipe Has a Story"
- * - App philosophy section
- * - Animated cuisine origin cards (all 20 cuisines)
- * - Feature highlights
- * - Framer Motion scroll-triggered animations
+ * Personal profile page that the user can edit:
+ * - Name, bio, location, cooking style
+ * - Saved to user_profiles in Supabase
+ * - Shows cookbook stats (recipe count, cuisine count)
+ * - App feature highlights below
  */
-import { useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import {
-  BookOpen, CalendarDays, ShoppingCart,
-  Leaf, Zap, Heart, Star, UtensilsCrossed,
+  BookOpen, CalendarDays, ShoppingCart, Leaf,
+  Pencil, Check, X, ChefHat, MapPin, Sparkles,
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
+import { supabase } from "@/lib/supabase";
 import { ALL_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import type { CuisineOrigin } from "@/types";
 
-// ── Scroll-reveal wrapper ─────────────────────────────────────────────────────
-function Reveal({
-  children,
-  delay = 0,
-  className = "",
-}: {
-  children: React.ReactNode;
-  delay?: number;
-  className?: string;
-}) {
-  const ref    = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+const EASE_WARM: [number, number, number, number] = [0.25, 0.1, 0.4, 1.0];
 
+interface UserProfile {
+  display_name: string;
+  bio: string;
+  location: string;
+  cook_style: string;
+  avatar_url: string;
+}
+
+const EMPTY_PROFILE: UserProfile = {
+  display_name: "",
+  bio: "",
+  location: "",
+  cook_style: "",
+  avatar_url: "",
+};
+
+// ── Scroll-reveal wrapper ─────────────────────────────────────────────────────
+function Reveal({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const ref    = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 32 }}
+    <motion.div ref={ref}
+      initial={{ opacity: 0, y: 28 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.55, delay, ease: EASE_WARM }}
       className={className}
     >
       {children}
@@ -47,302 +57,409 @@ function Reveal({
   );
 }
 
-// ── Cuisine card ──────────────────────────────────────────────────────────────
+// ── Cuisine showcase card ─────────────────────────────────────────────────────
 function CuisineCard({ origin, index }: { origin: CuisineOrigin; index: number }) {
   const theme  = getCuisineTheme(origin);
   const ref    = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
-
   return (
-    <motion.div
-      ref={ref}
+    <motion.div ref={ref}
       initial={{ opacity: 0, scale: 0.88 }}
       animate={inView ? { opacity: 1, scale: 1 } : {}}
       transition={{ duration: 0.4, delay: (index % 5) * 0.06, ease: "easeOut" }}
-      whileHover={{ scale: 1.05, transition: { duration: 0.18 } }}
+      whileHover={{ scale: 1.05 }}
       className={`rounded-2xl p-4 ${theme.cardGradient} border border-white/30 shadow-sm cursor-default select-none`}
     >
-      <span className="text-3xl block mb-2" aria-hidden="true">{theme.emoji}</span>
-      <p className={`text-xs font-semibold uppercase tracking-wide ${theme.headingColor}`}>
-        {theme.label}
-      </p>
+      <span className="text-3xl block mb-2">{theme.emoji}</span>
+      <p className={`text-xs font-semibold uppercase tracking-wide ${theme.headingColor}`}>{theme.label}</p>
       <p className={`text-xs mt-0.5 ${theme.textColor} opacity-80`}>{theme.descriptor}</p>
     </motion.div>
   );
 }
 
 // ── Feature card ──────────────────────────────────────────────────────────────
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  href: string;
-  delay: number;
-}
-function FeatureCard({ icon, title, body, href, delay }: FeatureCardProps) {
+function FeatureCard({ icon, title, body, href, delay }: { icon: React.ReactNode; title: string; body: string; href: string; delay: number }) {
   return (
     <Reveal delay={delay}>
-      <Link
-        href={href}
-        className="block group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+      <Link href={href}
+        className="block group rounded-2xl p-6 border shadow-sm hover:shadow-md transition-shadow"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition-colors">
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+          style={{ background: "rgba(184,92,53,0.1)", color: "var(--accent)" }}>
           {icon}
         </div>
-        <h3 className="text-base font-semibold text-gray-900 mb-2 group-hover:text-indigo-700 transition-colors">
-          {title}
-        </h3>
-        <p className="text-sm text-gray-500 leading-relaxed">{body}</p>
+        <h3 className="text-base font-semibold mb-2" style={{ color: "var(--foreground)" }}>{title}</h3>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{body}</p>
       </Link>
-    </Reveal>
-  );
-}
-
-// ── Philosophy bullet ─────────────────────────────────────────────────────────
-function PhilosophyPoint({
-  emoji, title, body, delay,
-}: { emoji: string; title: string; body: string; delay: number }) {
-  return (
-    <Reveal delay={delay} className="flex gap-4">
-      <span className="text-3xl flex-shrink-0 mt-1" aria-hidden="true">{emoji}</span>
-      <div>
-        <h3 className="font-semibold text-gray-900 mb-1">{title}</h3>
-        <p className="text-gray-600 text-sm leading-relaxed">{body}</p>
-      </div>
     </Reveal>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AboutPage() {
+  const [profile,   setProfile]   = useState<UserProfile>(EMPTY_PROFILE);
+  const [draft,     setDraft]     = useState<UserProfile>(EMPTY_PROFILE);
+  const [editing,   setEditing]   = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [userId,    setUserId]    = useState<string | null>(null);
+  const [stats,     setStats]     = useState({ recipes: 0, cuisines: 0 });
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      setUserId(user.id);
+
+      // Load profile
+      const { data: profileData } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profileData) {
+        const p: UserProfile = {
+          display_name: (profileData.display_name as string) ?? "",
+          bio:          (profileData.bio as string) ?? "",
+          location:     (profileData.location as string) ?? "",
+          cook_style:   (profileData.cook_style as string) ?? "",
+          avatar_url:   (profileData.avatar_url as string) ?? "",
+        };
+        setProfile(p);
+        setDraft(p);
+      }
+
+      // Load stats
+      const { data: recipes } = await supabase
+        .from("recipes")
+        .select("cuisine_origin")
+        .eq("user_id", user.id);
+
+      if (recipes) {
+        const uniqueCuisines = new Set(recipes.map((r) => r.cuisine_origin as string).filter(Boolean));
+        setStats({ recipes: recipes.length, cuisines: uniqueCuisines.size });
+      }
+    } catch {
+      // user_profiles table might not exist yet — show setup prompt
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  const saveProfile = async () => {
+    if (!userId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("user_profiles")
+        .upsert({
+          id:           userId,
+          display_name: draft.display_name,
+          bio:          draft.bio,
+          location:     draft.location,
+          cook_style:   draft.cook_style,
+          updated_at:   new Date().toISOString(),
+        });
+
+      if (error) {
+        if (error.message.includes("relation") || error.message.includes("does not exist")) {
+          toast.error("Run the setup migration first. Copy the SQL from below.", { duration: 8000 });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      setProfile({ ...draft });
+      setEditing(false);
+      toast.success("Profile saved!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen">
+    <>
+      <Toaster position="top-right" />
+      <main className="min-h-screen" style={{ background: "var(--background)" }}>
 
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-24 px-4">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-30"
+        {/* ── Profile hero ──────────────────────────────────────────────────── */}
+        <section
+          className="relative overflow-hidden px-4 py-16"
           style={{
-            backgroundImage: [
-              "radial-gradient(circle at 20% 80%, #f97316 0%, transparent 50%)",
-              "radial-gradient(circle at 80% 20%, #ec4899 0%, transparent 50%)",
-            ].join(", "),
+            background: "linear-gradient(160deg, var(--linen) 0%, var(--parchment) 60%, var(--background) 100%)",
           }}
-        />
-
-        <div className="relative max-w-3xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 14 }}
-            className="text-7xl mb-6 block"
-            aria-hidden="true"
-          >
-            📖
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="text-5xl sm:text-6xl font-extrabold text-gray-900 leading-tight mb-6"
-          >
-            Every Recipe<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">
-              Has a Story
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.28, duration: 0.55 }}
-            className="text-lg sm:text-xl text-gray-600 max-w-xl mx-auto leading-relaxed mb-10"
-          >
-            My Cookbook is where family heritage, culinary curiosity, and everyday
-            cooking come together in one personal space — yours alone.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.42, duration: 0.5 }}
-            className="flex flex-wrap gap-3 justify-center"
-          >
-            <Link
-              href="/recipes"
-              className="px-6 py-3 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition shadow-md hover:shadow-lg"
+        >
+          <div className="max-w-3xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: EASE_WARM }}
+              className="rounded-3xl p-8 shadow-lg"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
-              Browse Recipes
-            </Link>
-            <Link
-              href="/add"
-              className="px-6 py-3 rounded-xl bg-white text-gray-700 font-semibold text-sm border border-gray-200 hover:bg-gray-50 transition shadow-sm"
-            >
-              Add a Recipe
-            </Link>
-          </motion.div>
-        </div>
-      </section>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-5">
+                  {/* Avatar circle */}
+                  <div
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0"
+                    style={{ background: "rgba(184,92,53,0.12)" }}
+                  >
+                    {profile.avatar_url ? (
+                      <Image unoptimized src={profile.avatar_url} alt="Profile avatar" width={80} height={80} className="w-full h-full object-cover rounded-2xl" />
+                    ) : (
+                      <ChefHat size={36} style={{ color: "var(--accent)" }} />
+                    )}
+                  </div>
 
-      {/* ── Philosophy ────────────────────────────────────────────────────── */}
-      <section className="max-w-3xl mx-auto px-4 py-20">
-        <Reveal>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3 text-center">
-            What is My Cookbook?
-          </h2>
-          <p className="text-center text-gray-500 mb-12 max-w-xl mx-auto text-sm leading-relaxed">
-            Not just a recipe manager — a living record of the meals that matter most.
-          </p>
-        </Reveal>
+                  <div>
+                    {loading ? (
+                      <div className="animate-pulse space-y-2">
+                        <div className="h-6 w-40 rounded" style={{ background: "var(--border)" }} />
+                        <div className="h-4 w-28 rounded" style={{ background: "var(--border)" }} />
+                      </div>
+                    ) : (
+                      <>
+                        <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                          {profile.display_name || (userId ? "Your Cookbook" : "My Cookbook")}
+                        </h1>
+                        {profile.location && (
+                          <p className="flex items-center gap-1.5 text-sm mt-1" style={{ color: "var(--muted)" }}>
+                            <MapPin size={13} /> {profile.location}
+                          </p>
+                        )}
+                        {profile.cook_style && (
+                          <p className="flex items-center gap-1.5 text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                            <Sparkles size={13} /> {profile.cook_style}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
 
-        <div className="space-y-10">
-          <PhilosophyPoint
-            emoji="🧑‍🍳"
-            title="Your kitchen, your rules"
-            body="Every family cooks differently. My Cookbook is built around your recipes — the ones passed down by a grandparent, the quick weeknight favourites, the weekend experiments that turned out surprisingly well."
-            delay={0.05}
-          />
-          <PhilosophyPoint
-            emoji="🌍"
-            title="A world of flavours at home"
-            body="From spicy Karnataka curries to delicate Viennese pastries, our cuisine system covers 20 regional origins so each recipe lives in its cultural context — complete with matching colours and personality."
-            delay={0.1}
-          />
-          <PhilosophyPoint
-            emoji="❤️"
-            title="Food is love, made tangible"
-            body="The Amma's rasam your nose remembers from childhood, the dal tadka that tastes of home when you're far away — those recipes deserve more than a dog-eared notebook page. They deserve to be preserved."
-            delay={0.15}
-          />
-          <PhilosophyPoint
-            emoji="📊"
-            title="Mindful, not obsessive"
-            body="Nutrition data is available when you want it — calories, macros, fibre — without dominating the experience. Cooking is a joy first, a spreadsheet second."
-            delay={0.2}
-          />
-        </div>
-      </section>
+                {/* Edit button */}
+                {userId && !editing && (
+                  <button
+                    type="button"
+                    onClick={() => { setDraft({ ...profile }); setEditing(true); }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
+                    style={{ background: "var(--surface-strong)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+                  >
+                    <Pencil size={14} /> Edit Profile
+                  </button>
+                )}
+              </div>
 
-      {/* ── Feature highlights ────────────────────────────────────────────── */}
-      <section className="bg-gray-50 py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <Reveal className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Everything you need</h2>
-            <p className="text-sm text-gray-500 max-w-lg mx-auto">
-              Built for real home cooks — not food bloggers.
+              {/* Bio */}
+              {!editing && profile.bio && (
+                <p className="mt-5 leading-relaxed" style={{ color: "var(--muted)" }}>
+                  {profile.bio}
+                </p>
+              )}
+
+              {/* No profile yet */}
+              {!editing && !loading && userId && !profile.display_name && (
+                <p className="mt-4 text-sm italic" style={{ color: "var(--muted)", opacity: 0.7 }}>
+                  Click &ldquo;Edit Profile&rdquo; to add your name, bio, and cooking style.
+                </p>
+              )}
+
+              {/* Stats */}
+              {!editing && !loading && stats.recipes > 0 && (
+                <div className="flex gap-6 mt-5 pt-5" style={{ borderTop: "1px solid var(--border)" }}>
+                  <div>
+                    <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{stats.recipes}</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>Recipes</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{stats.cuisines}</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>Cuisines</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Edit form ─────────────────────────────────────────────── */}
+              {editing && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="mt-6 space-y-4 overflow-hidden"
+                >
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                        Display Name
+                      </label>
+                      <input
+                        value={draft.display_name}
+                        onChange={(e) => setDraft((p) => ({ ...p, display_name: e.target.value }))}
+                        placeholder="e.g. Saran's Kitchen"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none"
+                        style={{ background: "var(--parchment)", border: "1.5px solid var(--border)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                        Location
+                      </label>
+                      <input
+                        value={draft.location}
+                        onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
+                        placeholder="e.g. Chennai, Tamil Nadu"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none"
+                        style={{ background: "var(--parchment)", border: "1.5px solid var(--border)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                      Cooking Style
+                    </label>
+                    <input
+                      value={draft.cook_style}
+                      onChange={(e) => setDraft((p) => ({ ...p, cook_style: e.target.value }))}
+                      placeholder="e.g. Home cook • South Indian specialist • Weekend baker"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none"
+                      style={{ background: "var(--parchment)", border: "1.5px solid var(--border)", color: "var(--foreground)" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                      Bio
+                    </label>
+                    <textarea
+                      value={draft.bio}
+                      onChange={(e) => setDraft((p) => ({ ...p, bio: e.target.value }))}
+                      rows={3}
+                      placeholder="Tell your food story — family influences, favourite cuisines, the dish that started it all…"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none resize-none"
+                      style={{ background: "var(--parchment)", border: "1.5px solid var(--border)", color: "var(--foreground)" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                      Avatar URL (optional)
+                    </label>
+                    <input
+                      value={draft.avatar_url}
+                      onChange={(e) => setDraft((p) => ({ ...p, avatar_url: e.target.value }))}
+                      placeholder="https://..."
+                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none"
+                      style={{ background: "var(--parchment)", border: "1.5px solid var(--border)", color: "var(--foreground)" }}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={saveProfile}
+                      disabled={saving}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-60"
+                      style={{ background: "var(--accent)", color: "#fff" }}
+                    >
+                      <Check size={14} /> {saving ? "Saving…" : "Save Profile"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEditing(false); setDraft({ ...profile }); }}
+                      className="px-4 py-2.5 rounded-xl text-sm font-medium transition"
+                      style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                    >
+                      <X size={14} className="inline mr-1" />Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ── What is My Cookbook ─────────────────────────────────────────── */}
+        <section className="max-w-3xl mx-auto px-4 py-16">
+          <Reveal>
+            <h2 className="text-2xl font-bold mb-2 text-center" style={{ color: "var(--foreground)" }}>
+              What is My Cookbook?
+            </h2>
+            <p className="text-center text-sm mb-10 max-w-xl mx-auto" style={{ color: "var(--muted)" }}>
+              Not just a recipe manager — a living record of the meals that matter most.
             </p>
           </Reveal>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <FeatureCard
-              icon={<BookOpen size={22} />}
-              title="Recipe Library"
-              body="Save, search, and filter your entire collection. Full ingredients, steps, nutrition, and chef's notes."
-              href="/recipes"
-              delay={0}
-            />
-            <FeatureCard
-              icon={<CalendarDays size={22} />}
-              title="Meal Planner"
-              body="Drag recipes onto a weekly calendar grid. Auto-generate shopping lists from planned meals."
-              href="/planner"
-              delay={0.06}
-            />
-            <FeatureCard
-              icon={<ShoppingCart size={22} />}
-              title="Smart Shopping"
-              body="Check off items as you go. Copy the whole list to share — grouped by category."
-              href="/planner/shopping"
-              delay={0.12}
-            />
-            <FeatureCard
-              icon={<Leaf size={22} />}
-              title="Pantry Tracker"
-              body="Know what you have, what's running low, and what's about to expire. Suggest recipes from what's on hand."
-              href="/pantry"
-              delay={0.18}
-            />
+          <div className="space-y-8">
+            {[
+              { emoji: "🧑‍🍳", title: "Your kitchen, your rules", body: "Every family cooks differently. Your recipes — the ones passed down by a grandparent, the quick weeknight favourites, the weekend experiments — all in one place." },
+              { emoji: "🌍", title: "20 cuisine origins", body: "From spicy Karnataka curries to delicate Viennese pastries. Each recipe lives in its cultural context with matching colours and personality." },
+              { emoji: "❤️", title: "Food is love, made tangible", body: "The Amma's rasam your nose remembers from childhood. The dal tadka that tastes of home. Those recipes deserve more than a dog-eared notebook page." },
+              { emoji: "📊", title: "Mindful, not obsessive", body: "Nutrition data is available when you want it — calories, macros, fibre — without dominating the experience. Cooking is a joy first, a spreadsheet second." },
+            ].map((p, i) => (
+              <Reveal key={p.title} delay={i * 0.07} className="flex gap-4">
+                <span className="text-3xl flex-shrink-0 mt-1">{p.emoji}</span>
+                <div>
+                  <h3 className="font-semibold mb-1" style={{ color: "var(--foreground)" }}>{p.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{p.body}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
+        </section>
 
-          <div className="grid sm:grid-cols-3 gap-5 mt-5">
-            <Reveal delay={0.05}>
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex gap-4 items-start">
-                <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
-                  <Zap size={18} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">Nutrition Calculator</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    One click pulls macros from the USDA database — no manual entry required.
-                  </p>
-                </div>
-              </div>
+        {/* ── Feature highlights ───────────────────────────────────────────── */}
+        <section className="py-16 px-4" style={{ background: "var(--surface)" }}>
+          <div className="max-w-5xl mx-auto">
+            <Reveal className="text-center mb-10">
+              <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>Everything you need</h2>
+              <p className="text-sm max-w-lg mx-auto" style={{ color: "var(--muted)" }}>Built for real home cooks — not food bloggers.</p>
             </Reveal>
-            <Reveal delay={0.1}>
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex gap-4 items-start">
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0">
-                  <Heart size={18} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">Smart Tags</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    16 dietary and flavour tags — auto-assigned by nutrition, manually tuned by you.
-                  </p>
-                </div>
-              </div>
-            </Reveal>
-            <Reveal delay={0.15}>
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex gap-4 items-start">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                  <Star size={18} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">Your Data, Private</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    Row-level security in Supabase means only you ever see your recipes. Always.
-                  </p>
-                </div>
-              </div>
-            </Reveal>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <FeatureCard icon={<BookOpen size={22} />} title="Recipe Library" body="Save, search, and filter your collection. Full ingredients, steps, nutrition, and chef's notes." href="/recipes" delay={0} />
+              <FeatureCard icon={<CalendarDays size={22} />} title="Meal Planner" body="Drag recipes onto a weekly calendar. Auto-generate shopping lists from planned meals." href="/planner" delay={0.06} />
+              <FeatureCard icon={<ShoppingCart size={22} />} title="Smart Shopping" body="Check off items as you go. Copy the whole list to share — grouped by category." href="/planner/shopping" delay={0.12} />
+              <FeatureCard icon={<Leaf size={22} />} title="Pantry Tracker" body="Know what's running low or expiring. Suggest recipes from what's on hand." href="/pantry" delay={0.18} />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Cuisine origin showcase ───────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <Reveal className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">20 Cuisines, One Kitchen</h2>
-          <p className="text-sm text-gray-500 max-w-lg mx-auto">
-            Each cuisine gets its own colour palette, personality, and beautiful card design —
-            from the first bite to the last scroll.
-          </p>
-        </Reveal>
+        {/* ── Cuisine showcase ─────────────────────────────────────────────── */}
+        <section className="max-w-6xl mx-auto px-4 py-16">
+          <Reveal className="text-center mb-10">
+            <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>20 Cuisines, One Kitchen</h2>
+            <p className="text-sm max-w-lg mx-auto" style={{ color: "var(--muted)" }}>
+              Each cuisine gets its own colour palette, personality, and beautiful card design.
+            </p>
+          </Reveal>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {ALL_CUISINE_ORIGINS.map((origin, i) => (
+              <CuisineCard key={origin} origin={origin} index={i} />
+            ))}
+          </div>
+        </section>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {ALL_CUISINE_ORIGINS.map((origin, i) => (
-            <CuisineCard key={origin} origin={origin} index={i} />
-          ))}
-        </div>
-      </section>
-
-      {/* ── Footer CTA ────────────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-r from-orange-500 to-red-500 py-16 px-4 text-center text-white">
-        <Reveal>
-          <UtensilsCrossed size={36} className="mx-auto mb-5 opacity-90" />
-          <h2 className="text-3xl font-bold mb-3">Start building your cookbook today</h2>
-          <p className="text-orange-100 mb-8 max-w-md mx-auto text-sm leading-relaxed">
-            Your family&apos;s culinary heritage — preserved, searchable, beautiful.
-          </p>
-          <Link
-            href="/add"
-            className="inline-block px-8 py-3 bg-white text-orange-600 font-semibold rounded-xl text-sm hover:bg-orange-50 transition shadow-lg"
-          >
-            Add your first recipe →
-          </Link>
-        </Reveal>
-      </section>
-    </main>
+        {/* ── Footer CTA ───────────────────────────────────────────────────── */}
+        <section className="py-14 px-4 text-center" style={{ background: "var(--accent)", color: "#fff" }}>
+          <Reveal>
+            <h2 className="text-2xl font-bold mb-3">Your family&apos;s culinary heritage</h2>
+            <p className="mb-8 max-w-md mx-auto text-sm leading-relaxed" style={{ opacity: 0.85 }}>
+              Preserved, searchable, beautiful — yours alone.
+            </p>
+            <Link href="/add"
+              className="inline-block px-8 py-3 rounded-xl font-semibold text-sm transition"
+              style={{ background: "#fff", color: "var(--accent)" }}
+            >
+              Add a recipe →
+            </Link>
+          </Reveal>
+        </section>
+      </main>
+    </>
   );
 }
