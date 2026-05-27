@@ -78,7 +78,8 @@ export default function ConfirmDialog({
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm"
+              className="rounded-2xl shadow-2xl p-6 w-full max-w-sm"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.85, opacity: 0 }}
@@ -86,19 +87,21 @@ export default function ConfirmDialog({
             >
               {/* Icon + title */}
               <div className="flex items-start gap-3 mb-3">
-                <div className="mt-0.5 p-2 bg-red-50 rounded-full flex-shrink-0">
-                  <AlertTriangle size={18} className="text-red-500" />
+                <div className="mt-0.5 p-2 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.1)" }}>
+                  <AlertTriangle size={18} style={{ color: "#dc2626" }} />
                 </div>
                 <div>
                   <h2
                     id="confirm-dialog-title"
-                    className="text-base font-semibold text-gray-900"
+                    className="text-base font-semibold"
+                    style={{ color: "var(--foreground)" }}
                   >
                     {title}
                   </h2>
                   <p
                     id="confirm-dialog-message"
-                    className="mt-1 text-sm text-gray-500"
+                    className="mt-1 text-sm"
+                    style={{ color: "var(--muted)" }}
                   >
                     {message}
                   </p>
@@ -111,7 +114,8 @@ export default function ConfirmDialog({
                   type="button"
                   disabled={loading}
                   onClick={onCancel}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition"
+                  className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition"
+                  style={{ color: "var(--muted)", background: "var(--surface-strong)", border: "1px solid var(--border)" }}
                 >
                   Cancel
                 </button>
@@ -120,7 +124,8 @@ export default function ConfirmDialog({
                   type="button"
                   disabled={loading}
                   onClick={onConfirm}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-60 transition"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 transition"
+                  style={{ background: "#dc2626", color: "#ffffff", border: "1px solid #b91c1c" }}
                 >
                   {loading && <Loader2 size={14} className="animate-spin" />}
                   {confirmLabel}

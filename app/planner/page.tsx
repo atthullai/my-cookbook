@@ -617,7 +617,7 @@ export default function PlannerPage() {
                     <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none"
                       style={{ color: "var(--muted)", opacity: 0.6 }} />
                     <input
-                      type="search"
+                      type="text"
                       placeholder="Search…"
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}

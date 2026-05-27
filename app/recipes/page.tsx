@@ -189,7 +189,7 @@ export default function RecipesPage() {
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none" style={{ color: "var(--muted)" }} />
               <input
-                type="search"
+                type="text"
                 placeholder="Search recipes…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

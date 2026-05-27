@@ -24,7 +24,7 @@ export interface TagMeta {
 
 export const TAG_META: Record<RecipeTag, TagMeta> = {
   veg: {
-    label: "Veg", emoji: "🥦",
+    label: "Veg", emoji: "🌿",
     color: "bg-green-100", textColor: "text-green-800", borderColor: "border-green-300",
     priority: 1, description: "Vegetarian",
   },

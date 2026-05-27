@@ -663,7 +663,7 @@ export function getBadgeEmoji(badge: string): string {
   if (badge.includes("Vegan")) return "🌱";
   if (badge.includes("Non-Veg")) return "🍗";
   if (badge.includes("Egg")) return "🥚";
-  if (badge.includes("Veg")) return "🥕";
+  if (badge.includes("Veg")) return "🌿";
   if (badge.includes("Spicy")) return "🌶️";
   if (badge.includes("High Protein")) return "💪";
   if (badge.includes("Quick Meal")) return "⚡";

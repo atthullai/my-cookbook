@@ -235,6 +235,7 @@ export function buildRecipePayload(input: {
     category: input.category.trim() || null,
     cuisine: input.cuisine.trim() || null,
     cuisine_de: input.cuisineDe.trim() || input.cuisine.trim() || null,
+    origin: input.cuisine.trim() || null,
     course: input.course.trim() || null,
     course_de: input.courseDe.trim() || input.course.trim() || null,
     difficulty: input.difficulty.trim() || null,

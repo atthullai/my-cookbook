@@ -160,6 +160,10 @@ export default function EditRecipe() {
                     name_de: item.name_de,
                     amount: item.amount === null ? "" : String(item.amount),
                     unit: item.unit,
+                    preparation: item.preparation ?? "",
+                    optional: Boolean(item.optional),
+                    garnish: Boolean(item.garnish),
+                    approximate: Boolean(item.approximate),
                   }))
                 : [{ ...EMPTY_INGREDIENT }],
             }))

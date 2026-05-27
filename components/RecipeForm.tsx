@@ -26,7 +26,7 @@ import { stableCompositeId } from "@/lib/stable-ids";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
 const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
-  "Veg":          { emoji: "🥦", bg: "bg-green-100",   text: "text-green-800",   ring: "ring-green-400" },
+  "Veg":          { emoji: "🌿", bg: "bg-green-100",   text: "text-green-800",   ring: "ring-green-400" },
   "Non-Veg":      { emoji: "🍗", bg: "bg-red-100",     text: "text-red-800",     ring: "ring-red-400" },
   "Egg":          { emoji: "🥚", bg: "bg-yellow-100",  text: "text-yellow-800",  ring: "ring-yellow-400" },
   "Vegan":        { emoji: "🌱", bg: "bg-emerald-100", text: "text-emerald-800", ring: "ring-emerald-400" },

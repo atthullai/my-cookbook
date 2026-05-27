@@ -226,6 +226,15 @@ textarea {
   font: inherit;
 }
 
+/* Remove native browser search icons that can overlap our custom icons. */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Visual button styling is provided by the reusable classes below. */
 button {
   background: none;
@@ -1115,17 +1124,19 @@ ul {
 }
 
 .editor-subcard {
-  border-color: rgba(77, 61, 48, 0.12);
-  background: rgba(255, 255, 255, 0.42);
+  border-color: var(--border);
+  background: var(--surface-strong);
   box-shadow: none;
+  overflow-x: auto;
 }
 
 .ingredient-row {
   display: grid;
-  grid-template-columns: 84px 96px minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) repeat(3, auto) auto;
+  grid-template-columns: 84px 96px minmax(120px, 1fr) minmax(120px, 1fr) minmax(110px, 1fr) repeat(3, auto) auto;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
+  min-width: 820px;
 }
 
 .mini-check {

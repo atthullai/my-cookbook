@@ -314,13 +314,13 @@ export default function PantryPage() {
                     <input
                       type="number" placeholder="Qty" value={form.quantity}
                       onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                      className="w-24 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                      className="w-16 rounded-xl px-3 py-2 text-sm focus:outline-none"
                       style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     />
                     <input
-                      type="text" placeholder="Unit (e.g. g, ml)" value={form.unit}
+                      type="text" placeholder="Unit (g, ml, pcs…)" value={form.unit}
                       onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                      className="flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                      className="flex-1 min-w-0 rounded-xl px-3 py-2 text-sm focus:outline-none"
                       style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     />
                   </div>

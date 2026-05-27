@@ -30,7 +30,7 @@ import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import type { AppUser, RecipeRecord } from "@/lib/recipe-types";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import FilterCoffeeScene from "@/components/FilterCoffeeScene";
+import DivineScene from "@/components/DivineScene";
 import KolamDivider from "@/components/KolamDivider";
 
 // ── Slow, handcrafted entrance timing ────────────────────────────────────────
@@ -319,7 +319,7 @@ export default function Home() {
               transition={{ delay: 0.1, duration: 1.1, ease: EASE_WARM }}
               className="flex-shrink-0"
             >
-              <FilterCoffeeScene />
+              <DivineScene />
             </motion.div>
           </div>
         </section>
