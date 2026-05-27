@@ -13,11 +13,11 @@
  * - Edit and Delete buttons (ConfirmDialog for delete)
  * - Back to recipes link
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowLeft, Clock, Users, Pencil, Trash2, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Clock, Users, Pencil, Trash2, CheckCircle2, Timer, Play, Pause, RotateCcw, X as XIcon } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -41,6 +41,77 @@ export default function RecipeDetailPage() {
   const [showDelete, setShowDelete]   = useState(false);
   const [isDeleting, setIsDeleting]   = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
+  // ── Cooking timer state ───────────────────────────────────────────────────
+  const [showTimer,        setShowTimer]        = useState(false);
+  const [timerInput,       setTimerInput]       = useState("");  // user-typed minutes
+  const [timerRemaining,   setTimerRemaining]   = useState(0);   // seconds left
+  const [timerTotal,       setTimerTotal]       = useState(0);   // total seconds set
+  const [timerRunning,     setTimerRunning]     = useState(false);
+  const [timerDone,        setTimerDone]        = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Countdown tick
+  useEffect(() => {
+    if (!timerRunning) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+    timerRef.current = setInterval(() => {
+      setTimerRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setTimerRunning(false);
+          setTimerDone(true);
+          toast.success("🔔 Timer done!", { duration: 5000 });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [timerRunning]);
+
+  const startTimer = (minutes?: number) => {
+    const mins = minutes ?? parseInt(timerInput);
+    if (!mins || mins <= 0) { toast.error("Enter a time in minutes"); return; }
+    const secs = mins * 60;
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimerTotal(secs);
+    setTimerRemaining(secs);
+    setTimerRunning(true);
+    setTimerDone(false);
+    setShowTimer(true);
+  };
+
+  const pauseResumeTimer = () => setTimerRunning((v) => !v);
+
+  const resetTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimerRunning(false);
+    setTimerDone(false);
+    setTimerRemaining(timerTotal);
+  };
+
+  const closeTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimerRunning(false);
+    setTimerDone(false);
+    setTimerRemaining(0);
+    setTimerTotal(0);
+    setTimerInput("");
+    setShowTimer(false);
+  };
+
+  const formatTime = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  const timerProgress = timerTotal > 0 ? (timerTotal - timerRemaining) / timerTotal : 0;
 
   const loadRecipe = useCallback(async () => {
     if (!recipeId) { setNotFound(true); setLoading(false); return; }
@@ -128,7 +199,47 @@ export default function RecipeDetailPage() {
         <CuisineHeroBanner cuisine={recipe.cuisine} title={recipe.title} />
 
         {/* ── Action buttons ──────────────────────────────────────────── */}
-        <div className="flex gap-3 justify-end">
+        <div className="flex flex-wrap gap-3 justify-end">
+          {/* Start Cooking / Timer */}
+          {!showTimer ? (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <Timer size={14} className="text-amber-600" />
+              <input
+                type="number"
+                min="1"
+                max="480"
+                placeholder="min"
+                value={timerInput}
+                onChange={(e) => setTimerInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") startTimer(); }}
+                className="w-14 bg-transparent text-sm text-amber-900 font-medium focus:outline-none placeholder:text-amber-400"
+              />
+              <button
+                type="button"
+                onClick={() => startTimer()}
+                className="flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition"
+              >
+                <Play size={11} /> Start
+              </button>
+              {totalMins > 0 && (
+                <button
+                  type="button"
+                  onClick={() => startTimer(totalMins)}
+                  className="text-xs text-amber-600 hover:underline"
+                >
+                  {totalMins} min
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowTimer(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition"
+            >
+              <Timer size={14} /> Timer: {formatTime(timerRemaining)}
+            </button>
+          )}
           <Link href={`/edit/${recipe.id}`}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
           >
@@ -254,7 +365,13 @@ export default function RecipeDetailPage() {
                           </p>
                         )}
                         {step.durationMinutes && (
-                          <p className="mt-1 text-xs text-gray-400">⏱ {step.durationMinutes} min</p>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); startTimer(step.durationMinutes!); }}
+                            className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 transition"
+                          >
+                            <Timer size={11} /> Start {step.durationMinutes} min timer
+                          </button>
                         )}
                       </div>
                     </motion.li>
@@ -283,6 +400,79 @@ export default function RecipeDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Floating Timer Panel ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {showTimer && (
+          <motion.div
+            initial={{ y: 120, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 120, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm"
+          >
+            <div className={[
+              "mx-4 rounded-2xl shadow-2xl border overflow-hidden",
+              timerDone
+                ? "bg-green-500 border-green-400"
+                : "bg-gray-900 border-gray-700",
+            ].join(" ")}>
+              {/* Progress bar */}
+              <div className="h-1 bg-white/20">
+                <motion.div
+                  className={timerDone ? "h-full bg-white" : "h-full bg-amber-400"}
+                  animate={{ width: `${timerProgress * 100}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+
+              <div className="px-5 py-4 flex items-center gap-4">
+                {/* Time display */}
+                <div className="flex-1">
+                  <p className={`text-3xl font-mono font-bold tabular-nums ${timerDone ? "text-white" : "text-white"}`}>
+                    {timerDone ? "Done! 🔔" : formatTime(timerRemaining)}
+                  </p>
+                  {timerTotal > 0 && !timerDone && (
+                    <p className="text-xs text-white/50 mt-0.5">
+                      of {formatTime(timerTotal)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center gap-2">
+                  {!timerDone && (
+                    <button
+                      type="button"
+                      onClick={pauseResumeTimer}
+                      className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition text-white"
+                      aria-label={timerRunning ? "Pause" : "Resume"}
+                    >
+                      {timerRunning ? <Pause size={18} /> : <Play size={18} />}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={resetTimer}
+                    className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition text-white"
+                    aria-label="Reset"
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeTimer}
+                    className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition text-white"
+                    aria-label="Close"
+                  >
+                    <XIcon size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={showDelete}

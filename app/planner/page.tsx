@@ -3,31 +3,22 @@
 /**
  * Meal Planner — /planner
  *
- * Features:
- * - 7-column weekly grid (Mon–Sun), 4 rows (Breakfast / Lunch / Dinner / Snack)
- * - Each slot is a DnD drop zone via @dnd-kit
- * - Sidebar recipe list is draggable
- * - Drop onto a slot → saves PlannedMeal to Supabase
- * - Click an existing meal → remove it (ConfirmDialog)
- * - "Generate Shopping List" → navigates to /planner/shopping
- * - Week navigation (prev/next week arrows)
- * - Diet plan calorie summary at the top
+ * Warm cookbook-inspired meal planning:
+ * - Weekly view (Mon–Sun) × 4 meal slots (Breakfast / Lunch / Dinner / Snack)
+ * - Drag-and-drop recipes from sidebar onto day/slot cells
+ * - Click filled slot → remove (ConfirmDialog)
+ * - Week navigation, "This week" jump
+ * - Shopping list link
+ * - Warm paper aesthetic, handcrafted feel
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-  useDraggable,
+  DndContext, DragEndEvent, DragOverlay, DragStartEvent,
+  PointerSensor, useSensor, useSensors, useDroppable, useDraggable,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeft, ChevronRight, ShoppingCart, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, X, Search } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -37,16 +28,19 @@ import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner", "snack"];
-const SLOT_ICONS: Record<MealSlot, string> = {
-  breakfast: "🌅", lunch: "☀️", dinner: "🌙", snack: "🍎",
+const DAYS    = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const SLOTS: MealSlot[]  = ["breakfast", "lunch", "dinner", "snack"];
+const SLOT_ICONS: Record<MealSlot, string>  = { breakfast: "🌅", lunch: "☀️", dinner: "🌙", snack: "🍎" };
+const SLOT_COLORS: Record<MealSlot, string> = {
+  breakfast: "bg-amber-50 border-amber-200 text-amber-700",
+  lunch:     "bg-sky-50 border-sky-200 text-sky-700",
+  dinner:    "bg-indigo-50 border-indigo-200 text-indigo-700",
+  snack:     "bg-emerald-50 border-emerald-200 text-emerald-700",
 };
 
-/** Returns YYYY-MM-DD for the Monday of the given week offset from today */
 function getMondayOfWeek(offsetWeeks = 0): Date {
   const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun
+  const dayOfWeek = today.getDay();
   const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(today);
   monday.setDate(today.getDate() + diffToMon + offsetWeeks * 7);
@@ -64,13 +58,12 @@ function toISO(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-// ── Draggable recipe chip (sidebar) ───────────────────────────────────────
+// ── Draggable recipe chip ─────────────────────────────────────────────────
 function DraggableRecipeChip({ recipe }: { recipe: RecipeSummary }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `recipe-${recipe.id}`,
     data: { recipeId: recipe.id, title: recipe.title, cuisine: recipe.cuisine },
   });
-
   const theme = getCuisineTheme(recipe.cuisine);
   const style = { transform: CSS.Translate.toString(transform) };
 
@@ -81,19 +74,22 @@ function DraggableRecipeChip({ recipe }: { recipe: RecipeSummary }) {
       {...listeners}
       {...attributes}
       className={[
-        "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium cursor-grab active:cursor-grabbing transition select-none",
-        theme.cardGradient,
-        theme.textColor,
-        isDragging ? "opacity-50 shadow-xl scale-95" : "shadow-sm hover:shadow-md",
+        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium cursor-grab active:cursor-grabbing",
+        "transition-all duration-150 select-none border",
+        theme.cardGradient, theme.textColor,
+        isDragging
+          ? "opacity-50 shadow-2xl scale-95 rotate-1"
+          : "shadow-sm hover:shadow-md hover:scale-[1.02]",
       ].join(" ")}
     >
-      <span aria-hidden="true">{theme.emoji}</span>
-      <span className="truncate">{recipe.title}</span>
+      <span className="text-base flex-shrink-0">{theme.emoji}</span>
+      <span className="truncate flex-1 leading-tight">{recipe.title}</span>
+      <span className="text-[10px] opacity-60 flex-shrink-0">drag</span>
     </div>
   );
 }
 
-// ── Drop slot cell ─────────────────────────────────────────────────────────
+// ── Droppable slot cell ───────────────────────────────────────────────────
 interface SlotCellProps {
   date:     Date;
   slot:     MealSlot;
@@ -107,60 +103,66 @@ function SlotCell({ date, slot, meal, recipe, onRemove }: SlotCellProps) {
     id: `${toISO(date)}-${slot}`,
     data: { date: toISO(date), slot },
   });
-
   const theme = recipe ? getCuisineTheme(recipe.cuisine) : null;
 
   return (
     <div
       ref={setNodeRef}
       className={[
-        "min-h-[56px] rounded-lg border-2 border-dashed transition p-1.5",
+        "min-h-[68px] rounded-xl border-2 border-dashed transition-all duration-150 p-1.5",
         isOver
-          ? "border-indigo-400 bg-indigo-50 scale-[1.02]"
+          ? "border-amber-400 bg-amber-50/80 scale-[1.03] shadow-md"
           : meal
-          ? "border-transparent bg-white"
-          : "border-gray-200 bg-gray-50/50 hover:border-gray-300",
+          ? "border-transparent"
+          : "border-stone-200 bg-stone-50/60 hover:border-stone-300 hover:bg-stone-50",
       ].join(" ")}
     >
       {meal && recipe && theme ? (
-        <div className={`relative rounded-lg overflow-hidden ${theme.cardGradient} ${theme.textColor} p-2`}>
-          <p className="text-xs font-medium leading-tight pr-5 line-clamp-2">{recipe.title}</p>
-          <p className="text-[10px] opacity-70 mt-0.5">{theme.emoji} {meal.servings} srv</p>
+        <div className={`relative h-full rounded-lg overflow-hidden ${theme.cardGradient} p-2.5 min-h-[60px]`}>
+          <p className={`text-[11px] font-semibold leading-tight pr-5 line-clamp-2 ${theme.textColor}`}>
+            {recipe.title}
+          </p>
+          <p className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
+            <span>{theme.emoji}</span>
+            <span className="text-white">{meal.servings} srv</span>
+          </p>
           <button
             type="button"
             onClick={onRemove}
-            className="absolute top-1 right-1 p-0.5 rounded-full bg-white/20 hover:bg-white/40 transition"
+            className="absolute top-1 right-1 p-0.5 rounded-full bg-black/20 hover:bg-black/40 transition text-white"
             aria-label="Remove meal"
           >
-            <X size={10} />
+            <X size={9} />
           </button>
         </div>
-      ) : null}
+      ) : (
+        <div className="h-full flex items-center justify-center min-h-[60px]">
+          <span className="text-stone-300 text-xl">+</span>
+        </div>
+      )}
     </div>
   );
 }
 
+// ── Main page ──────────────────────────────────────────────────────────────
 export default function PlannerPage() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const monday = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
-  const weekDates = useMemo(
-    () => DAYS.map((_, i) => addDays(monday, i)),
-    [monday]
-  );
+  const monday    = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
+  const weekDates = useMemo(() => DAYS.map((_, i) => addDays(monday, i)), [monday]);
 
-  const [plannedMeals, setPlannedMeals] = useState<PlannedMeal[]>([]);
-  const [recipes, setRecipes]           = useState<RecipeSummary[]>([]);
-  const [loadingMeals, setLoadingMeals] = useState(true);
-  const [activeId, setActiveId]         = useState<string | null>(null);
-  const [removeTarget, setRemoveTarget] = useState<PlannedMeal | null>(null);
-  const [isRemoving, setIsRemoving]     = useState(false);
+  const [plannedMeals,  setPlannedMeals]  = useState<PlannedMeal[]>([]);
+  const [recipes,       setRecipes]       = useState<RecipeSummary[]>([]);
+  const [loadingMeals,  setLoadingMeals]  = useState(true);
+  const [activeId,      setActiveId]      = useState<string | null>(null);
+  const [removeTarget,  setRemoveTarget]  = useState<PlannedMeal | null>(null);
+  const [isRemoving,    setIsRemoving]    = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // ── Load data ────────────────────────────────────────────────────────────
+  // ── Load data ─────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoadingMeals(true);
     try {
@@ -178,7 +180,16 @@ export default function PlannerPage() {
         supabase.from("recipes").select("*").eq("user_id", user.id),
       ]);
 
-      if (mealsRes.error) throw mealsRes.error;
+      if (mealsRes.error) {
+        // Help the user understand if the migration hasn't been run
+        const msg = mealsRes.error.message;
+        if (msg.includes("relation") || msg.includes("does not exist")) {
+          toast.error("The planned_meals table doesn't exist yet. Run the migration in Supabase → SQL Editor.", { duration: 8000 });
+        } else {
+          toast.error(msg);
+        }
+        return;
+      }
       if (recipesRes.error) throw recipesRes.error;
 
       const mealRows: PlannedMeal[] = (mealsRes.data ?? []).map((row) => ({
@@ -187,7 +198,7 @@ export default function PlannerPage() {
         slot:     row.meal_slot as MealSlot,
         recipeId: String(row.recipe_id),
         servings: (row.servings as number) ?? 1,
-        notes:    row.notes ?? undefined,
+        notes:    (row.notes as string | undefined) ?? undefined,
       }));
 
       setPlannedMeals(mealRows);
@@ -201,7 +212,7 @@ export default function PlannerPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── DnD handlers ─────────────────────────────────────────────────────────
+  // ── DnD handlers ──────────────────────────────────────────────────────────
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
   };
@@ -214,12 +225,9 @@ export default function PlannerPage() {
     const recipeId = (active.data.current as { recipeId: string }).recipeId;
     const { date, slot } = over.data.current as { date: string; slot: MealSlot };
 
-    // Don't add if slot already has a meal
-    const alreadyPlanned = plannedMeals.find(
-      (m) => m.date === date && m.slot === slot
-    );
+    const alreadyPlanned = plannedMeals.find((m) => m.date === date && m.slot === slot);
     if (alreadyPlanned) {
-      toast.error("Slot already has a meal — remove it first");
+      toast.error("This slot already has a meal — remove it first");
       return;
     }
 
@@ -235,7 +243,14 @@ export default function PlannerPage() {
         servings:  1,
       }).select().single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("relation") || error.message.includes("does not exist")) {
+          toast.error("Run the Supabase migration first: supabase/migrations/20260527_planned_meals_pantry.sql", { duration: 8000 });
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       const newMeal: PlannedMeal = {
         id:       data.id as string,
@@ -245,7 +260,7 @@ export default function PlannerPage() {
         servings: (data.servings as number) ?? 1,
       };
       setPlannedMeals((prev) => [...prev, newMeal]);
-      toast.success("Added to planner");
+      toast.success(`Added to ${slot}!`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add meal");
     }
@@ -259,7 +274,7 @@ export default function PlannerPage() {
       const { error } = await supabase.from("planned_meals").delete().eq("id", removeTarget.id);
       if (error) throw error;
       setPlannedMeals((prev) => prev.filter((m) => m.id !== removeTarget.id));
-      toast.success("Meal removed");
+      toast.success("Removed from plan");
       setRemoveTarget(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to remove meal");
@@ -269,12 +284,11 @@ export default function PlannerPage() {
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  const getMeal = (date: Date, slot: MealSlot) =>
+  const getMeal   = (date: Date, slot: MealSlot) =>
     plannedMeals.find((m) => m.date === toISO(date) && m.slot === slot);
-
   const getRecipe = (id: string) => recipes.find((r) => r.id === id);
 
-  const filteredRecipes = sidebarSearch
+  const filteredRecipes = sidebarSearch.trim()
     ? recipes.filter((r) => r.title.toLowerCase().includes(sidebarSearch.toLowerCase()))
     : recipes;
 
@@ -282,153 +296,214 @@ export default function PlannerPage() {
     ? recipes.find((r) => `recipe-${r.id}` === activeId)
     : null;
 
-  const weekLabel = `${monday.toLocaleDateString("en-GB", { day:"numeric", month:"short" })} – ${addDays(monday, 6).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" })}`;
+  const weekLabel = `${monday.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${addDays(monday, 6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+
+  // Count meals per day for the daily summary
+  const mealsPerDay = weekDates.map((date) =>
+    SLOTS.filter((slot) => getMeal(date, slot)).length
+  );
 
   return (
     <>
       <Toaster position="top-right" />
-      <main className="min-h-screen bg-gray-50">
+
+      {/* Warm paper background */}
+      <main className="min-h-screen" style={{ background: "linear-gradient(160deg, #fdf8f0 0%, #fef9f3 50%, #fdf6ee 100%)" }}>
         <div className="max-w-screen-xl mx-auto px-4 py-8">
 
-          {/* ── Header ──────────────────────────────────────────────── */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          {/* ── Header ──────────────────────────────────────────────────── */}
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Meal Planner</h1>
-              <div className="flex items-center gap-3 mt-2">
-                <button type="button" onClick={() => setWeekOffset((w) => w - 1)}
-                  className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-widest mb-1">
+                Weekly Menu
+              </p>
+              <h1 className="text-3xl font-bold text-stone-900 leading-tight">
+                This Week&apos;s Plan
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setWeekOffset((w) => w - 1)}
+                  className="p-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition shadow-sm"
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={15} className="text-stone-600" />
                 </button>
-                <span className="text-sm font-medium text-gray-700">{weekLabel}</span>
-                <button type="button" onClick={() => setWeekOffset((w) => w + 1)}
-                  className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
+                <span className="text-sm font-medium text-stone-600 tabular-nums">{weekLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => setWeekOffset((w) => w + 1)}
+                  className="p-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition shadow-sm"
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={15} className="text-stone-600" />
                 </button>
                 {weekOffset !== 0 && (
-                  <button type="button" onClick={() => setWeekOffset(0)}
-                    className="text-xs text-indigo-600 hover:underline"
+                  <button
+                    type="button"
+                    onClick={() => setWeekOffset(0)}
+                    className="text-xs font-medium text-amber-600 hover:underline ml-1"
                   >
-                    This week
+                    ← This week
                   </button>
                 )}
               </div>
             </div>
 
-            <Link href="/planner/shopping"
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition shadow-sm"
+            <Link
+              href="/planner/shopping"
+              className="flex items-center gap-2 bg-stone-800 text-amber-100 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-stone-900 transition shadow-sm"
             >
-              <ShoppingCart size={16} /> Shopping List
+              <ShoppingCart size={15} /> Shopping List
             </Link>
           </div>
 
-          {/* ── DnD context ─────────────────────────────────────────── */}
+          {/* ── DnD context ───────────────────────────────────────────── */}
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex gap-6">
+            <div className="flex gap-5">
 
-              {/* ── Sidebar ─────────────────────────────────────────── */}
-              <div className="w-56 flex-shrink-0 space-y-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recipes</p>
-                <input
-                  type="search"
-                  placeholder="Search…"
-                  value={sidebarSearch}
-                  onChange={(e) => setSidebarSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                />
-                <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
-                  {filteredRecipes.map((r) => (
-                    <DraggableRecipeChip key={r.id} recipe={r} />
-                  ))}
-                  {filteredRecipes.length === 0 && (
-                    <p className="text-xs text-gray-400 text-center py-4">No recipes found</p>
-                  )}
+              {/* ── Sidebar ─────────────────────────────────────────────── */}
+              <div className="w-52 flex-shrink-0">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-stone-200/60 p-4 shadow-sm sticky top-6">
+                  <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">
+                    Your Recipes
+                  </p>
+
+                  {/* Search */}
+                  <div className="relative mb-3">
+                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input
+                      type="search"
+                      placeholder="Search…"
+                      value={sidebarSearch}
+                      onChange={(e) => setSidebarSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 border border-stone-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
+                    />
+                  </div>
+
+                  <p className="text-[10px] text-stone-400 mb-2">Drag a recipe onto any slot →</p>
+
+                  <div className="space-y-1.5 max-h-[calc(100vh-260px)] overflow-y-auto pr-0.5">
+                    {filteredRecipes.length === 0 ? (
+                      <p className="text-xs text-stone-400 text-center py-6">
+                        {sidebarSearch ? "No matches" : "No recipes yet"}
+                      </p>
+                    ) : (
+                      filteredRecipes.map((r) => (
+                        <DraggableRecipeChip key={r.id} recipe={r} />
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* ── Planner grid ────────────────────────────────────── */}
+              {/* ── Weekly grid ─────────────────────────────────────────── */}
               <div className="flex-1 overflow-x-auto">
                 {loadingMeals ? (
-                  <div className="animate-pulse grid grid-cols-7 gap-2">
-                    {[...Array(28)].map((_, i) => (
-                      <div key={i} className="h-16 bg-gray-200 rounded-lg" />
+                  <div className="animate-pulse space-y-2">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="grid grid-cols-8 gap-2">
+                        <div className="h-16 bg-stone-200 rounded-xl" />
+                        {[...Array(7)].map((_, j) => (
+                          <div key={j} className="h-16 bg-stone-100 rounded-xl" />
+                        ))}
+                      </div>
                     ))}
                   </div>
                 ) : (
-                  <table className="w-full border-collapse" style={{ minWidth: 600 }}>
-                    <thead>
-                      <tr>
-                        <th className="w-20 pb-3" />
+                  <div style={{ minWidth: 560 }}>
+                    {/* Day headers */}
+                    <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}>
+                      <div />
+                      {weekDates.map((date, i) => {
+                        const isToday = toISO(date) === toISO(new Date());
+                        const mealCount = mealsPerDay[i];
+                        return (
+                          <div key={i} className="text-center pb-1">
+                            <span className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? "text-amber-600" : "text-stone-400"}`}>
+                              {DAYS[i]}
+                            </span>
+                            <div className={[
+                              "w-8 h-8 rounded-full flex items-center justify-center mx-auto mt-0.5 text-sm font-bold",
+                              isToday ? "bg-amber-500 text-white shadow-sm" : "text-stone-700",
+                            ].join(" ")}>
+                              {date.getDate()}
+                            </div>
+                            {mealCount > 0 && (
+                              <div className="flex justify-center gap-0.5 mt-1">
+                                {[...Array(Math.min(mealCount, 4))].map((_, d) => (
+                                  <div key={d} className="w-1 h-1 rounded-full bg-amber-400" />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Slot rows */}
+                    {SLOTS.map((slot) => (
+                      <div
+                        key={slot}
+                        className="grid gap-1.5 mb-1.5"
+                        style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
+                      >
+                        {/* Slot label */}
+                        <div className={`flex flex-col items-center justify-center rounded-xl border px-2 py-2 ${SLOT_COLORS[slot]}`}>
+                          <span className="text-lg leading-none">{SLOT_ICONS[slot]}</span>
+                          <span className="text-[9px] font-semibold capitalize mt-0.5 opacity-70">{slot}</span>
+                        </div>
+
+                        {/* Day cells */}
                         {weekDates.map((date, i) => {
-                          const isToday = toISO(date) === toISO(new Date());
+                          const meal   = getMeal(date, slot);
+                          const recipe = meal ? getRecipe(meal.recipeId) : undefined;
                           return (
-                            <th key={i} className="pb-3 text-center">
-                              <span className={[
-                                "text-xs font-semibold",
-                                isToday ? "text-indigo-600" : "text-gray-500",
-                              ].join(" ")}>
-                                {DAYS[i]}
-                              </span>
-                              <br />
-                              <span className={[
-                                "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold",
-                                isToday ? "bg-indigo-600 text-white" : "text-gray-700",
-                              ].join(" ")}>
-                                {date.getDate()}
-                              </span>
-                            </th>
+                            <SlotCell
+                              key={i}
+                              date={date}
+                              slot={slot}
+                              meal={meal}
+                              recipe={recipe}
+                              onRemove={() => meal && setRemoveTarget(meal)}
+                            />
                           );
                         })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {SLOTS.map((slot) => (
-                        <tr key={slot}>
-                          <td className="pr-2 py-1">
-                            <span className="text-xs font-medium text-gray-500 capitalize flex items-center gap-1">
-                              {SLOT_ICONS[slot]} {slot}
-                            </span>
-                          </td>
-                          {weekDates.map((date, i) => {
-                            const meal   = getMeal(date, slot);
-                            const recipe = meal ? getRecipe(meal.recipeId) : undefined;
-                            return (
-                              <td key={i} className="p-1">
-                                <SlotCell
-                                  date={date}
-                                  slot={slot}
-                                  meal={meal}
-                                  recipe={recipe}
-                                  onRemove={() => meal && setRemoveTarget(meal)}
-                                />
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Drag overlay */}
             <DragOverlay>
-              {activeRecipe && (
-                <div className={`px-3 py-2 rounded-xl text-sm font-medium shadow-xl ${getCuisineTheme(activeRecipe.cuisine).cardGradient} ${getCuisineTheme(activeRecipe.cuisine).textColor}`}>
-                  {getCuisineTheme(activeRecipe.cuisine).emoji} {activeRecipe.title}
-                </div>
-              )}
+              {activeRecipe && (() => {
+                const t = getCuisineTheme(activeRecipe.cuisine);
+                return (
+                  <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium shadow-2xl ${t.cardGradient} ${t.textColor} rotate-2`}>
+                    <span>{t.emoji}</span>
+                    <span>{activeRecipe.title}</span>
+                  </div>
+                );
+              })()}
             </DragOverlay>
           </DndContext>
+
+          {/* ── Week is empty hint ─────────────────────────────────────── */}
+          {!loadingMeals && plannedMeals.length === 0 && (
+            <div className="mt-8 text-center py-6 border-t border-stone-200/60">
+              <p className="text-stone-500 text-sm">
+                <span className="font-medium">Your week is open.</span>{" "}
+                Drag recipes from the sidebar onto any meal slot to start planning.
+              </p>
+            </div>
+          )}
         </div>
       </main>
 
       <ConfirmDialog
         open={!!removeTarget}
-        title="Remove meal?"
-        message="This will remove the meal from the planner for this slot."
+        title="Remove from plan?"
+        message="This will remove the meal from this slot. You can add it back anytime."
         confirmLabel="Remove"
         onConfirm={handleRemove}
         onCancel={() => setRemoveTarget(null)}

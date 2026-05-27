@@ -22,7 +22,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
-import { ALL_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
+import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import NutritionPanel from "@/components/NutritionPanel";
 import type { CuisineOrigin, RecipeTag, NutritionInfo } from "@/types";
@@ -86,22 +86,45 @@ function CuisineSelector({
             transition={{ duration: 0.18 }}
             className="absolute z-50 top-full mt-2 w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-72 overflow-y-auto"
           >
-            {ALL_CUISINE_ORIGINS.map((origin) => {
+            {/* Group: Indian Regional */}
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">🇮🇳 Indian Regional</p>
+            </div>
+            {INDIAN_CUISINE_ORIGINS.map((origin) => {
               const t = getCuisineTheme(origin);
               return (
                 <button
                   key={origin}
                   type="button"
                   onClick={() => { onChange(origin); setOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:${t.accentBg} transition ${value === origin ? t.accentBg : ""}`}
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-left transition ${value === origin ? "bg-amber-50" : "hover:bg-gray-50"}`}
                 >
                   <span className="text-lg">{t.emoji}</span>
-                  <span className={`text-sm font-medium ${value === origin ? t.headingColor : "text-gray-700"}`}>
+                  <span className={`text-sm font-medium ${value === origin ? "text-amber-700" : "text-gray-700"}`}>
                     {t.label}
                   </span>
-                  {value === origin && (
-                    <span className={`ml-auto text-xs ${t.accentText}`}>✓</span>
-                  )}
+                  {value === origin && <span className="ml-auto text-amber-600">✓</span>}
+                </button>
+              );
+            })}
+            {/* Divider */}
+            <div className="px-4 pt-3 pb-1 border-t border-gray-100 mt-1">
+              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">🌍 World Kitchen</p>
+            </div>
+            {ALL_CUISINE_ORIGINS.filter((o) => !INDIAN_CUISINE_ORIGINS.includes(o)).map((origin) => {
+              const t = getCuisineTheme(origin);
+              return (
+                <button
+                  key={origin}
+                  type="button"
+                  onClick={() => { onChange(origin); setOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-left transition ${value === origin ? "bg-indigo-50" : "hover:bg-gray-50"}`}
+                >
+                  <span className="text-lg">{t.emoji}</span>
+                  <span className={`text-sm font-medium ${value === origin ? "text-indigo-700" : "text-gray-700"}`}>
+                    {t.label}
+                  </span>
+                  {value === origin && <span className="ml-auto text-indigo-600">✓</span>}
                 </button>
               );
             })}
@@ -134,6 +157,7 @@ export default function AddRecipePage() {
   const [prepTime,    setPrepTime]    = useState("");
   const [cookTime,    setCookTime]    = useState("");
   const [notes,       setNotes]       = useState("");
+  const [learnedFrom, setLearnedFrom] = useState("");
   const [tags,        setTags]        = useState<RecipeTag[]>([]);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([emptyIngredient()]);
   const [steps,       setSteps]       = useState<StepRow[]>([emptyStep()]);
@@ -155,7 +179,7 @@ export default function AddRecipePage() {
         recipe?: {
           title?: string; description?: string; cuisine?: string;
           prepTime?: string; cookTime?: string; servings?: string;
-          notesEn?: string; sourceUrl?: string;
+          notesEn?: string; sourceUrl?: string; learnedFrom?: string;
           ingredients?: Array<{ group_en?: string; items?: Array<{ amount?: string; unit?: string; name_en?: string }> }>;
           instructionSections?: Array<{ steps_en?: string[] }>;
         };
@@ -170,6 +194,7 @@ export default function AddRecipePage() {
       if (r.cookTime)    setCookTime(r.cookTime.replace(/\D/g, ""));
       if (r.servings)    setServings(r.servings.replace(/\D/g, "") || "4");
       if (r.notesEn)     setNotes(r.notesEn);
+      if (r.learnedFrom) setLearnedFrom(r.learnedFrom);
 
       // Flatten ingredient groups into rows
       const importedIngredients = (r.ingredients ?? []).flatMap((g) =>
@@ -197,7 +222,12 @@ export default function AddRecipePage() {
       setImportUrl("");
       toast.success("Recipe imported! Review and save.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      const msg = err instanceof Error ? err.message : "Import failed";
+      toast.error(
+        msg.includes("find recipe data")
+          ? "Could not find recipe data. The site may not support structured data — try a different URL or add the recipe manually."
+          : msg
+      );
     } finally {
       setIsImporting(false);
     }
@@ -212,6 +242,17 @@ export default function AddRecipePage() {
   const [manualFat,        setManualFat]        = useState("");
   const [manualFiber,      setManualFiber]      = useState("");
   const [showManual,       setShowManual]       = useState(false);
+
+  // ── Servings change: reset nutrition if already calculated ──────────────────
+  const handleServingsChange = (val: string) => {
+    setServings(val);
+    if (nutritionStatus === "calculated") {
+      setNutritionStatus("idle");
+      setNutritionPreview(null);
+      setManualCalories(""); setManualProtein(""); setManualCarbs("");
+      setManualFat(""); setManualFiber("");
+    }
+  };
 
   // ── Saving ──────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
@@ -389,7 +430,7 @@ export default function AddRecipePage() {
       image_urls:            [],
       cover_image_url:       "",
       author_name:           "",
-      learned_from:          "",
+      learned_from:          learnedFrom.trim(),
     };
 
     try {
@@ -506,12 +547,15 @@ export default function AddRecipePage() {
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Servings</label>
                 <input
                   value={servings}
-                  onChange={(e) => setServings(e.target.value)}
+                  onChange={(e) => handleServingsChange(e.target.value)}
                   placeholder="4"
                   type="number"
                   min="1"
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
                 />
+                {nutritionStatus === "idle" && servings && (
+                  <p className="text-[11px] text-gray-400 mt-1">Change servings to recalculate nutrition</p>
+                )}
               </div>
             </div>
 
@@ -703,15 +747,29 @@ export default function AddRecipePage() {
           </section>
 
           {/* ── Notes ──────────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Notes</h2>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Storage tips, variations, family stories…"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none"
-            />
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-4">Notes</h2>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Storage tips, variations, family stories…"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Learned from / Source
+              </label>
+              <input
+                value={learnedFrom}
+                onChange={(e) => setLearnedFrom(e.target.value)}
+                placeholder="e.g. Amma, Grandma, Hebbar's Kitchen, www...."
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Who taught you this recipe or where did you learn it?</p>
+            </div>
           </section>
 
           {/* ── Nutrition ──────────────────────────────────────────────────── */}
