@@ -110,22 +110,24 @@ function CuisineSelector({
             })}
             {/* Divider */}
             <div className="px-4 pt-3 pb-1 border-t border-gray-100 mt-1">
-              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">🌍 World Kitchen</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--accent)", opacity: 0.7 }}>🌍 World Kitchen</p>
             </div>
             {ALL_CUISINE_ORIGINS.filter((o) => !INDIAN_CUISINE_ORIGINS.includes(o)).map((origin) => {
               const t = getCuisineTheme(origin);
+              const isSelected = value === origin;
               return (
                 <button
                   key={origin}
                   type="button"
                   onClick={() => { onChange(origin); setOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-left transition ${value === origin ? "bg-indigo-50" : "hover:bg-gray-50"}`}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-left transition"
+                  style={{ background: isSelected ? "rgba(184,92,53,0.08)" : "transparent" }}
                 >
                   <span className="text-lg">{t.emoji}</span>
-                  <span className={`text-sm font-medium ${value === origin ? "text-indigo-700" : "text-gray-700"}`}>
+                  <span className="text-sm font-medium" style={{ color: isSelected ? "var(--accent)" : "var(--foreground)" }}>
                     {t.label}
                   </span>
-                  {value === origin && <span className="ml-auto text-indigo-600">✓</span>}
+                  {isSelected && <span className="ml-auto" style={{ color: "var(--accent)" }}>✓</span>}
                 </button>
               );
             })}
@@ -461,25 +463,37 @@ export default function AddRecipePage() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <Link href="/recipes"
-            className="p-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+            className="p-2 rounded-xl border transition"
+            style={{ borderColor: "var(--border)", color: "var(--muted)" }}
           >
             <ArrowLeft size={16} />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Add Recipe</h1>
-            <p className="text-sm text-gray-500">Your kitchen, your story</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5"
+              style={{ color: "var(--accent)", opacity: 0.8 }}>
+              Your Cookbook
+            </p>
+            <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>Add Recipe</h1>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>Your kitchen, your story</p>
           </div>
         </div>
 
         <div className="space-y-8">
 
           {/* ── Import from URL ────────────────────────────────────────────── */}
-          <section className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl border border-indigo-100 p-5">
+          <section className="rounded-2xl p-5"
+            style={{
+              background: "linear-gradient(135deg, rgba(212,160,23,0.07) 0%, rgba(184,92,53,0.05) 100%)",
+              border: "1px solid rgba(212,160,23,0.2)",
+            }}
+          >
             <div className="flex items-center gap-2 mb-3">
-              <Link2 size={16} className="text-indigo-500" />
-              <h2 className="font-semibold text-indigo-900 text-sm">Import from a website or blog</h2>
+              <Link2 size={16} style={{ color: "var(--accent)" }} />
+              <h2 className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+                Import from a website or blog
+              </h2>
             </div>
-            <p className="text-xs text-indigo-600 mb-3 leading-relaxed">
+            <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--muted)" }}>
               Paste a URL from any cooking website — ingredients, steps, and timings will be imported automatically.
             </p>
             <div className="flex gap-2">
@@ -488,11 +502,16 @@ export default function AddRecipePage() {
                 onChange={(e) => setImportUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") void handleImport(); }}
                 placeholder="https://www.example.com/recipe/..."
-                className="flex-1 px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                className="flex-1 px-3 py-2.5 rounded-xl text-sm focus:outline-none"
+                style={{
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--foreground)",
+                }}
               />
               {importUrl && (
                 <button type="button" onClick={() => setImportUrl("")}
-                  className="p-2.5 text-gray-400 hover:text-gray-600 transition">
+                  className="p-2.5 transition" style={{ color: "var(--muted)" }}>
                   <X size={14} />
                 </button>
               )}
@@ -500,7 +519,8 @@ export default function AddRecipePage() {
                 type="button"
                 onClick={() => void handleImport()}
                 disabled={isImporting || !importUrl.trim()}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50 flex-shrink-0"
+                style={{ background: "var(--accent)", color: "#fff" }}
               >
                 {isImporting
                   ? <><Loader2 size={14} className="animate-spin" /> Importing…</>
@@ -677,7 +697,8 @@ export default function AddRecipePage() {
             <button
               type="button"
               onClick={() => setIngredients((prev) => [...prev, emptyIngredient()])}
-              className="mt-3 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 transition"
+              className="mt-3 flex items-center gap-1.5 text-sm transition"
+              style={{ color: "var(--accent)" }}
             >
               <Plus size={14} /> Add ingredient
             </button>
@@ -701,7 +722,10 @@ export default function AddRecipePage() {
                     className="bg-gray-50 rounded-xl p-3 space-y-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex-shrink-0">
+                      <span
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold flex-shrink-0"
+                        style={{ background: "rgba(184,92,53,0.12)", color: "var(--accent)" }}
+                      >
                         {idx + 1}
                       </span>
                       <textarea
@@ -743,7 +767,8 @@ export default function AddRecipePage() {
             <button
               type="button"
               onClick={() => setSteps((prev) => [...prev, emptyStep()])}
-              className="mt-3 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 transition"
+              className="mt-3 flex items-center gap-1.5 text-sm transition"
+              style={{ color: "var(--accent)" }}
             >
               <Plus size={14} /> Add step
             </button>
@@ -783,7 +808,8 @@ export default function AddRecipePage() {
                 type="button"
                 onClick={() => void calculateNutrition()}
                 disabled={nutritionStatus === "pending"}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50"
+                style={{ color: "var(--accent)", border: "1px solid rgba(184,92,53,0.3)" }}
               >
                 {nutritionStatus === "pending" ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -862,7 +888,8 @@ export default function AddRecipePage() {
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-60 shadow-sm"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-60 shadow-sm"
+              style={{ background: "var(--accent)", color: "#fff" }}
               >
                 {saving && <Loader2 size={15} className="animate-spin" />}
                 {saving ? "Saving…" : "Save Recipe"}
