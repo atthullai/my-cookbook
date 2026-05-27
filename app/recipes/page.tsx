@@ -25,12 +25,16 @@ import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import KolamDivider from "@/components/KolamDivider";
 import type { RecipeSummary, CuisineOrigin, RecipeTag } from "@/types";
 
-// Stagger container for the recipe grid
+// Slow, breathing, handcrafted — Tamil Nadu motion philosophy
+const EASE_WARM = [0.25, 0.1, 0.4, 1.0] as const;
+
+// Stagger container for the recipe grid — organic, not mechanical
 const gridVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
+  visible: { transition: { staggerChildren: 0.07 } },
 };
 
 const GLOBAL_ORIGINS = ALL_CUISINE_ORIGINS.filter(
@@ -147,51 +151,73 @@ export default function RecipesPage() {
   return (
     <>
       <Toaster position="top-right" />
-      <main className="min-h-screen bg-gray-50">
+      <main className="min-h-screen" style={{ background: "var(--parchment, #fdf8f0)" }}>
         <div className="max-w-7xl mx-auto px-4 py-8">
 
           {/* ── Header ──────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: EASE_WARM }}
+            className="flex items-center justify-between mb-2"
+          >
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Recipes</h1>
-              <p className="text-gray-500 text-sm mt-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] mb-1"
+                style={{ color: "var(--accent)", opacity: 0.8 }}>
+                Your Heirloom Collection
+              </p>
+              <h1 className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
+                My Recipes
+              </h1>
+              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
                 {recipes.length} recipe{recipes.length !== 1 ? "s" : ""} in your cookbook
               </p>
             </div>
             <Link
               href="/add"
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium text-sm hover:bg-indigo-700 transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition shadow-sm"
+              style={{ background: "var(--accent)", color: "#fff" }}
             >
               <Plus size={16} /> Add Recipe
             </Link>
-          </div>
+          </motion.div>
+
+          <KolamDivider color="rgba(200, 140, 30, 0.2)" animateOnView={false} className="mb-6" />
 
           {/* ── Search + filter toggle ──────────────────────────────── */}
           <div className="flex gap-2 mb-4">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
               <input
                 type="search"
                 placeholder="Search recipes…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                style={{
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--foreground)",
+                }}
               />
             </div>
             <button
               type="button"
               onClick={() => setShowFilters((f) => !f)}
-              className={[
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition",
-                showFilters
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-300",
-              ].join(" ")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition"
+              style={{
+                background: showFilters ? "var(--accent)" : "var(--surface)",
+                color: showFilters ? "#fff" : "var(--foreground)",
+                borderColor: showFilters ? "var(--accent)" : "var(--border)",
+              }}
             >
               <SlidersHorizontal size={15} />
               Filters
               {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white text-indigo-600 text-[11px] font-bold">
+                <span
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold"
+                  style={{ background: showFilters ? "rgba(255,255,255,0.25)" : "var(--accent)", color: showFilters ? "#fff" : "#fff" }}
+                >
                   {activeFilterCount}
                 </span>
               )}
@@ -208,21 +234,25 @@ export default function RecipesPage() {
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-5 space-y-5">
+                <div
+                  className="rounded-2xl p-5 mb-5 space-y-5"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                >
                   {/* Sort */}
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">Sort</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide w-16"
+                      style={{ color: "var(--muted)" }}>Sort</span>
                     {(["newest","oldest","name-az","time-quick"] as const).map((s) => (
                       <button
                         key={s}
                         type="button"
                         onClick={() => setSortBy(s)}
-                        className={[
-                          "px-3 py-1.5 rounded-lg text-xs font-medium border transition",
-                          sortBy === s
-                            ? "bg-indigo-600 text-white border-indigo-600"
-                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
-                        ].join(" ")}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium border transition"
+                        style={{
+                          background: sortBy === s ? "var(--accent)" : "transparent",
+                          color: sortBy === s ? "#fff" : "var(--foreground)",
+                          borderColor: sortBy === s ? "var(--accent)" : "var(--border)",
+                        }}
                       >
                         {{ newest:"Newest", oldest:"Oldest", "name-az":"A→Z", "time-quick":"Quickest" }[s]}
                       </button>
@@ -231,30 +261,34 @@ export default function RecipesPage() {
 
                   {/* Time slider */}
                   <div className="flex items-center gap-4">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">Time</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide w-16"
+                      style={{ color: "var(--muted)" }}>Time</span>
                     <input
                       type="range" min={10} max={120} step={5}
                       value={maxTime}
                       onChange={(e) => setMaxTime(Number(e.target.value))}
-                      className="flex-1 accent-indigo-600"
+                      className="flex-1"
+                      style={{ accentColor: "var(--accent)" }}
                     />
-                    <span className="text-sm text-gray-600 w-16">≤ {maxTime} min</span>
+                    <span className="text-sm w-16" style={{ color: "var(--foreground)" }}>≤ {maxTime} min</span>
                   </div>
 
                   {/* Indian cuisines */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Indian Cuisines</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                      style={{ color: "var(--muted)" }}>🇮🇳 Indian Cuisines</p>
                     <div className="flex flex-wrap gap-2">
                       {INDIAN_CUISINE_ORIGINS.map((c) => {
                         const t = getCuisineTheme(c);
+                        const active = cuisines.includes(c);
                         return (
                           <button key={c} type="button" onClick={() => toggleCuisine(c)}
-                            className={[
-                              "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition",
-                              cuisines.includes(c)
-                                ? "bg-indigo-600 text-white border-indigo-600"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
-                            ].join(" ")}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition"
+                            style={{
+                              background: active ? "var(--accent)" : "transparent",
+                              color: active ? "#fff" : "var(--foreground)",
+                              borderColor: active ? "var(--accent)" : "var(--border)",
+                            }}
                           >
                             {t.emoji} {t.label}
                           </button>
@@ -265,18 +299,20 @@ export default function RecipesPage() {
 
                   {/* Global cuisines */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Global Cuisines</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                      style={{ color: "var(--muted)" }}>🌍 World Kitchen</p>
                     <div className="flex flex-wrap gap-2">
                       {GLOBAL_ORIGINS.map((c) => {
                         const t = getCuisineTheme(c);
+                        const active = cuisines.includes(c);
                         return (
                           <button key={c} type="button" onClick={() => toggleCuisine(c)}
-                            className={[
-                              "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition",
-                              cuisines.includes(c)
-                                ? "bg-indigo-600 text-white border-indigo-600"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
-                            ].join(" ")}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition"
+                            style={{
+                              background: active ? "var(--accent)" : "transparent",
+                              color: active ? "#fff" : "var(--foreground)",
+                              borderColor: active ? "var(--accent)" : "var(--border)",
+                            }}
                           >
                             {t.emoji} {t.label}
                           </button>
@@ -287,7 +323,8 @@ export default function RecipesPage() {
 
                   {/* Tags */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tags</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                      style={{ color: "var(--muted)" }}>Tags</p>
                     <div className="flex flex-wrap gap-2">
                       {ALL_TAGS.map((tag) => {
                         const meta = TAG_META[tag];
@@ -297,8 +334,13 @@ export default function RecipesPage() {
                               "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition",
                               tags.includes(tag)
                                 ? `${meta.color} ${meta.textColor} ${meta.borderColor}`
-                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
+                                : "",
                             ].join(" ")}
+                            style={!tags.includes(tag) ? {
+                              background: "transparent",
+                              color: "var(--foreground)",
+                              borderColor: "var(--border)",
+                            } : {}}
                           >
                             {meta.emoji} {meta.label}
                           </button>
@@ -309,7 +351,8 @@ export default function RecipesPage() {
 
                   {activeFilterCount > 0 && (
                     <button type="button" onClick={clearFilters}
-                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition"
+                      className="flex items-center gap-1 text-xs transition"
+                      style={{ color: "#dc2626" }}
                     >
                       <X size={12} /> Clear all filters
                     </button>
@@ -321,7 +364,7 @@ export default function RecipesPage() {
 
           {/* ── Results count ───────────────────────────────────────── */}
           {!loading && (
-            <p className="text-xs text-gray-400 mb-4">
+            <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>
               Showing {filtered.length} of {recipes.length} recipes
             </p>
           )}
@@ -330,11 +373,14 @@ export default function RecipesPage() {
           {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100 animate-pulse">
-                  <div className="h-24 bg-gray-200" />
+                <div key={i}
+                  className="rounded-2xl overflow-hidden animate-pulse"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                >
+                  <div className="h-24" style={{ background: "rgba(180, 120, 30, 0.08)" }} />
                   <div className="p-3 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-4 rounded w-3/4" style={{ background: "rgba(180, 120, 30, 0.1)" }} />
+                    <div className="h-3 rounded w-1/2" style={{ background: "rgba(180, 120, 30, 0.07)" }} />
                   </div>
                 </div>
               ))}
@@ -346,7 +392,8 @@ export default function RecipesPage() {
             <div className="text-center py-16">
               <p className="text-red-500 mb-3">{loadError}</p>
               <button type="button" onClick={loadRecipes}
-                className="text-sm text-indigo-600 hover:underline"
+                className="text-sm hover:underline"
+                style={{ color: "var(--accent)" }}
               >
                 Try again
               </button>
@@ -358,27 +405,30 @@ export default function RecipesPage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: EASE_WARM }}
               className="text-center py-20"
             >
               <span className="text-7xl block mb-4" aria-hidden="true">🍳</span>
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+              <h2 className="text-xl font-semibold mb-2" style={{ color: "var(--foreground)" }}>
                 {recipes.length === 0 ? "Your cookbook is empty" : "No recipes match your filters"}
               </h2>
-              <p className="text-gray-400 text-sm mb-6">
+              <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>
                 {recipes.length === 0
                   ? "Add your first recipe to get started."
                   : "Try adjusting the filters or search term."}
               </p>
               {recipes.length === 0 && (
                 <Link href="/add"
-                  className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-700 transition"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition"
+                  style={{ background: "var(--accent)", color: "#fff" }}
                 >
                   <Plus size={16} /> Add Your First Recipe
                 </Link>
               )}
               {recipes.length > 0 && (
                 <button type="button" onClick={clearFilters}
-                  className="text-sm text-indigo-600 hover:underline"
+                  className="text-sm hover:underline"
+                  style={{ color: "var(--accent)" }}
                 >
                   Clear filters
                 </button>
@@ -410,7 +460,8 @@ export default function RecipesPage() {
         <Link
           href="/add"
           aria-label="Add recipe"
-          className="fixed bottom-6 right-6 sm:hidden w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 transition"
+          className="fixed bottom-6 right-6 sm:hidden w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition"
+          style={{ background: "var(--accent)", color: "#fff" }}
         >
           <Plus size={24} />
         </Link>
