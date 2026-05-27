@@ -32,7 +32,7 @@ CREATE POLICY "own shopping list" ON shopping_list
 CREATE TABLE IF NOT EXISTS planned_meals (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID        NOT NULL REFERENCES auth.users ON DELETE CASCADE,
-  recipe_id   BIGINT      REFERENCES recipes(id) ON DELETE SET NULL,
+  recipe_id   INTEGER,
   meal_date   DATE        NOT NULL,
   meal_slot   TEXT        NOT NULL CHECK (meal_slot IN ('breakfast','lunch','dinner','snack')),
   servings    INTEGER     DEFAULT 1,
