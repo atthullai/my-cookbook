@@ -40,6 +40,7 @@ import {
 } from "@/lib/recipe-types";
 import { supabase } from "@/lib/supabase";
 import { translateEnglishToGerman } from "@/lib/translate";
+import TadkaEffect from "@/components/TadkaEffect";
 
 export default function EditRecipe() {
   // Edit keeps a draft copy of every field so users can make many changes before saving once.
@@ -52,6 +53,7 @@ export default function EditRecipe() {
   const [recipe, setRecipe] = useState<RecipeRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [tadkaBurst, setTadkaBurst] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [nutritionEstimateMessage, setNutritionEstimateMessage] = useState("");
   const [refreshingCoverPhoto, setRefreshingCoverPhoto] = useState(false);
@@ -395,7 +397,8 @@ export default function EditRecipe() {
     }
 
     notify({ tone: "success", title: "Recipe updated", message: "Your changes are saved." });
-    router.push(`/recipe/${recipeId}`);
+    setTadkaBurst(true);
+    setTimeout(() => router.push(`/recipe/${recipeId}`), 950);
   };
 
   const handleEstimateNutrition = async () => {
@@ -493,7 +496,11 @@ export default function EditRecipe() {
     <>
     <main className="edit-shell max-w-3xl mx-auto px-4 py-8 min-h-screen">
       {/* ── Modern header ───────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="relative flex items-center gap-3 mb-8 overflow-visible">
+        <TadkaEffect
+          trigger={tadkaBurst}
+          onComplete={() => setTadkaBurst(false)}
+        />
         <Link
           href={`/recipes/${recipe.id}`}
           className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition"

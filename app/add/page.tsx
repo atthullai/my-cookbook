@@ -25,6 +25,7 @@ import { supabase } from "@/lib/supabase";
 import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import NutritionPanel from "@/components/NutritionPanel";
+import TadkaEffect from "@/components/TadkaEffect";
 import type { CuisineOrigin, RecipeTag, NutritionInfo } from "@/types";
 
 // ── Local draft types ─────────────────────────────────────────────────────────
@@ -256,6 +257,7 @@ export default function AddRecipePage() {
 
   // ── Saving ──────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
+  const [tadkaBurst, setTadkaBurst] = useState(false);
 
   // ── Tag toggle ───────────────────────────────────────────────────────────────
   const toggleTag = (tag: RecipeTag) => {
@@ -442,7 +444,8 @@ export default function AddRecipePage() {
 
       if (error) throw error;
       toast.success("Recipe saved!");
-      router.push(`/recipes/${data.id}`);
+      setTadkaBurst(true);
+      setTimeout(() => router.push(`/recipes/${data.id}`), 950);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save recipe");
       setSaving(false);
@@ -850,15 +853,21 @@ export default function AddRecipePage() {
             >
               Cancel
             </Link>
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-60 shadow-sm"
-            >
-              {saving && <Loader2 size={15} className="animate-spin" />}
-              {saving ? "Saving…" : "Save Recipe"}
-            </button>
+            <div className="relative overflow-visible">
+              <TadkaEffect
+                trigger={tadkaBurst}
+                onComplete={() => setTadkaBurst(false)}
+              />
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-60 shadow-sm"
+              >
+                {saving && <Loader2 size={15} className="animate-spin" />}
+                {saving ? "Saving…" : "Save Recipe"}
+              </button>
+            </div>
           </div>
         </div>
       </main>
