@@ -231,7 +231,8 @@ export default function ShoppingListPage() {
             <button
               type="button"
               onClick={() => setShowAddForm((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium text-white transition shadow-sm"
+              style={{ background: "var(--accent)" }}
             >
               <Plus size={14} /> Add Item
             </button>
@@ -248,7 +249,9 @@ export default function ShoppingListPage() {
               transition={{ duration: 0.2 }}
               className="overflow-hidden mb-6"
             >
-              <div className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="rounded-2xl p-5 shadow-sm space-y-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              >
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold text-gray-900 text-sm">Add to shopping list</h2>
                   <button type="button" onClick={() => { setShowAddForm(false); setAddForm(EMPTY_ADD_FORM); }}>
@@ -264,7 +267,7 @@ export default function ShoppingListPage() {
                   autoFocus
                   onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
                   onKeyDown={(e) => { if (e.key === "Enter") void addItem(); }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                 />
 
                 <div className="grid grid-cols-3 gap-2">
@@ -275,19 +278,19 @@ export default function ShoppingListPage() {
                     min="0"
                     step="0.5"
                     onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                   />
                   <input
                     type="text"
                     placeholder="Unit (g, ml…)"
                     value={addForm.unit}
                     onChange={(e) => setAddForm((f) => ({ ...f, unit: e.target.value }))}
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                   />
                   <select
                     value={addForm.category}
                     onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value as ShoppingCategory }))}
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-indigo-400"
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:outline-none"
                   >
                     {CATEGORY_ORDER.map((cat) => (
                       <option key={cat} value={cat}>
@@ -309,7 +312,8 @@ export default function ShoppingListPage() {
                     type="button"
                     onClick={() => void addItem()}
                     disabled={isAdding || !addForm.name.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 transition"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-60 transition"
+                    style={{ background: "var(--accent)" }}
                   >
                     {isAdding ? "Adding…" : <><Check size={14} /> Add to list</>}
                   </button>
@@ -345,7 +349,8 @@ export default function ShoppingListPage() {
               <button
                 type="button"
                 onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-medium transition"
+                style={{ background: "var(--accent)" }}
               >
                 <Plus size={14} /> Add first item
               </button>
