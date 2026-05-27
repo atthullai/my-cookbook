@@ -25,6 +25,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
+import { buildIngredientPayload } from "@/lib/recipe-db";
 import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import NutritionPanel from "@/components/NutritionPanel";
@@ -376,91 +377,92 @@ export default function AddRecipePage() {
 
     setSaving(true);
 
-    // Build the final nutrition object (manual overrides take precedence)
-    const finalCalories = manualCalories  ? parseFloat(manualCalories)  : (nutritionPreview?.calories       ?? null);
-    const finalProtein  = manualProtein   ? parseFloat(manualProtein)   : (nutritionPreview?.protein        ?? null);
-    const finalCarbs    = manualCarbs     ? parseFloat(manualCarbs)     : (nutritionPreview?.carbohydrates  ?? null);
-    const finalFat      = manualFat       ? parseFloat(manualFat)       : (nutritionPreview?.fat            ?? null);
-    const finalFiber    = manualFiber     ? parseFloat(manualFiber)     : (nutritionPreview?.fiber          ?? null);
-
-    const nutritionRecord = (finalCalories !== null) ? {
-      calories_per_serving: String(finalCalories),
-      protein_g:  String(finalProtein ?? ""),
-      carbs_g:    String(finalCarbs   ?? ""),
-      fat_g:      String(finalFat     ?? ""),
-      fiber_g:    String(finalFiber   ?? ""),
-      note_en: "",
-      note_de: "",
+    // Build nutrition JSON in the format the DB expects
+    const cal     = manualCalories ? manualCalories  : (nutritionPreview ? String(nutritionPreview.calories)       : "");
+    const prot    = manualProtein  ? manualProtein   : (nutritionPreview ? String(nutritionPreview.protein)        : "");
+    const carbs   = manualCarbs    ? manualCarbs     : (nutritionPreview ? String(nutritionPreview.carbohydrates)  : "");
+    const fat     = manualFat      ? manualFat       : (nutritionPreview ? String(nutritionPreview.fat)            : "");
+    const fiber   = manualFiber    ? manualFiber     : (nutritionPreview ? String(nutritionPreview.fiber)          : "");
+    const nutritionRecord = cal ? {
+      calories_kcal: cal, protein_g: prot, carbs_g: carbs, fat_g: fat, fiber_g: fiber,
+      saturated_fat_g: "", sugar_g: "", sodium_mg: "", cholesterol_mg: "", potassium_mg: "",
+      calcium_mg: "", iron_mg: "", magnesium_mg: "", phosphorus_mg: "", zinc_mg: "",
+      vitamin_a_mcg: "", vitamin_c_mg: "", vitamin_d_mcg: "", vitamin_e_mg: "", vitamin_k_mcg: "",
+      vitamin_b6_mg: "", vitamin_b12_mcg: "", folate_mcg: "", note_en: "", note_de: "",
     } : null;
 
-    const ingredientGroups = [{
+    // Build ingredients using the same helper the edit page uses
+    const builtIngredients = buildIngredientPayload([{
       group_en: "",
       group_de: "",
       items: ingredients
         .filter((i) => i.name.trim())
         .map((i) => ({
-          amount:  i.quantity,
-          unit:    i.unit,
-          name_en: i.name,
-          name_de: "",
-          notes_en: i.notes,
+          name_en:  i.name.trim(),
+          name_de:  "",
+          amount:   i.quantity.trim(),
+          unit:     i.unit.trim(),
+          preparation: i.notes.trim(),
+          optional: false,
+          garnish:  false,
+          approximate: false,
         })),
-    }];
+    }]);
 
-    const stepLines = steps
-      .filter((s) => s.instruction.trim())
-      .map((s) => s.instruction.trim());
-
+    // Build instruction sections as arrays (DB stores steps_en as string[])
+    const builtSteps = steps.filter((s) => s.instruction.trim()).map((s) => s.instruction.trim());
     const instructionSections = [{
-      title_en: "",
-      title_de: "",
-      steps_en: stepLines.join("\n"),
-      steps_de: "",
+      title_en: "Method",
+      title_de: "Methode",
+      steps_en: builtSteps,
+      steps_de: [] as string[],
     }];
 
     const slug = title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
     const payload = {
-      user_id:               userId,
+      user_id:              userId,
       slug,
-      title_en:              title.trim(),
-      title_de:              "",
-      description_en:        description.trim(),
-      description_de:        "",
-      category:              category.trim(),
-      cuisine:               getCuisineTheme(cuisine).label,
-      cuisine_de:            "",
-      origin:                cuisine,
-      course:                "",
-      course_de:             "",
-      difficulty:            "",
-      difficulty_de:         "",
-      prep_time_min:         parseInt(prepTime) || null,
-      cook_time_min:         parseInt(cookTime) || null,
-      servings:              servings.trim(),
-      tags:                  "",
-      badges:                tags as string[],
-      ingredient_groups:     ingredientGroups,
-      instruction_sections:  instructionSections,
-      notes_en:              notes.trim(),
-      notes_de:              "",
-      nutrition:             nutritionRecord,
-      calories:              finalCalories,
-      protein_g:             finalProtein,
-      carbs_g:               finalCarbs,
-      fat_g:                 finalFat,
-      fiber_g:               finalFiber,
-      is_veg:                tags.includes("veg") || tags.includes("vegan"),
-      is_vegan:              tags.includes("vegan"),
-      is_high_protein:       tags.includes("high-protein"),
-      spice_level:           tags.includes("very-spicy") ? 3 : tags.includes("spicy") ? 2 : 0,
-      equipment:             [],
-      source_url:            "",
-      video_url:             "",
-      image_urls:            [],
-      cover_image_url:       "",
-      author_name:           "",
-      learned_from:          learnedFrom.trim(),
+      title_en:             title.trim(),
+      title_de:             "",
+      author_name:          "",
+      learned_from:         learnedFrom.trim() || null,
+      description_en:       description.trim() || null,
+      description_de:       null,
+      category:             category.trim() || null,
+      cuisine:              getCuisineTheme(cuisine).label,
+      cuisine_de:           null,
+      course:               null,
+      course_de:            null,
+      difficulty:           null,
+      difficulty_de:        null,
+      prep_time:            prepTime.trim() ? `${prepTime.trim()} min` : null,
+      cook_time:            cookTime.trim() ? `${cookTime.trim()} min` : null,
+      total_time:           (prepTime.trim() && cookTime.trim())
+                              ? `${parseInt(prepTime) + parseInt(cookTime)} min`
+                              : null,
+      servings:             servings.trim() ? Number(servings) : null,
+      tags:                 [] as string[],
+      badges:               tags as string[],
+      ingredients:          builtIngredients,
+      instruction_sections: instructionSections,
+      steps_en:             builtSteps,
+      steps_de:             null,
+      notes_en:             notes.trim() || null,
+      notes_de:             null,
+      tips_en:              null,
+      tips_de:              null,
+      storage_en:           null,
+      storage_de:           null,
+      nutrition:            nutritionRecord,
+      faq:                  [] as unknown[],
+      troubleshooting:      [] as unknown[],
+      step_photos:          [] as unknown[],
+      source_url:           null,
+      video_url:            null,
+      equipment:            [] as unknown[],
+      image_urls:           [] as string[],
+      cover_image_url:      null,
     };
 
     try {
