@@ -77,8 +77,9 @@ export default function RecipeDetailPage() {
   }, [timerRunning]);
 
   const startTimer = (minutes?: number) => {
-    const mins = minutes ?? parseInt(timerInput);
-    if (!mins || mins <= 0) { toast.error("Enter a time in minutes"); return; }
+    // If no explicit minutes and input is empty, fall back to total recipe time
+    const mins = minutes ?? (parseInt(timerInput) || totalMins);
+    if (!mins || mins <= 0) { toast.error("Type a number of minutes, then press Start"); return; }
     const secs = mins * 60;
     if (timerRef.current) clearInterval(timerRef.current);
     setTimerTotal(secs);
@@ -177,7 +178,7 @@ export default function RecipeDetailPage() {
     return (
       <main className="max-w-5xl mx-auto px-4 py-20 text-center">
         <span className="text-7xl block mb-4" aria-hidden="true">🤔</span>
-        <h1 className="text-2xl font-semibold text-gray-700 mb-2">Recipe not found</h1>
+        <h1 className="text-2xl font-semibold mb-2" style={{ color: "var(--muted)" }}>Recipe not found</h1>
         <Link href="/recipes" className="hover:underline text-sm" style={{ color: "var(--accent)" }}>
           ← Back to recipes
         </Link>
@@ -205,42 +206,40 @@ export default function RecipeDetailPage() {
 
         {/* ── Action buttons ──────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-3 justify-end">
-          {/* Start Cooking / Timer */}
+          {/* ── Cooking timer ─────────────────────────────────────────── */}
           {!showTimer ? (
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              <Timer size={14} className="text-amber-600" />
+            <div
+              className="flex items-center gap-2 rounded-xl px-3 py-2"
+              style={{ background: "rgba(192,138,45,0.1)", border: "1px solid rgba(192,138,45,0.28)" }}
+            >
+              <Timer size={14} style={{ color: "var(--saffron)" }} />
               <input
                 type="number"
                 min="1"
                 max="480"
-                placeholder="min"
+                placeholder={totalMins > 0 ? String(totalMins) : "min"}
                 value={timerInput}
                 onChange={(e) => setTimerInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") startTimer(); }}
-                className="w-14 bg-transparent text-sm text-amber-900 font-medium focus:outline-none placeholder:text-amber-400"
+                className="w-14 bg-transparent text-sm font-medium focus:outline-none"
+                style={{ color: "var(--foreground)" }}
+                title={totalMins > 0 ? `Leave blank to use full recipe time (${totalMins} min)` : "Enter minutes"}
               />
               <button
                 type="button"
                 onClick={() => startTimer()}
-                className="flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition"
+                className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition"
+                style={{ background: "var(--accent)", color: "#fff" }}
               >
-                <Play size={11} /> Start
+                <Play size={11} /> {timerInput ? "Start" : totalMins > 0 ? `Start ${totalMins}m` : "Start"}
               </button>
-              {totalMins > 0 && (
-                <button
-                  type="button"
-                  onClick={() => startTimer(totalMins)}
-                  className="text-xs text-amber-600 hover:underline"
-                >
-                  {totalMins} min
-                </button>
-              )}
             </div>
           ) : (
             <button
               type="button"
               onClick={() => setShowTimer(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
+              style={{ background: "var(--accent)", color: "#fff" }}
             >
               <Timer size={14} /> Timer: {formatTime(timerRemaining)}
             </button>
@@ -448,8 +447,9 @@ export default function RecipeDetailPage() {
 
           {/* Right: nutrition sidebar */}
           <div>
-            <div className="sticky top-6 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Nutrition</h2>
+            <div className="sticky top-6 rounded-2xl p-5"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h2 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>Nutrition</h2>
               <NutritionPanel
                 nutrition={recipe.nutrition}
                 status={recipe.nutritionStatus}
