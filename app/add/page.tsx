@@ -541,7 +541,7 @@ export default function AddRecipePage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Amma's Lemon Rice"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
               />
             </div>
 
@@ -563,7 +563,7 @@ export default function AddRecipePage() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. Lunch, Dessert"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                 />
               </div>
               <div>
@@ -574,7 +574,7 @@ export default function AddRecipePage() {
                   placeholder="4"
                   type="number"
                   min="1"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                 />
                 {nutritionStatus === "idle" && servings && (
                   <p className="text-[11px] text-gray-400 mt-1">Change servings to recalculate nutrition</p>
@@ -591,7 +591,7 @@ export default function AddRecipePage() {
                   placeholder="15"
                   type="number"
                   min="0"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                 />
               </div>
               <div>
@@ -602,7 +602,7 @@ export default function AddRecipePage() {
                   placeholder="30"
                   type="number"
                   min="0"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
                 />
               </div>
             </div>
@@ -662,25 +662,25 @@ export default function AddRecipePage() {
                       value={ing.name}
                       onChange={(e) => updateIngredient(ing.id, "name", e.target.value)}
                       placeholder={idx === 0 ? "e.g. Lemon" : "Ingredient"}
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
                     />
                     <input
                       value={ing.quantity}
                       onChange={(e) => updateIngredient(ing.id, "quantity", e.target.value)}
                       placeholder="Qty"
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
                     />
                     <input
                       value={ing.unit}
                       onChange={(e) => updateIngredient(ing.id, "unit", e.target.value)}
                       placeholder="Unit"
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
                     />
                     <input
                       value={ing.notes}
                       onChange={(e) => updateIngredient(ing.id, "notes", e.target.value)}
                       placeholder="Notes (optional)"
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
                     />
                     <button
                       type="button"
@@ -794,7 +794,7 @@ export default function AddRecipePage() {
                 value={learnedFrom}
                 onChange={(e) => setLearnedFrom(e.target.value)}
                 placeholder="e.g. Amma, Grandma, Hebbar's Kitchen, www...."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
               />
               <p className="text-[11px] text-gray-400 mt-1">Who taught you this recipe or where did you learn it?</p>
             </div>
@@ -862,7 +862,7 @@ export default function AddRecipePage() {
                         type="number"
                         min="0"
                         placeholder="–"
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-indigo-400"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
                       />
                     </div>
                   ))}

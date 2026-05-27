@@ -178,7 +178,7 @@ export default function RecipeDetailPage() {
       <main className="max-w-5xl mx-auto px-4 py-20 text-center">
         <span className="text-7xl block mb-4" aria-hidden="true">🤔</span>
         <h1 className="text-2xl font-semibold text-gray-700 mb-2">Recipe not found</h1>
-        <Link href="/recipes" className="text-indigo-600 hover:underline text-sm">
+        <Link href="/recipes" className="hover:underline text-sm" style={{ color: "var(--accent)" }}>
           ← Back to recipes
         </Link>
       </main>
