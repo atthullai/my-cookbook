@@ -11,6 +11,9 @@
  * - "Calculate Nutrition" → calls /api/nutrition-estimate, shows NutritionPanel preview
  * - Manual nutrition override fields
  * - Save → upserts to Supabase in existing RecipeRecord schema → toast → /recipes/[id]
+ *
+ * VISIBILITY: All colors use CSS custom properties (--foreground, --muted, --surface,
+ * --border, --accent) so they adapt to both light and dark mode automatically.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -53,6 +56,13 @@ function emptyStep(): StepRow {
   return { id: uid(), instruction: "", duration: "", tip: "" };
 }
 
+// ── Shared input style (adapts to dark mode via CSS vars) ─────────────────────
+const INPUT_STYLE: React.CSSProperties = {
+  border: "1px solid var(--border)",
+  background: "var(--surface)",
+  color: "var(--foreground)",
+};
+
 // ── Cuisine picker ────────────────────────────────────────────────────────────
 function CuisineSelector({
   value,
@@ -75,7 +85,9 @@ function CuisineSelector({
         <span className={`flex-1 text-left text-sm font-medium ${theme.headingColor}`}>
           {theme.label}
         </span>
-        {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        {open
+          ? <ChevronUp size={16} style={{ color: "var(--muted)" }} />
+          : <ChevronDown size={16} style={{ color: "var(--muted)" }} />}
       </button>
 
       <AnimatePresence>
@@ -85,32 +97,47 @@ function CuisineSelector({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.18 }}
-            className="absolute z-50 top-full mt-2 w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-72 overflow-y-auto"
+            className="absolute z-50 top-full mt-2 w-full rounded-2xl shadow-xl overflow-hidden max-h-72 overflow-y-auto"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              boxShadow: "var(--shadow)",
+            }}
           >
             {/* Group: Indian Regional */}
             <div className="px-4 pt-3 pb-1">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">🇮🇳 Indian Regional</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--saffron)" }}>
+                🇮🇳 Indian Regional
+              </p>
             </div>
             {INDIAN_CUISINE_ORIGINS.map((origin) => {
               const t = getCuisineTheme(origin);
+              const isSelected = value === origin;
               return (
                 <button
                   key={origin}
                   type="button"
                   onClick={() => { onChange(origin); setOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-left transition ${value === origin ? "bg-amber-50" : "hover:bg-gray-50"}`}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-left transition"
+                  style={{
+                    background: isSelected ? "rgba(184,92,53,0.10)" : "transparent",
+                  }}
+                  onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface-strong)"; }}
+                  onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                 >
                   <span className="text-lg">{t.emoji}</span>
-                  <span className={`text-sm font-medium ${value === origin ? "text-amber-700" : "text-gray-700"}`}>
+                  <span className="text-sm font-medium" style={{ color: isSelected ? "var(--accent)" : "var(--foreground)" }}>
                     {t.label}
                   </span>
-                  {value === origin && <span className="ml-auto text-amber-600">✓</span>}
+                  {isSelected && <span className="ml-auto" style={{ color: "var(--accent)" }}>✓</span>}
                 </button>
               );
             })}
-            {/* Divider */}
-            <div className="px-4 pt-3 pb-1 border-t border-gray-100 mt-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--accent)", opacity: 0.7 }}>🌍 World Kitchen</p>
+            {/* Divider & World Kitchen */}
+            <div className="px-4 pt-3 pb-1 mt-1" style={{ borderTop: "1px solid var(--border)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--accent)", opacity: 0.7 }}>
+                🌍 World Kitchen
+              </p>
             </div>
             {ALL_CUISINE_ORIGINS.filter((o) => !INDIAN_CUISINE_ORIGINS.includes(o)).map((origin) => {
               const t = getCuisineTheme(origin);
@@ -122,6 +149,8 @@ function CuisineSelector({
                   onClick={() => { onChange(origin); setOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-left transition"
                   style={{ background: isSelected ? "rgba(184,92,53,0.08)" : "transparent" }}
+                  onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface-strong)"; }}
+                  onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                 >
                   <span className="text-lg">{t.emoji}</span>
                   <span className="text-sm font-medium" style={{ color: isSelected ? "var(--accent)" : "var(--foreground)" }}>
@@ -246,8 +275,8 @@ export default function AddRecipePage() {
   const [manualFiber,      setManualFiber]      = useState("");
   const [showManual,       setShowManual]       = useState(false);
 
-  // ── Servings change: reset nutrition if already calculated ──────────────────
-  const handleServingsChange = (val: string) => {
+  // ── Servings change: auto-recalculate nutrition if already calculated ────────
+  const handleServingsChange = useCallback((val: string) => {
     setServings(val);
     if (nutritionStatus === "calculated") {
       setNutritionStatus("idle");
@@ -255,7 +284,7 @@ export default function AddRecipePage() {
       setManualCalories(""); setManualProtein(""); setManualCarbs("");
       setManualFat(""); setManualFiber("");
     }
-  };
+  }, [nutritionStatus]);
 
   // ── Saving ──────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
@@ -364,7 +393,6 @@ export default function AddRecipePage() {
       note_de: "",
     } : null;
 
-    // Ingredient groups (one default group)
     const ingredientGroups = [{
       group_en: "",
       group_de: "",
@@ -379,7 +407,6 @@ export default function AddRecipePage() {
         })),
     }];
 
-    // Instruction sections (one section, newline-separated steps)
     const stepLines = steps
       .filter((s) => s.instruction.trim())
       .map((s) => s.instruction.trim());
@@ -391,7 +418,6 @@ export default function AddRecipePage() {
       steps_de: "",
     }];
 
-    // Slug
     const slug = title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
     const payload = {
@@ -478,13 +504,13 @@ export default function AddRecipePage() {
           </div>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
 
           {/* ── Import from URL ────────────────────────────────────────────── */}
           <section className="rounded-2xl p-5"
             style={{
               background: "linear-gradient(135deg, rgba(212,160,23,0.07) 0%, rgba(184,92,53,0.05) 100%)",
-              border: "1px solid rgba(212,160,23,0.2)",
+              border: "1px solid rgba(212,160,23,0.22)",
             }}
           >
             <div className="flex items-center gap-2 mb-3">
@@ -503,11 +529,7 @@ export default function AddRecipePage() {
                 onKeyDown={(e) => { if (e.key === "Enter") void handleImport(); }}
                 placeholder="https://www.example.com/recipe/..."
                 className="flex-1 px-3 py-2.5 rounded-xl text-sm focus:outline-none"
-                style={{
-                  border: "1px solid var(--border)",
-                  background: "var(--surface)",
-                  color: "var(--foreground)",
-                }}
+                style={INPUT_STYLE}
               />
               {importUrl && (
                 <button type="button" onClick={() => setImportUrl("")}
@@ -530,93 +552,101 @@ export default function AddRecipePage() {
           </section>
 
           {/* ── Basics ─────────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-            <h2 className="font-semibold text-gray-900">Basics</h2>
+          <section className="rounded-2xl p-6 space-y-5"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="font-semibold" style={{ color: "var(--foreground)" }}>Basics</h2>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Recipe Title <span className="text-red-400">*</span>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>
+                Recipe Title <span style={{ color: "var(--accent)" }}>*</span>
               </label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Amma's Lemon Rice"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                style={INPUT_STYLE}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Description</label>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>
+                Description
+              </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 placeholder="A short description or story behind this recipe"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none"
+                className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none resize-none"
+                style={INPUT_STYLE}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Category</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>Category</label>
                 <input
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. Lunch, Dessert"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                  style={INPUT_STYLE}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Servings</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>Servings</label>
                 <input
                   value={servings}
                   onChange={(e) => handleServingsChange(e.target.value)}
                   placeholder="4"
                   type="number"
                   min="1"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                  style={INPUT_STYLE}
                 />
-                {nutritionStatus === "idle" && servings && (
-                  <p className="text-[11px] text-gray-400 mt-1">Change servings to recalculate nutrition</p>
-                )}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Prep Time (min)</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>Prep Time (min)</label>
                 <input
                   value={prepTime}
                   onChange={(e) => setPrepTime(e.target.value)}
                   placeholder="15"
                   type="number"
                   min="0"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                  style={INPUT_STYLE}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Cook Time (min)</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>Cook Time (min)</label>
                 <input
                   value={cookTime}
                   onChange={(e) => setCookTime(e.target.value)}
                   placeholder="30"
                   type="number"
                   min="0"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                  style={INPUT_STYLE}
                 />
               </div>
             </div>
           </section>
 
           {/* ── Cuisine ────────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Cuisine Origin</h2>
+          <section className="rounded-2xl p-6"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>Cuisine Origin</h2>
             <CuisineSelector value={cuisine} onChange={setCuisine} />
           </section>
 
           {/* ── Tags ───────────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Tags</h2>
+          <section className="rounded-2xl p-6"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>Tags</h2>
             <div className="flex flex-wrap gap-2">
               {ALL_TAGS.map((tag) => {
                 const meta     = TAG_META[tag];
@@ -630,8 +660,13 @@ export default function AddRecipePage() {
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition",
                       selected
                         ? `${meta.color} ${meta.textColor} ${meta.borderColor}`
-                        : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100",
+                        : "",
                     ].join(" ")}
+                    style={!selected ? {
+                      background: "var(--surface-strong)",
+                      color: "var(--muted)",
+                      border: "1px solid var(--border)",
+                    } : undefined}
                   >
                     <span>{meta.emoji}</span>
                     <span>{meta.label}</span>
@@ -642,9 +677,10 @@ export default function AddRecipePage() {
           </section>
 
           {/* ── Ingredients ────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">
-              Ingredients <span className="text-red-400 text-sm">*</span>
+          <section className="rounded-2xl p-6"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+              Ingredients <span style={{ color: "var(--accent)" }}>*</span>
             </h2>
 
             <div className="space-y-2">
@@ -662,30 +698,37 @@ export default function AddRecipePage() {
                       value={ing.name}
                       onChange={(e) => updateIngredient(ing.id, "name", e.target.value)}
                       placeholder={idx === 0 ? "e.g. Lemon" : "Ingredient"}
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                      className="px-3 py-2 rounded-lg text-sm focus:outline-none"
+                      style={INPUT_STYLE}
                     />
                     <input
                       value={ing.quantity}
                       onChange={(e) => updateIngredient(ing.id, "quantity", e.target.value)}
                       placeholder="Qty"
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                      className="px-3 py-2 rounded-lg text-sm focus:outline-none"
+                      style={INPUT_STYLE}
                     />
                     <input
                       value={ing.unit}
                       onChange={(e) => updateIngredient(ing.id, "unit", e.target.value)}
                       placeholder="Unit"
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                      className="px-3 py-2 rounded-lg text-sm focus:outline-none"
+                      style={INPUT_STYLE}
                     />
                     <input
                       value={ing.notes}
                       onChange={(e) => updateIngredient(ing.id, "notes", e.target.value)}
                       placeholder="Notes (optional)"
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                      className="px-3 py-2 rounded-lg text-sm focus:outline-none"
+                      style={INPUT_STYLE}
                     />
                     <button
                       type="button"
                       onClick={() => removeIngredient(ing.id)}
-                      className="p-2 text-gray-300 hover:text-red-400 transition"
+                      className="p-2 transition"
+                      style={{ color: "var(--border)" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--border)"; }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -705,9 +748,10 @@ export default function AddRecipePage() {
           </section>
 
           {/* ── Steps ──────────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">
-              Method <span className="text-red-400 text-sm">*</span>
+          <section className="rounded-2xl p-6"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+              Method <span style={{ color: "var(--accent)" }}>*</span>
             </h2>
 
             <div className="space-y-3">
@@ -719,7 +763,11 @@ export default function AddRecipePage() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="bg-gray-50 rounded-xl p-3 space-y-2"
+                    className="rounded-xl p-3 space-y-2"
+                    style={{
+                      background: "var(--surface-strong)",
+                      border: "1px solid var(--border)",
+                    }}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -733,12 +781,16 @@ export default function AddRecipePage() {
                         onChange={(e) => updateStep(step.id, "instruction", e.target.value)}
                         rows={2}
                         placeholder="Describe this step…"
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 bg-white resize-none"
+                        className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none resize-none"
+                        style={INPUT_STYLE}
                       />
                       <button
                         type="button"
                         onClick={() => removeStep(step.id)}
-                        className="p-1.5 text-gray-300 hover:text-red-400 transition"
+                        className="p-1.5 transition"
+                        style={{ color: "var(--border)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--border)"; }}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -750,13 +802,15 @@ export default function AddRecipePage() {
                         placeholder="Duration (min)"
                         type="number"
                         min="0"
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:border-indigo-400 bg-white"
+                        className="px-3 py-1.5 rounded-lg text-xs focus:outline-none"
+                        style={INPUT_STYLE}
                       />
                       <input
                         value={step.tip}
                         onChange={(e) => updateStep(step.id, "tip", e.target.value)}
                         placeholder="💡 Tip (optional)"
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:border-indigo-400 bg-white"
+                        className="px-3 py-1.5 rounded-lg text-xs focus:outline-none"
+                        style={INPUT_STYLE}
                       />
                     </div>
                   </motion.div>
@@ -774,36 +828,42 @@ export default function AddRecipePage() {
             </button>
           </section>
 
-          {/* ── Notes ──────────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          {/* ── Notes & Learned From ───────────────────────────────────────── */}
+          <section className="rounded-2xl p-6 space-y-5"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
             <div>
-              <h2 className="font-semibold text-gray-900 mb-4">Notes</h2>
+              <h2 className="font-semibold mb-4" style={{ color: "var(--foreground)" }}>Notes</h2>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Storage tips, variations, family stories…"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none"
+                className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none resize-none"
+                style={INPUT_STYLE}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted)" }}>
                 Learned from / Source
               </label>
               <input
                 value={learnedFrom}
                 onChange={(e) => setLearnedFrom(e.target.value)}
                 placeholder="e.g. Amma, Grandma, Hebbar's Kitchen, www...."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none"
+                style={INPUT_STYLE}
               />
-              <p className="text-[11px] text-gray-400 mt-1">Who taught you this recipe or where did you learn it?</p>
+              <p className="text-[11px] mt-1" style={{ color: "var(--muted)", opacity: 0.7 }}>
+                Who taught you this recipe or where did you learn it?
+              </p>
             </div>
           </section>
 
           {/* ── Nutrition ──────────────────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <section className="rounded-2xl p-6"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">Nutrition</h2>
+              <h2 className="font-semibold" style={{ color: "var(--foreground)" }}>Nutrition</h2>
               <button
                 type="button"
                 onClick={() => void calculateNutrition()}
@@ -833,7 +893,8 @@ export default function AddRecipePage() {
             <button
               type="button"
               onClick={() => setShowManual((v) => !v)}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition"
+              className="flex items-center gap-1.5 text-xs transition"
+              style={{ color: "var(--muted)" }}
             >
               {showManual ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               {showManual ? "Hide" : "Manually enter"} nutrition values
@@ -855,14 +916,15 @@ export default function AddRecipePage() {
                     { label: "Fiber g",   value: manualFiber,    set: setManualFiber    },
                   ].map(({ label, value, set }) => (
                     <div key={label}>
-                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <label className="block text-xs mb-1" style={{ color: "var(--muted)" }}>{label}</label>
                       <input
                         value={value}
                         onChange={(e) => set(e.target.value)}
                         type="number"
                         min="0"
                         placeholder="–"
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:outline-none"
+                        className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
+                        style={INPUT_STYLE}
                       />
                     </div>
                   ))}
@@ -875,7 +937,8 @@ export default function AddRecipePage() {
           <div className="flex justify-end gap-3 pb-8">
             <Link
               href="/recipes"
-              className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 transition"
+              className="px-5 py-2.5 rounded-xl text-sm font-medium transition"
+              style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
             >
               Cancel
             </Link>
@@ -889,7 +952,7 @@ export default function AddRecipePage() {
                 onClick={() => void handleSave()}
                 disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-60 shadow-sm"
-              style={{ background: "var(--accent)", color: "#fff" }}
+                style={{ background: "var(--accent)", color: "#fff" }}
               >
                 {saving && <Loader2 size={15} className="animate-spin" />}
                 {saving ? "Saving…" : "Save Recipe"}

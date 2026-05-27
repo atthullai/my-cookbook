@@ -164,10 +164,10 @@ export default function RecipeDetailPage() {
   if (loading) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8 animate-pulse space-y-6">
-        <div className="h-40 bg-gray-200 rounded-2xl" />
-        <div className="h-6 bg-gray-200 rounded w-1/3" />
+        <div className="h-40 rounded-2xl" style={{ background: "var(--surface-strong)" }} />
+        <div className="h-6 rounded w-1/3" style={{ background: "var(--border)" }} />
         <div className="grid grid-cols-3 gap-3">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-4 bg-gray-200 rounded" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="h-4 rounded" style={{ background: "var(--surface-strong)" }} />)}
         </div>
       </main>
     );
@@ -194,7 +194,8 @@ export default function RecipeDetailPage() {
 
         {/* ── Back link ──────────────────────────────────────────────── */}
         <Link href="/recipes"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition"
+          className="inline-flex items-center gap-1.5 text-sm transition"
+          style={{ color: "var(--muted)" }}
         >
           <ArrowLeft size={15} /> Back to recipes
         </Link>
@@ -245,7 +246,8 @@ export default function RecipeDetailPage() {
             </button>
           )}
           <Link href={`/edit/${recipe.id}`}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition"
+            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
           >
             <Pencil size={14} /> Edit Recipe
           </Link>
@@ -339,11 +341,12 @@ export default function RecipeDetailPage() {
             {/* Equipment */}
             {recipe.equipment && recipe.equipment.length > 0 && (
               <section>
-                <h2 className="text-xl font-semibold text-gray-900 mb-3">Equipment</h2>
+                <h2 className="text-xl font-semibold mb-3" style={{ color: "var(--foreground)" }}>Equipment</h2>
                 <div className="flex flex-wrap gap-2">
                   {recipe.equipment.map((eq, i) => (
                     <span key={i}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg"
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg"
+                      style={{ background: "var(--surface-strong)", color: "var(--foreground)", border: "1px solid var(--border)" }}
                     >
                       <IngredientIcon name={eq.name} type="equipment" size={14} />
                       {eq.name}
@@ -432,9 +435,13 @@ export default function RecipeDetailPage() {
             </section>
 
             {recipe.notes && (
-              <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <h3 className="font-semibold text-amber-900 mb-1.5">📝 Notes</h3>
-                <p className="text-sm text-amber-800">{recipe.notes}</p>
+              <section className="rounded-2xl p-4"
+                style={{
+                  background: "rgba(192,138,45,0.07)",
+                  border: "1px solid rgba(192,138,45,0.22)",
+                }}>
+                <h3 className="font-semibold mb-1.5" style={{ color: "var(--foreground)" }}>📝 Notes</h3>
+                <p className="text-sm" style={{ color: "var(--muted)" }}>{recipe.notes}</p>
               </section>
             )}
           </div>

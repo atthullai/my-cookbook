@@ -11,7 +11,7 @@
  * - Shopping list link
  * - Warm paper aesthetic, handcrafted feel
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
@@ -31,11 +31,13 @@ import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
 const DAYS    = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const SLOTS: MealSlot[]  = ["breakfast", "lunch", "dinner", "snack"];
 const SLOT_ICONS: Record<MealSlot, string>  = { breakfast: "🌅", lunch: "☀️", dinner: "🌙", snack: "🍎" };
-const SLOT_COLORS: Record<MealSlot, string> = {
-  breakfast: "bg-amber-50 border-amber-200 text-amber-700",
-  lunch:     "bg-sky-50 border-sky-200 text-sky-700",
-  dinner:    "bg-indigo-50 border-indigo-200 text-indigo-700",
-  snack:     "bg-emerald-50 border-emerald-200 text-emerald-700",
+// Slot label styles use CSS vars for background/border so dark mode works,
+// but keep semantic accent tones for identity (amber=morning, teal=midday, berry=evening, olive=snack)
+const SLOT_STYLES: Record<MealSlot, React.CSSProperties> = {
+  breakfast: { background: "rgba(192,138,45,0.12)",  border: "1px solid rgba(192,138,45,0.3)",  color: "var(--saffron)" },
+  lunch:     { background: "rgba(61,119,112,0.10)",   border: "1px solid rgba(61,119,112,0.28)", color: "var(--teal)" },
+  dinner:    { background: "rgba(156,76,95,0.10)",    border: "1px solid rgba(156,76,95,0.26)",  color: "var(--berry)" },
+  snack:     { background: "rgba(102,116,69,0.10)",   border: "1px solid rgba(102,116,69,0.26)", color: "var(--olive)" },
 };
 
 function getMondayOfWeek(offsetWeeks = 0): Date {
@@ -108,14 +110,14 @@ function SlotCell({ date, slot, meal, recipe, onRemove }: SlotCellProps) {
   return (
     <div
       ref={setNodeRef}
-      className={[
-        "min-h-[68px] rounded-xl border-2 border-dashed transition-all duration-150 p-1.5",
+      className="min-h-[68px] rounded-xl border-2 border-dashed transition-all duration-150 p-1.5"
+      style={
         isOver
-          ? "border-amber-400 bg-amber-50/80 scale-[1.03] shadow-md"
+          ? { borderColor: "var(--saffron)", background: "rgba(192,138,45,0.08)", transform: "scale(1.03)" }
           : meal
-          ? "border-transparent"
-          : "border-stone-200 bg-stone-50/60 hover:border-stone-300 hover:bg-stone-50",
-      ].join(" ")}
+          ? { borderColor: "transparent" }
+          : { borderColor: "var(--border)", background: "var(--surface)" }
+      }
     >
       {meal && recipe && theme ? (
         <div className={`relative h-full rounded-lg overflow-hidden ${theme.cardGradient} p-2.5 min-h-[60px]`}>
@@ -137,7 +139,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove }: SlotCellProps) {
         </div>
       ) : (
         <div className="h-full flex items-center justify-center min-h-[60px]">
-          <span className="text-stone-300 text-xl">+</span>
+          <span className="text-xl" style={{ color: "var(--border)" }}>+</span>
         </div>
       )}
     </div>
@@ -314,33 +316,37 @@ export default function PlannerPage() {
           {/* ── Header ──────────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
             <div>
-              <p className="text-xs font-semibold text-amber-600 uppercase tracking-widest mb-1">
+              <p className="text-xs font-bold uppercase tracking-widest mb-1"
+                style={{ color: "var(--accent)", opacity: 0.8 }}>
                 Weekly Menu
               </p>
-              <h1 className="text-3xl font-bold text-stone-900 leading-tight">
+              <h1 className="text-3xl font-bold leading-tight" style={{ color: "var(--foreground)" }}>
                 This Week&apos;s Plan
               </h1>
               <div className="flex items-center gap-2 mt-2">
                 <button
                   type="button"
                   onClick={() => setWeekOffset((w) => w - 1)}
-                  className="p-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition shadow-sm"
+                  className="p-1.5 rounded-lg border transition shadow-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
                 >
-                  <ChevronLeft size={15} className="text-stone-600" />
+                  <ChevronLeft size={15} />
                 </button>
-                <span className="text-sm font-medium text-stone-600 tabular-nums">{weekLabel}</span>
+                <span className="text-sm font-medium tabular-nums" style={{ color: "var(--muted)" }}>{weekLabel}</span>
                 <button
                   type="button"
                   onClick={() => setWeekOffset((w) => w + 1)}
-                  className="p-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition shadow-sm"
+                  className="p-1.5 rounded-lg border transition shadow-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
                 >
-                  <ChevronRight size={15} className="text-stone-600" />
+                  <ChevronRight size={15} />
                 </button>
                 {weekOffset !== 0 && (
                   <button
                     type="button"
                     onClick={() => setWeekOffset(0)}
-                    className="text-xs font-medium text-amber-600 hover:underline ml-1"
+                    className="text-xs font-medium hover:underline ml-1"
+                    style={{ color: "var(--accent)" }}
                   >
                     ← This week
                   </button>
@@ -350,7 +356,8 @@ export default function PlannerPage() {
 
             <Link
               href="/planner/shopping"
-              className="flex items-center gap-2 bg-stone-800 text-amber-100 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-stone-900 transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm"
+              style={{ background: "var(--foreground)", color: "var(--parchment)" }}
             >
               <ShoppingCart size={15} /> Shopping List
             </Link>
@@ -362,28 +369,31 @@ export default function PlannerPage() {
 
               {/* ── Sidebar ─────────────────────────────────────────────── */}
               <div className="w-52 flex-shrink-0">
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-stone-200/60 p-4 shadow-sm sticky top-6">
-                  <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">
+                <div className="rounded-2xl p-4 shadow-sm sticky top-6"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs font-bold uppercase tracking-widest mb-3"
+                    style={{ color: "var(--muted)" }}>
                     Your Recipes
                   </p>
 
                   {/* Search */}
                   <div className="relative mb-3">
-                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)", opacity: 0.6 }} />
                     <input
                       type="search"
                       placeholder="Search…"
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 border border-stone-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
+                      className="w-full pl-8 pr-3 py-2 rounded-xl text-xs focus:outline-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
                     />
                   </div>
 
-                  <p className="text-[10px] text-stone-400 mb-2">Drag a recipe onto any slot →</p>
+                  <p className="text-[10px] mb-2" style={{ color: "var(--muted)", opacity: 0.7 }}>Drag a recipe onto any slot →</p>
 
                   <div className="space-y-1.5 max-h-[calc(100vh-260px)] overflow-y-auto pr-0.5">
                     {filteredRecipes.length === 0 ? (
-                      <p className="text-xs text-stone-400 text-center py-6">
+                      <p className="text-xs text-center py-6" style={{ color: "var(--muted)" }}>
                         {sidebarSearch ? "No matches" : "No recipes yet"}
                       </p>
                     ) : (
@@ -401,9 +411,9 @@ export default function PlannerPage() {
                   <div className="animate-pulse space-y-2">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="grid grid-cols-8 gap-2">
-                        <div className="h-16 bg-stone-200 rounded-xl" />
+                        <div className="h-16 rounded-xl" style={{ background: "var(--border)" }} />
                         {[...Array(7)].map((_, j) => (
-                          <div key={j} className="h-16 bg-stone-100 rounded-xl" />
+                          <div key={j} className="h-16 rounded-xl" style={{ background: "var(--surface-strong)" }} />
                         ))}
                       </div>
                     ))}
@@ -418,13 +428,18 @@ export default function PlannerPage() {
                         const mealCount = mealsPerDay[i];
                         return (
                           <div key={i} className="text-center pb-1">
-                            <span className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? "text-amber-600" : "text-stone-400"}`}>
+                            <span
+                              className="text-[10px] font-semibold uppercase tracking-wide"
+                              style={{ color: isToday ? "var(--accent)" : "var(--muted)" }}
+                            >
                               {DAYS[i]}
                             </span>
-                            <div className={[
-                              "w-8 h-8 rounded-full flex items-center justify-center mx-auto mt-0.5 text-sm font-bold",
-                              isToday ? "bg-amber-500 text-white shadow-sm" : "text-stone-700",
-                            ].join(" ")}>
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mt-0.5 text-sm font-bold"
+                              style={isToday
+                                ? { background: "var(--accent)", color: "#fff" }
+                                : { color: "var(--foreground)" }}
+                            >
                               {date.getDate()}
                             </div>
                             {mealCount > 0 && (
@@ -447,7 +462,10 @@ export default function PlannerPage() {
                         style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
                       >
                         {/* Slot label */}
-                        <div className={`flex flex-col items-center justify-center rounded-xl border px-2 py-2 ${SLOT_COLORS[slot]}`}>
+                        <div
+                          className="flex flex-col items-center justify-center rounded-xl px-2 py-2"
+                          style={SLOT_STYLES[slot]}
+                        >
                           <span className="text-lg leading-none">{SLOT_ICONS[slot]}</span>
                           <span className="text-[9px] font-semibold capitalize mt-0.5 opacity-70">{slot}</span>
                         </div>
@@ -490,9 +508,9 @@ export default function PlannerPage() {
 
           {/* ── Week is empty hint ─────────────────────────────────────── */}
           {!loadingMeals && plannedMeals.length === 0 && (
-            <div className="mt-8 text-center py-6 border-t border-stone-200/60">
-              <p className="text-stone-500 text-sm">
-                <span className="font-medium">Your week is open.</span>{" "}
+            <div className="mt-8 text-center py-6" style={{ borderTop: "1px solid var(--border)" }}>
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                <span className="font-medium" style={{ color: "var(--foreground)" }}>Your week is open.</span>{" "}
                 Drag recipes from the sidebar onto any meal slot to start planning.
               </p>
             </div>

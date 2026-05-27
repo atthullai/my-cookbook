@@ -484,9 +484,9 @@ export default function EditRecipe() {
     return (
       <main className="edit-shell max-w-3xl mx-auto px-4 py-12 min-h-screen">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3" />
-          <div className="h-40 bg-gray-100 rounded-2xl" />
-          {[...Array(4)].map((_, i) => <div key={i} className="h-4 bg-gray-100 rounded" />)}
+          <div className="h-6 rounded w-1/3" style={{ background: "var(--border)" }} />
+          <div className="h-40 rounded-2xl" style={{ background: "var(--surface-strong)" }} />
+          {[...Array(4)].map((_, i) => <div key={i} className="h-4 rounded" style={{ background: "var(--surface-strong)" }} />)}
         </div>
       </main>
     );
@@ -503,15 +503,19 @@ export default function EditRecipe() {
         />
         <Link
           href={`/recipes/${recipe.id}`}
-          className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
+          className="p-2 rounded-xl border transition"
+          style={{ borderColor: "var(--border)", color: "var(--muted)" }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M10 13L5 8l5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Recipe</h1>
-          <p className="text-sm text-gray-500">{recipe.title_en}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5" style={{ color: "var(--accent)", opacity: 0.8 }}>
+            Your Cookbook
+          </p>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>Edit Recipe</h1>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>{recipe.title_en}</p>
         </div>
       </div>
 
@@ -641,69 +645,93 @@ export default function EditRecipe() {
       />
     </main>
     <style>{`
-      /* Scope old CSS-class styles inside the edit shell to match the modern theme */
-      .edit-shell { background: #f9fafb; }
+      /* Edit shell — uses CSS custom properties so light/dark mode both work */
+      .edit-shell { background: var(--parchment); }
       .edit-shell .card,
       .edit-shell .card-accent {
-        background: #ffffff !important;
-        border: 1px solid #f3f4f6 !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
         border-radius: 1rem !important;
         padding: 1.5rem !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+        box-shadow: var(--shadow-soft) !important;
         margin-bottom: 1.25rem;
       }
       .edit-shell .input {
-        background: #ffffff !important;
-        border: 1px solid #e5e7eb !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
         border-radius: 0.75rem !important;
         padding: 0.6rem 1rem !important;
         font-size: 0.875rem !important;
-        color: #111827 !important;
+        color: var(--foreground) !important;
         line-height: 1.5 !important;
       }
+      .edit-shell .input::placeholder { color: var(--muted) !important; opacity: 0.6; }
       .edit-shell .input:focus {
         outline: none !important;
-        border-color: #818cf8 !important;
-        box-shadow: 0 0 0 3px rgba(129,140,248,0.18) !important;
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-soft) !important;
       }
       .edit-shell .button {
-        background: #f9fafb !important;
-        border: 1px solid #e5e7eb !important;
+        background: var(--surface-strong) !important;
+        border: 1px solid var(--border) !important;
         border-radius: 0.75rem !important;
         padding: 0.5rem 1rem !important;
         font-size: 0.875rem !important;
         font-weight: 500 !important;
-        color: #374151 !important;
+        color: var(--foreground) !important;
         cursor: pointer;
         transition: background 0.15s;
       }
-      .edit-shell .button:hover { background: #f3f4f6 !important; }
+      .edit-shell .button:hover { background: var(--surface) !important; opacity: 0.9; }
       .edit-shell .button-primary {
-        background: #4f46e5 !important;
-        border-color: #4f46e5 !important;
+        background: var(--accent) !important;
+        border-color: var(--accent) !important;
         color: #ffffff !important;
       }
-      .edit-shell .button-primary:hover { background: #4338ca !important; }
+      .edit-shell .button-primary:hover { background: var(--accent-strong) !important; opacity: 1; }
       .edit-shell .button-soft {
-        background: #eff6ff !important;
-        border-color: #bfdbfe !important;
-        color: #1d4ed8 !important;
+        background: var(--accent-soft) !important;
+        border-color: rgba(184,92,53,0.28) !important;
+        color: var(--accent) !important;
       }
       .edit-shell .button-danger {
-        background: #fef2f2 !important;
-        border-color: #fecaca !important;
+        background: rgba(220,38,38,0.06) !important;
+        border-color: rgba(220,38,38,0.22) !important;
         color: #dc2626 !important;
       }
-      .edit-shell h2 { color: #111827 !important; font-size: 1rem !important; font-weight: 600 !important; }
-      .edit-shell .eyebrow { color: #6366f1 !important; font-size: 0.7rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: 0.1em; }
+      .edit-shell h2 { color: var(--foreground) !important; font-size: 1rem !important; font-weight: 600 !important; }
+      .edit-shell h3 { color: var(--foreground) !important; }
+      .edit-shell p { color: var(--muted) !important; }
+      .edit-shell .eyebrow { color: var(--accent) !important; font-size: 0.7rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: 0.1em; }
       .edit-shell .section-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
       .edit-shell .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
       .edit-shell .form-grid-compact { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.75rem; }
       .edit-shell .filter-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
       .edit-shell .filter-chips .button { padding: 0.3rem 0.75rem !important; font-size: 0.75rem !important; border-radius: 9999px !important; }
-      .edit-shell .import-panel { background: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+      .edit-shell .import-panel { background: var(--surface-strong) !important; border-color: var(--border) !important; }
       .edit-shell .import-row { display: flex; gap: 0.75rem; }
       .edit-shell .import-row .input { flex: 1; }
+      /* Equipment icon bg */
+      .edit-shell span[style*="background: #f3f4f6"] { background: var(--surface-strong) !important; }
+      /* Nutrition estimate status */
+      .edit-shell .nutrition-estimate-status {
+        background: var(--surface-strong) !important;
+        border: 1px solid var(--border) !important;
+        color: var(--foreground) !important;
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.8rem;
+      }
+      /* Editor subcards */
+      .edit-shell .editor-subcard {
+        background: var(--surface-strong) !important;
+        border: 1px solid var(--border) !important;
+      }
+      /* Mini checkboxes */
+      .edit-shell .mini-check { color: var(--muted) !important; font-size: 0.75rem !important; }
+      /* Cover photo */
+      .edit-shell .recipe-cover-photo { border-radius: 0.75rem; width: 100%; }
     `}</style>
     </>
   );
