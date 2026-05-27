@@ -28,7 +28,11 @@ import NutritionPanel from "@/components/NutritionPanel";
 import TagBadge from "@/components/TagBadge";
 import IngredientIcon from "@/components/IngredientIcon";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import KolamDivider from "@/components/KolamDivider";
 import type { Recipe } from "@/types";
+
+// Slow, breathing, handcrafted — the Tamil Nadu motion philosophy
+const EASE_WARM = [0.25, 0.1, 0.4, 1.0] as const;
 
 export default function RecipeDetailPage() {
   const params   = useParams();
@@ -255,19 +259,29 @@ export default function RecipeDetailPage() {
         </div>
 
         {/* ── Meta strip ──────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 p-4 bg-gray-50 rounded-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: EASE_WARM }}
+          className="flex flex-wrap items-center gap-4 text-sm p-4 rounded-2xl"
+          style={{ background: "var(--surface)", color: "var(--muted)" }}
+        >
           {totalMins > 0 && (
             <span className="flex items-center gap-2">
-              <Clock size={16} className="text-gray-400" />
-              <span><b>{recipe.prepTimeMinutes}</b> prep + <b>{recipe.cookTimeMinutes}</b> cook = {totalMins} min</span>
+              <Clock size={16} style={{ color: "var(--accent)", opacity: 0.7 }} />
+              <span style={{ color: "var(--foreground)" }}>
+                <b>{recipe.prepTimeMinutes}</b> prep + <b>{recipe.cookTimeMinutes}</b> cook = {totalMins} min
+              </span>
             </span>
           )}
           <span className="flex items-center gap-2">
-            <Users size={16} className="text-gray-400" />
-            Serves {recipe.servings}
+            <Users size={16} style={{ color: "var(--accent)", opacity: 0.7 }} />
+            <span style={{ color: "var(--foreground)" }}>Serves {recipe.servings}</span>
           </span>
-          {recipe.category && <span className="text-gray-400">· {recipe.category}</span>}
-        </div>
+          {recipe.category && (
+            <span style={{ color: "var(--muted)" }}>· {recipe.category}</span>
+          )}
+        </motion.div>
 
         {/* ── Tags ────────────────────────────────────────────────────── */}
         {recipe.tags.length > 0 && (
@@ -277,7 +291,15 @@ export default function RecipeDetailPage() {
         )}
 
         {recipe.description && (
-          <p className="text-gray-600 leading-relaxed">{recipe.description}</p>
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.3, ease: EASE_WARM }}
+            className="leading-relaxed italic"
+            style={{ color: "var(--muted)" }}
+          >
+            {recipe.description}
+          </motion.p>
         )}
 
         {/* ── Two-column layout ─────────────────────────────────────── */}
@@ -288,22 +310,26 @@ export default function RecipeDetailPage() {
 
             {/* Ingredients */}
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Ingredients</h2>
+              <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+                Ingredients
+              </h2>
               <ul className="space-y-2">
-                {recipe.ingredients.map((ing) => (
+                {recipe.ingredients.map((ing, i) => (
                   <motion.li
                     key={ing.id}
-                    initial={{ opacity: 0, x: -12 }}
+                    initial={{ opacity: 0, x: -14 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0"
+                    transition={{ duration: 0.45, delay: i * 0.055, ease: EASE_WARM }}
+                    className="flex items-center gap-3 py-2 border-b last:border-0"
+                    style={{ borderColor: "var(--border)" }}
                   >
-                    <IngredientIcon name={ing.name} size={18} className="text-gray-500 flex-shrink-0" />
-                    <span className="flex-1 text-gray-700 text-sm">{ing.name}</span>
-                    <span className="text-sm font-medium text-gray-900 tabular-nums">
+                    <IngredientIcon name={ing.name} size={18} className="flex-shrink-0 text-gray-500" />
+                    <span className="flex-1 text-sm" style={{ color: "var(--foreground)" }}>{ing.name}</span>
+                    <span className="text-sm font-medium tabular-nums" style={{ color: "var(--foreground)" }}>
                       {ing.quantity > 0 ? ing.quantity : ""} {ing.unit}
                     </span>
                     {ing.notes && (
-                      <span className="text-xs text-gray-400 italic">{ing.notes}</span>
+                      <span className="text-xs italic" style={{ color: "var(--muted)" }}>{ing.notes}</span>
                     )}
                   </motion.li>
                 ))}
@@ -327,40 +353,64 @@ export default function RecipeDetailPage() {
               </section>
             )}
 
+            {/* Kolam breath between ingredients and method */}
+            <KolamDivider
+              color="rgba(200, 140, 30, 0.22)"
+              animateOnView
+              className="my-2"
+            />
+
             {/* Steps */}
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Method</h2>
+              <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+                Method
+              </h2>
               <ol className="space-y-4">
-                {recipe.steps.map((step) => {
+                {recipe.steps.map((step, i) => {
                   const done = completedSteps.has(step.stepNumber);
                   return (
                     <motion.li
                       key={step.stepNumber}
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={{ opacity: 0, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: i * 0.07, ease: EASE_WARM }}
                       className={[
                         "flex gap-4 p-4 rounded-xl border cursor-pointer transition",
                         done
-                          ? "bg-green-50 border-green-200 opacity-60"
-                          : "bg-white border-gray-100 hover:border-gray-200",
+                          ? "opacity-60"
+                          : "hover:shadow-sm",
                       ].join(" ")}
+                      style={{
+                        background: done ? "rgba(187, 247, 208, 0.25)" : "var(--surface)",
+                        borderColor: done ? "rgba(74, 222, 128, 0.4)" : "var(--border)",
+                      }}
                       onClick={() => toggleStep(step.stepNumber)}
                     >
                       <div className="flex-shrink-0 mt-0.5">
                         {done ? (
                           <CheckCircle2 size={20} className="text-green-500" />
                         ) : (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                          <span
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
+                            style={{
+                              background: "rgba(184, 92, 53, 0.12)",
+                              color: "var(--accent)",
+                            }}
+                          >
                             {step.stepNumber}
                           </span>
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className={`text-sm text-gray-700 leading-relaxed ${done ? "line-through" : ""}`}>
+                        <p
+                          className={`text-sm leading-relaxed ${done ? "line-through" : ""}`}
+                          style={{ color: "var(--foreground)", opacity: done ? 0.7 : 1 }}
+                        >
                           {step.instruction}
                         </p>
                         {step.tip && (
-                          <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                          <p className="mt-1.5 text-xs rounded-lg px-2.5 py-1.5"
+                            style={{ color: "rgba(120, 80, 10, 0.9)", background: "rgba(212, 160, 23, 0.1)" }}>
                             💡 {step.tip}
                           </p>
                         )}
@@ -368,7 +418,8 @@ export default function RecipeDetailPage() {
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); startTimer(step.durationMinutes!); }}
-                            className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 transition"
+                            className="mt-1.5 flex items-center gap-1 text-xs transition"
+                            style={{ color: "var(--accent)" }}
                           >
                             <Timer size={11} /> Start {step.durationMinutes} min timer
                           </button>
