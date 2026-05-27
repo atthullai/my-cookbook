@@ -144,6 +144,11 @@ export type RecipeNutritionFacts = {
   note_de: string;
 };
 
+// Cuisine origins added in migration 20260527_nutrition_tags_diet.sql
+export type CuisineOrigin =
+  | "indian" | "italian" | "mexican" | "japanese" | "chinese"
+  | "mediterranean" | "american" | "thai" | "french" | "other";
+
 export type RecipeRecord = {
   id: number;
   slug: string;
@@ -186,6 +191,19 @@ export type RecipeRecord = {
   troubleshooting?: RecipeTroubleshootingItem[];
   step_photos?: RecipeStepPhoto[];
   nutrition?: RecipeNutritionFacts | null;
+  // Phase-2 columns — added in migration 20260527_nutrition_tags_diet.sql
+  origin?:          CuisineOrigin | null;
+  calories?:        number | null;
+  protein_g?:       number | null;
+  carbs_g?:         number | null;
+  fat_g?:           number | null;
+  fiber_g?:         number | null;
+  is_veg?:          boolean | null;
+  is_vegan?:        boolean | null;
+  spice_level?:     number | null; // 0–3
+  is_high_protein?: boolean | null;
+  prep_time_min?:   number | null;
+  cook_time_min?:   number | null;
 };
 
 function normalizeString(value: unknown): string {
@@ -559,6 +577,19 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     troubleshooting: Array.isArray(raw.troubleshooting) ? raw.troubleshooting.map(normalizeTroubleshootingItem) : [],
     step_photos: Array.isArray(raw.step_photos) ? raw.step_photos.map(normalizeStepPhoto) : [],
     nutrition: normalizeNutrition(raw.nutrition),
+    // Phase-2 columns — present only after migration 20260527_nutrition_tags_diet.sql
+    origin: (typeof raw.origin === "string" ? raw.origin : null) as CuisineOrigin | null,
+    calories:        typeof raw.calories        === "number" ? raw.calories        : null,
+    protein_g:       typeof raw.protein_g       === "number" ? raw.protein_g       : null,
+    carbs_g:         typeof raw.carbs_g         === "number" ? raw.carbs_g         : null,
+    fat_g:           typeof raw.fat_g           === "number" ? raw.fat_g           : null,
+    fiber_g:         typeof raw.fiber_g         === "number" ? raw.fiber_g         : null,
+    is_veg:          typeof raw.is_veg          === "boolean" ? raw.is_veg          : null,
+    is_vegan:        typeof raw.is_vegan        === "boolean" ? raw.is_vegan        : null,
+    spice_level:     typeof raw.spice_level     === "number" ? raw.spice_level     : null,
+    is_high_protein: typeof raw.is_high_protein === "boolean" ? raw.is_high_protein : null,
+    prep_time_min:   typeof raw.prep_time_min   === "number" ? raw.prep_time_min   : null,
+    cook_time_min:   typeof raw.cook_time_min   === "number" ? raw.cook_time_min   : null,
   };
 }
 

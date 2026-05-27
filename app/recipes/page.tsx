@@ -1,490 +1,430 @@
 "use client";
 
-// RECIPE INDEX MAP
-// This page is the full recipe library.
-// It loads every recipe for the logged-in user, groups recipes by category, and keeps the filters here.
-// Edit this file when you want to change the full browsing/searching experience.
-
-import Image from "next/image";
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+/**
+ * Recipe Library — /recipes
+ *
+ * Features:
+ * - Grid of RecipeCard components with staggered Framer Motion entrance
+ * - Top filter bar: search, cuisine multi-select (grouped Indian/Global),
+ *   tag filter chips, max time slider, sort dropdown
+ * - Edit → navigate to /edit/[id]; Delete → ConfirmDialog → Supabase
+ * - Empty state with CTA when no results
+ * - Floating "+ Add Recipe" button
+ * - react-hot-toast for success/error feedback
+ */
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import AppIcon from "@/components/AppIcon";
-import BadgeChip from "@/components/BadgeChip";
-import { useToast } from "@/components/ToastProvider";
-import { apiRequest } from "@/lib/api-client";
-import { buildRecipePayload, mapRecipeRows } from "@/lib/recipe-db";
-import type { AppLanguage, RecipeRecord } from "@/lib/recipe-types";
-import { EMPTY_NUTRITION, getRecipeCourse, getRecipeCuisine, getRecipeDifficulty } from "@/lib/recipe-types";
-import type { ImportedRecipeDraft } from "@/lib/recipe-import";
-import { deriveNutritionClaimTags, getRecipeCoverImage } from "@/lib/recipe-view";
-import { nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
+
 import { supabase } from "@/lib/supabase";
+import { mapRecipeRows } from "@/lib/recipe-db";
+import { toRecipeSummaries } from "@/lib/recipe-adapter";
+import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
+import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
+import RecipeCard from "@/components/RecipeCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import type { RecipeSummary, CuisineOrigin, RecipeTag } from "@/types";
 
-export default function RecipeIndexPage() {
-  // This page has more state than home because it also upgrades older imported recipes.
-  // State is just "what the screen remembers right now".
-  const [recipes, setRecipes] = useState<RecipeRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedCuisine, setSelectedCuisine] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedBadge, setSelectedBadge] = useState("");
-  const [upgrading, setUpgrading] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const { notify } = useToast();
-  const [lang, setLang] = useState<AppLanguage>(() =>
-    typeof navigator !== "undefined" && navigator.language.toLowerCase().includes("de") ? "de" : "en"
-  );
+// Stagger container for the recipe grid
+const gridVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
 
-  const loadRecipes = useEffectEvent(async () => {
-    // Only show recipes owned by the logged-in Supabase user.
-    // This keeps the private cookbook private on the client side too.
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+const GLOBAL_ORIGINS = ALL_CUISINE_ORIGINS.filter(
+  (o) => !INDIAN_CUISINE_ORIGINS.includes(o)
+);
 
-    if (!user) {
-      setRecipes([]);
-      setLoadError("");
+export default function RecipesPage() {
+  const [recipes, setRecipes]           = useState<RecipeSummary[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [loadError, setLoadError]       = useState("");
+  const [search, setSearch]             = useState("");
+  const [cuisines, setCuisines]         = useState<CuisineOrigin[]>([]);
+  const [tags, setTags]                 = useState<RecipeTag[]>([]);
+  const [maxTime, setMaxTime]           = useState<number>(120);
+  const [sortBy, setSortBy]             = useState<"newest" | "oldest" | "name-az" | "time-quick">("newest");
+  const [deleteTarget, setDeleteTarget] = useState<RecipeSummary | null>(null);
+  const [isDeleting, setIsDeleting]     = useState(false);
+  const [showFilters, setShowFilters]   = useState(false);
+
+  // ── Load recipes ─────────────────────────────────────────────────────────
+  const loadRecipes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setRecipes([]); return; }
+
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRecipes(toRecipeSummaries(mapRecipeRows(data ?? [])));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load recipes";
+      setLoadError(msg);
+      toast.error(msg);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data, error } = await supabase
-      .from("recipes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("category", { ascending: true })
-      .order("title_en", { ascending: true });
-
-    if (error) {
-      setLoadError(error.message);
-      notify({ tone: "error", title: "Could not load recipe index", message: "Please retry when the connection settles." });
-      setRecipes([]);
-    } else {
-      setLoadError("");
-      setRecipes(mapRecipeRows(data ?? []));
-    }
-
-    setLoading(false);
-  });
-
-  useEffect(() => {
-    void loadRecipes();
   }, []);
 
-  const recipeNeedsUpgrade = (recipe: RecipeRecord) =>
-    // Older imports may be missing cover photos, equipment, or structured instructions.
-    // Returning true here means "try to refresh this recipe quietly in the background".
-    Boolean(
-      recipe.source_url &&
-        (!recipe.cover_image_url ||
-          recipe.equipment.length === 0 ||
-          recipe.instruction_sections.length === 0 ||
-          recipe.steps_en.includes("## "))
+  useEffect(() => { loadRecipes(); }, [loadRecipes]);
+
+  // ── Filtering & sorting ───────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    let result = recipes;
+
+    // Text search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((r) => r.title.toLowerCase().includes(q));
+    }
+
+    // Cuisine filter
+    if (cuisines.length > 0) {
+      result = result.filter((r) => cuisines.includes(r.cuisine));
+    }
+
+    // Tag filter
+    if (tags.length > 0) {
+      result = result.filter((r) => tags.some((t) => r.tags.includes(t)));
+    }
+
+    // Time filter
+    result = result.filter(
+      (r) => r.prepTimeMinutes + r.cookTimeMinutes <= maxTime
     );
 
-  const upgradeRecipes = useEffectEvent(async () => {
-    const candidates = recipes.filter(recipeNeedsUpgrade);
+    // Sort
+    return [...result].sort((a, b) => {
+      if (sortBy === "name-az")    return a.title.localeCompare(b.title);
+      if (sortBy === "time-quick") return (a.prepTimeMinutes + a.cookTimeMinutes) - (b.prepTimeMinutes + b.cookTimeMinutes);
+      if (sortBy === "oldest")     return a.id.localeCompare(b.id);
+      return b.id.localeCompare(a.id); // newest
+    });
+  }, [recipes, search, cuisines, tags, maxTime, sortBy]);
 
-    if (candidates.length === 0 || upgrading) {
-      return;
-    }
-
-    setUpgrading(true);
-
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      for (const recipe of candidates) {
-        const importResult = await apiRequest<{ recipe?: ImportedRecipeDraft; error?: string }>("/api/import-recipe", {
-          method: "POST",
-          body: { url: recipe.source_url },
-          retries: 1,
-          timeoutMs: 18000,
-        });
-
-        if (!importResult.recipe) {
-          continue;
-        }
-
-        const imported = importResult.recipe;
-        const nutritionResult = !recipe.nutrition
-          ? await apiRequest<{ nutrition?: typeof EMPTY_NUTRITION }>("/api/nutrition-estimate", {
-              method: "POST",
-              body: {
-                ingredientGroups:
-                  recipe.ingredients.length > 0
-                    ? recipe.ingredients.map((group) => ({
-                        group_en: group.group_en,
-                        group_de: group.group_de,
-                        items: group.items.map((item) => ({
-                          amount: item.amount === null ? "" : String(item.amount),
-                          unit: item.unit,
-                          name_en: item.name_en,
-                          name_de: item.name_de,
-                        })),
-                      }))
-                    : imported.ingredients.map((group) => ({
-                        group_en: group.group_en,
-                        group_de: "",
-                        items: group.items.map((item) => ({
-                          amount: item.amount,
-                          unit: item.unit,
-                          name_en: item.name_en,
-                          name_de: "",
-                        })),
-                      })),
-                servings: recipe.servings ? String(recipe.servings) : imported.servings,
-              },
-              retries: 1,
-            })
-          : null;
-
-        const upgradedPayload = buildRecipePayload({
-          slug: recipe.slug,
-          titleEn: recipe.title_en,
-          titleDe: recipe.title_de || "",
-          authorName: recipe.author_name || "Atthuzhai",
-          learnedFrom: recipe.learned_from || imported.learnedFrom,
-          descriptionEn: recipe.description_en || imported.description,
-          descriptionDe: recipe.description_de || "",
-          category: recipe.category || imported.category,
-          cuisine: recipe.cuisine || imported.cuisine,
-          cuisineDe: recipe.cuisine_de || "",
-          course: recipe.course || imported.course,
-          courseDe: recipe.course_de || "",
-          difficulty: recipe.difficulty || imported.difficulty,
-          difficultyDe: recipe.difficulty_de || "",
-          prepTime: recipe.prep_time || imported.prepTime,
-          cookTime: recipe.cook_time || imported.cookTime,
-          totalTime: recipe.total_time || imported.totalTime,
-          tags: recipe.tags.length > 0 ? recipe.tags.join(", ") : imported.tags,
-          badges: recipe.badges.length > 0 ? recipe.badges : imported.badges,
-          ingredientGroups:
-            recipe.ingredients.length > 0
-              ? recipe.ingredients.map((group) => ({
-                  group_en: group.group_en,
-                  group_de: group.group_de,
-                  items: group.items.map((item) => ({
-                    amount: item.amount === null ? "" : String(item.amount),
-                    unit: item.unit,
-                    name_en: item.name_en,
-                    name_de: item.name_de,
-                  })),
-                }))
-              : imported.ingredients.map((group) => ({
-                  group_en: group.group_en,
-                  group_de: "",
-                  items: group.items.map((item) => ({
-                    amount: item.amount,
-                    unit: item.unit,
-                    name_en: item.name_en,
-                    name_de: "",
-                  })),
-                })),
-          instructionSections:
-            recipe.instruction_sections.length > 0 && !recipe.steps_en.includes("## ")
-              ? recipe.instruction_sections.map((section) => ({
-                  title_en: section.title_en,
-                  title_de: section.title_de,
-                  steps_en: section.steps_en.join("\n"),
-                  steps_de: section.steps_de.join("\n"),
-                }))
-              : imported.instructionSections.map((section) => ({
-                  title_en: section.title_en,
-                  title_de: "",
-                  steps_en: section.steps_en.join("\n"),
-                  steps_de: "",
-                })),
-          notesEn: recipe.notes_en || imported.notesEn,
-          notesDe: recipe.notes_de || "",
-          tipsEn: recipe.tips_en || imported.tipsEn,
-          tipsDe: recipe.tips_de || "",
-          storageEn: recipe.storage_en || "",
-          storageDe: recipe.storage_de || "",
-          nutrition: recipe.nutrition ? { ...EMPTY_NUTRITION, ...recipe.nutrition } : nutritionResult?.nutrition || { ...EMPTY_NUTRITION },
-          faq:
-            recipe.faq && recipe.faq.length > 0
-              ? recipe.faq.map((item) => ({
-                  question_en: item.question_en,
-                  question_de: item.question_de,
-                  answer_en: item.answer_en,
-                  answer_de: item.answer_de,
-                }))
-              : imported.faq.map((item) => ({
-                  question_en: item.question_en,
-                  question_de: "",
-                  answer_en: item.answer_en,
-                  answer_de: "",
-                })),
-          troubleshooting:
-            recipe.troubleshooting?.map((item) => ({
-              issue_en: item.issue_en,
-              issue_de: item.issue_de,
-              fix_en: item.fix_en,
-              fix_de: item.fix_de,
-            })) || [],
-          stepPhotos:
-            recipe.step_photos?.map((item) => ({
-              step_number: item.step_number,
-              image_url: item.image_url,
-              caption_en: item.caption_en,
-              caption_de: item.caption_de,
-            })) || [],
-          sourceUrl: recipe.source_url || imported.sourceUrl,
-          videoUrl: recipe.video_url || imported.videoUrl,
-          servings: recipe.servings ? String(recipe.servings) : imported.servings,
-          equipment:
-            recipe.equipment.length > 0
-              ? recipe.equipment.map((item) => ({
-                  label_en: item.label_en,
-                  label_de: item.label_de,
-                }))
-              : imported.equipment.map((item) => ({
-                  label_en: item.label_en,
-                  label_de: "",
-                })),
-          imageUrls: recipe.cover_image_url || imported.coverImageUrl,
-          coverImageUrl: recipe.cover_image_url || imported.coverImageUrl,
-        });
-
-        await supabase.from("recipes").update(upgradedPayload).eq("id", recipe.id);
-      }
-
-      await loadRecipes();
-    } catch {
-      notify({ tone: "info", title: "Background refresh paused", message: "Imported recipe enrichment will retry next time." });
+      const { error } = await supabase
+        .from("recipes")
+        .delete()
+        .eq("id", parseInt(deleteTarget.id));
+      if (error) throw error;
+      setRecipes((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      toast.success(`"${deleteTarget.title}" deleted`);
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
     } finally {
-      setUpgrading(false);
+      setIsDeleting(false);
     }
-  });
-
-  useEffect(() => {
-    if (!loading && recipes.length > 0) {
-      void upgradeRecipes();
-    }
-  }, [loading, recipes]);
-
-  const recipeLabel = (value: string, field: "cuisine" | "course") => {
-    const recipeMatch = recipes.find((recipe) => recipe[field] === value);
-
-    if (!recipeMatch) {
-      return value;
-    }
-
-    return field === "cuisine" ? getRecipeCuisine(recipeMatch, "de") || value : getRecipeCourse(recipeMatch, "de") || value;
   };
 
-  const cuisines = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean))) as string[], [recipes]);
-  const courses = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.course).filter(Boolean))) as string[], [recipes]);
-  const badges = useMemo(
-    () => Array.from(new Set(recipes.flatMap((recipe) => [...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")]))).sort(),
-    [recipes]
-  );
+  // ── Toggle helpers ────────────────────────────────────────────────────────
+  const toggleCuisine = (c: CuisineOrigin) =>
+    setCuisines((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
 
-  const filteredRecipes = recipes.filter((recipe) => {
-    // The index filter is intentionally broad: title, description, cuisine, difficulty, tags, and badges all count.
-    const searchValue = search.trim().toLowerCase();
-    const matchesSearch =
-      !searchValue ||
-      [
-        recipe.title_en,
-        recipe.title_de ?? "",
-        recipe.description_en ?? "",
-        recipe.category ?? "",
-        recipe.cuisine ?? "",
-        recipe.cuisine_de ?? "",
-        recipe.course ?? "",
-        recipe.course_de ?? "",
-        recipe.difficulty ?? "",
-        recipe.difficulty_de ?? "",
-        recipe.tags.join(" "),
-        recipe.badges.join(" "),
-        deriveNutritionClaimTags(recipe, "en").join(" "),
-        deriveNutritionClaimTags(recipe, "de").join(" "),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(searchValue);
+  const toggleTag = (t: RecipeTag) =>
+    setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
 
-    const matchesCuisine = !selectedCuisine || recipe.cuisine === selectedCuisine;
-    const matchesCourse = !selectedCourse || recipe.course === selectedCourse;
-    const matchesBadge = !selectedBadge || [...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].includes(selectedBadge);
-
-    return matchesSearch && matchesCuisine && matchesCourse && matchesBadge;
-  });
-
-  const categories = Array.from(new Set(filteredRecipes.map((recipe) => recipe.category).filter(Boolean)));
-
-  const handleDelete = async (recipeId: number) => {
-    const confirmed = window.confirm("Delete this recipe?");
-    if (!confirmed) return;
-
-    const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setRecipes((current) => current.filter((recipe) => recipe.id !== recipeId));
+  const clearFilters = () => {
+    setSearch(""); setCuisines([]); setTags([]); setMaxTime(120);
   };
 
+  const activeFilterCount = cuisines.length + tags.length + (maxTime < 120 ? 1 : 0);
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <main className="container">
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <p className="eyebrow">Cookbook Library</p>
-          <h1>Recipe Index</h1>
-          <p>A structured overview of your saved recipes with quick filters for cuisine, course, and badge labels.</p>
-        </div>
-        <div className="hero-actions">
-          <Link href="/add" className="button button-primary">
-            <AppIcon name="add" size={16} />
-            Add Recipe
-          </Link>
-        </div>
-      </section>
+    <>
+      <Toaster position="top-right" />
+      <main className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
 
-      <div className="dashboard-strip">
-        <div className="stat-tile">
-          <strong>{recipes.length}</strong>
-          <span>saved recipes</span>
-        </div>
-        <div className="stat-tile">
-          <strong>{categories.length}</strong>
-          <span>visible categories</span>
-        </div>
-        <div className="stat-tile">
-          <strong>{filteredRecipes.length}</strong>
-          <span>current matches</span>
-        </div>
-      </div>
-
-      <div className="card toolbar-panel">
-        <div className="section-heading-row">
-          <div>
-            <h2 style={{ marginBottom: 6 }}>Filter the collection</h2>
-            <p>Search title, cuisine, course, difficulty, tags, or badge names.</p>
-          </div>
-          <div className="segmented-control" aria-label="Recipe language">
-            <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
-              EN
-            </button>
-            <button className={lang === "de" ? "button active" : "button"} type="button" onClick={() => setLang("de")}>
-              DE
-            </button>
-          </div>
-        </div>
-
-        <div className="toolbar-row">
-          <input className="input" placeholder="Search title, cuisine, course, difficulty, tags..." value={search} onChange={(event) => setSearch(event.target.value)} />
-
-          <select className="input" value={selectedCuisine} onChange={(event) => setSelectedCuisine(event.target.value)}>
-            <option value="">All cuisines</option>
-            {cuisines.map((cuisine) => (
-              <option key={cuisine} value={cuisine}>
-                {lang === "de" ? recipeLabel(cuisine, "cuisine") : cuisine}
-              </option>
-            ))}
-          </select>
-          <select className="input" value={selectedCourse} onChange={(event) => setSelectedCourse(event.target.value)}>
-            <option value="">All courses</option>
-            {courses.map((course) => (
-              <option key={course} value={course}>
-                {lang === "de" ? recipeLabel(course, "course") : course}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {badges.length > 0 ? (
-          <div className="filter-chips">
-            <button className={selectedBadge === "" ? "button button-soft" : "button"} type="button" onClick={() => setSelectedBadge("")}>
-              All badges
-            </button>
-            {badges.map((badge) => (
-              <BadgeChip key={stableCompositeId("index-filter", badge)} badge={badge} lang={lang} active={selectedBadge === badge} asButton onClick={() => setSelectedBadge(badge)} />
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {loading ? <div className="skeleton-page" style={{ marginTop: 16 }}><div className="skeleton-line" /><div className="skeleton-card" /></div> : null}
-      {!loading && upgrading ? <div className="empty-state" style={{ marginTop: 16 }}>Refreshing older imported recipes...</div> : null}
-      {!loading && loadError ? (
-        <div className="empty-state empty-state-action illustrated-empty" style={{ marginTop: 16 }}>
-          <div className="empty-illustration steam-cup" aria-hidden="true"><span /><span /><span /></div>
-          <h2>Recipe index could not load</h2>
-          <p>{loadError}</p>
-          <button className="button button-primary" type="button" onClick={() => window.location.reload()}>Retry</button>
-        </div>
-      ) : null}
-      {!loading && !loadError && filteredRecipes.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>No recipes match these filters yet.</div> : null}
-
-      {categories.map((category) => (
-        <section key={category} style={{ marginTop: 28 }}>
-          <div className="section-heading-row">
+          {/* ── Header ──────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 style={{ marginBottom: 6 }}>{category}</h2>
-              <p>{filteredRecipes.filter((recipe) => recipe.category === category).length} recipe{filteredRecipes.filter((recipe) => recipe.category === category).length === 1 ? "" : "s"}</p>
+              <h1 className="text-3xl font-bold text-gray-900">My Recipes</h1>
+              <p className="text-gray-500 text-sm mt-1">
+                {recipes.length} recipe{recipes.length !== 1 ? "s" : ""} in your cookbook
+              </p>
             </div>
+            <Link
+              href="/add"
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium text-sm hover:bg-indigo-700 transition shadow-sm"
+            >
+              <Plus size={16} /> Add Recipe
+            </Link>
           </div>
-          <div className="recipe-card-grid">
-            {filteredRecipes
-              .filter((recipe) => recipe.category === category)
-              .map((recipe) => {
-                const coverImage = getRecipeCoverImage(recipe);
 
-                return (
-                  <article key={recipe.id} className="card recipe-preview-card" style={{ overflow: "hidden" }}>
-                    {coverImage ? <Image src={coverImage} alt={`${recipe.title_en} cover`} width={1200} height={800} className="recipe-card-photo" /> : <div className="recipe-card-photo recipe-card-photo-placeholder"><AppIcon name="recipe" size={30} /></div>}
+          {/* ── Search + filter toggle ──────────────────────────────── */}
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="search"
+                placeholder="Search recipes…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowFilters((f) => !f)}
+              className={[
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition",
+                showFilters
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-300",
+              ].join(" ")}
+            >
+              <SlidersHorizontal size={15} />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white text-indigo-600 text-[11px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
 
-                    <div className="recipe-card-body">
-                      <h3 className="recipe-card-title">
-                        <Link href={`/recipe/${recipe.id}`}>{lang === "de" && recipe.title_de ? recipe.title_de : recipe.title_en}</Link>
-                      </h3>
-                      <p className="recipe-card-description" style={{ marginBottom: 0 }}>{lang === "de" && recipe.description_de ? recipe.description_de : recipe.description_en}</p>
-                      <div className="recipe-card-meta">
-                        {[getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
-                          <span className="meta-pill" key={stableCompositeId(recipe.id, "meta", item)}>{item}</span>
-                        ))}
-                        {[
-                          ["prep", recipe.prep_time],
-                          ["cook", recipe.cook_time],
-                          ["total", recipe.total_time],
-                        ].filter((item): item is [string, string] => Boolean(item[1])).map(([slot, item]) => (
-                          <span className="meta-pill" key={recipeTimingId(recipe.id, slot, item)}>{item}</span>
-                        ))}
-                      </div>
-                      <p style={{ marginBottom: 0 }}>
-                        By {recipe.author_name}
-                        {recipe.learned_from ? ` • Learned from ${recipe.learned_from}` : ""}
-                      </p>
+          {/* ── Expandable filter panel ─────────────────────────────── */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-5 space-y-5">
+                  {/* Sort */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">Sort</span>
+                    {(["newest","oldest","name-az","time-quick"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSortBy(s)}
+                        className={[
+                          "px-3 py-1.5 rounded-lg text-xs font-medium border transition",
+                          sortBy === s
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
+                        ].join(" ")}
+                      >
+                        {{ newest:"Newest", oldest:"Oldest", "name-az":"A→Z", "time-quick":"Quickest" }[s]}
+                      </button>
+                    ))}
+                  </div>
 
-                      {[...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")].length > 0 ? (
-                        <div className="filter-chips" style={{ marginTop: 0 }}>
-                          {[...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])].map((badge) => (
-                            <BadgeChip key={badge.startsWith("Good") || badge.startsWith("Excellent") ? nutritionTagId(recipe.id, badge) : recipeBadgeId(recipe.id, badge)} badge={badge} lang={lang} />
-                          ))}
-                        </div>
-                      ) : null}
+                  {/* Time slider */}
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">Time</span>
+                    <input
+                      type="range" min={10} max={120} step={5}
+                      value={maxTime}
+                      onChange={(e) => setMaxTime(Number(e.target.value))}
+                      className="flex-1 accent-indigo-600"
+                    />
+                    <span className="text-sm text-gray-600 w-16">≤ {maxTime} min</span>
+                  </div>
 
-                      <div className="recipe-card-actions">
-                        <Link href={`/edit/${recipe.id}`} className="button">
-                          <AppIcon name="edit" size={16} />
-                          Edit
-                        </Link>
-                        <button className="button button-danger" type="button" onClick={() => void handleDelete(recipe.id)}>
-                          <AppIcon name="delete" size={16} />
-                          Delete
-                        </button>
-                      </div>
+                  {/* Indian cuisines */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Indian Cuisines</p>
+                    <div className="flex flex-wrap gap-2">
+                      {INDIAN_CUISINE_ORIGINS.map((c) => {
+                        const t = getCuisineTheme(c);
+                        return (
+                          <button key={c} type="button" onClick={() => toggleCuisine(c)}
+                            className={[
+                              "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                              cuisines.includes(c)
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
+                            ].join(" ")}
+                          >
+                            {t.emoji} {t.label}
+                          </button>
+                        );
+                      })}
                     </div>
-                  </article>
-                );
-              })}
-          </div>
-        </section>
-      ))}
-    </main>
+                  </div>
+
+                  {/* Global cuisines */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Global Cuisines</p>
+                    <div className="flex flex-wrap gap-2">
+                      {GLOBAL_ORIGINS.map((c) => {
+                        const t = getCuisineTheme(c);
+                        return (
+                          <button key={c} type="button" onClick={() => toggleCuisine(c)}
+                            className={[
+                              "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                              cuisines.includes(c)
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
+                            ].join(" ")}
+                          >
+                            {t.emoji} {t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-2">
+                      {ALL_TAGS.map((tag) => {
+                        const meta = TAG_META[tag];
+                        return (
+                          <button key={tag} type="button" onClick={() => toggleTag(tag)}
+                            className={[
+                              "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                              tags.includes(tag)
+                                ? `${meta.color} ${meta.textColor} ${meta.borderColor}`
+                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300",
+                            ].join(" ")}
+                          >
+                            {meta.emoji} {meta.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {activeFilterCount > 0 && (
+                    <button type="button" onClick={clearFilters}
+                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition"
+                    >
+                      <X size={12} /> Clear all filters
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Results count ───────────────────────────────────────── */}
+          {!loading && (
+            <p className="text-xs text-gray-400 mb-4">
+              Showing {filtered.length} of {recipes.length} recipes
+            </p>
+          )}
+
+          {/* ── Loading skeletons ───────────────────────────────────── */}
+          {loading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100 animate-pulse">
+                  <div className="h-24 bg-gray-200" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Error state ─────────────────────────────────────────── */}
+          {!loading && loadError && (
+            <div className="text-center py-16">
+              <p className="text-red-500 mb-3">{loadError}</p>
+              <button type="button" onClick={loadRecipes}
+                className="text-sm text-indigo-600 hover:underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* ── Empty state ─────────────────────────────────────────── */}
+          {!loading && !loadError && filtered.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-20"
+            >
+              <span className="text-7xl block mb-4" aria-hidden="true">🍳</span>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                {recipes.length === 0 ? "Your cookbook is empty" : "No recipes match your filters"}
+              </h2>
+              <p className="text-gray-400 text-sm mb-6">
+                {recipes.length === 0
+                  ? "Add your first recipe to get started."
+                  : "Try adjusting the filters or search term."}
+              </p>
+              {recipes.length === 0 && (
+                <Link href="/add"
+                  className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-700 transition"
+                >
+                  <Plus size={16} /> Add Your First Recipe
+                </Link>
+              )}
+              {recipes.length > 0 && (
+                <button type="button" onClick={clearFilters}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </motion.div>
+          )}
+
+          {/* ── Recipe grid ─────────────────────────────────────────── */}
+          {!loading && !loadError && filtered.length > 0 && (
+            <motion.div
+              variants={gridVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
+              {filtered.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onEdit={() => window.location.assign(`/edit/${recipe.id}`)}
+                  onDelete={() => setDeleteTarget(recipe)}
+                />
+              ))}
+            </motion.div>
+          )}
+        </div>
+
+        {/* ── Floating add button (mobile) ──────────────────────────── */}
+        <Link
+          href="/add"
+          aria-label="Add recipe"
+          className="fixed bottom-6 right-6 sm:hidden w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 transition"
+        >
+          <Plus size={24} />
+        </Link>
+      </main>
+
+      {/* ── Confirm delete dialog ─────────────────────────────────────── */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={`Delete "${deleteTarget?.title}"?`}
+        message="This will permanently remove the recipe from your cookbook. This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={isDeleting}
+      />
+    </>
   );
 }
