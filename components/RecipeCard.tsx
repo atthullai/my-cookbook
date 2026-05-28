@@ -54,7 +54,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
       className="rounded-2xl overflow-hidden shadow-md border border-gray-100 bg-white flex flex-col"
     >
       {/* ── Gradient header ─────────────────────────────────────────── */}
-      <Link href={`/recipes/${recipe.id}`} className="block relative">
+      <Link href={`/recipe/${recipe.id}`} className="block relative">
         {recipe.imageUrl ? (
           <Image
             src={recipe.imageUrl}
@@ -93,7 +93,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
       {/* ── Body ────────────────────────────────────────────────────── */}
       <div className="p-3 flex flex-col flex-1 gap-2">
         {/* Title */}
-        <Link href={`/recipes/${recipe.id}`}>
+        <Link href={`/recipe/${recipe.id}`}>
           <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 hover:text-indigo-700 transition-colors">
             {recipe.title}
           </h3>

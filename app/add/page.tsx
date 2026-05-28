@@ -446,7 +446,7 @@ export default function AddRecipePage() {
       badges:               tags as string[],
       ingredients:          builtIngredients,
       instruction_sections: instructionSections,
-      steps_en:             builtSteps,
+      steps_en:             builtSteps.join("\n"),
       steps_de:             null,
       notes_en:             notes.trim() || null,
       notes_de:             null,
@@ -475,7 +475,7 @@ export default function AddRecipePage() {
       if (error) throw error;
       toast.success("Recipe saved!");
       setTadkaBurst(true);
-      setTimeout(() => router.push(`/recipes/${data.id}`), 950);
+      setTimeout(() => router.push(`/recipe/${data.id}`), 950);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save recipe");
       setSaving(false);
