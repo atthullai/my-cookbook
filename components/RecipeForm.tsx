@@ -47,8 +47,12 @@ const UNIT_OPTIONS = [
   "ml", "L", "tsp", "tbsp", "cup", "fl oz",
   // Weight
   "g", "kg", "oz", "lb",
-  // Count / natural
-  "piece", "pieces", "slice", "slices", "bunch", "handful", "sprig",
+  // Count / whole item
+  "no.", "whole", "bunch", "handful",
+  // Whole-piece descriptors
+  "head", "clove", "stalk", "inch", "stick",
+  // Small / leaf
+  "leaf", "sprig", "sheet", "dash",
   // Packaged
   "can", "packet", "sachet",
   // Pinch / taste

@@ -163,8 +163,8 @@ const GENERIC_UNIT_TO_GRAMS: Record<string, number> = {
   handfuls: 18,
   sprig: 2,
   sprigs: 2,
-  leaf: 0.12,
-  leaves: 0.12,
+  leaf: 0.5,
+  leaves: 0.5,
   clove: 3,
   cloves: 3,
   bunch: 30,
@@ -174,6 +174,18 @@ const GENERIC_UNIT_TO_GRAMS: Record<string, number> = {
   piece: 50,
   pieces: 50,
   whole: 100,
+  // produce structure
+  head: 300,
+  heads: 300,
+  stalk: 30,
+  stalks: 30,
+  inch: 5,
+  inches: 5,
+  stick: 5,
+  sticks: 5,
+  // sheet (lasagne, nori, filo)
+  sheet: 15,
+  sheets: 15,
 };
 
 const foodSearchCache = new Map<string, FoodSearchResult | null>();
@@ -196,6 +208,7 @@ const UNIT_ALIASES: Record<string, string> = {
   ounce: "oz",
   ounces: "oz",
   no: "whole",
+  "no.": "whole",
   nos: "whole",
   number: "whole",
   numbers: "whole",

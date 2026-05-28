@@ -75,8 +75,23 @@ const UNIT_TO_GRAMS: Record<string, number> = {
   tbsp: 12.6, tablespoon: 12.6,
   cup: 240, cups: 240,
   "fl oz": 29.6,
-  piece: 100, pieces: 100,
-  handful: 30, pinch: 0.3, clove: 5, slice: 25,
+  // whole-item counts
+  "no.": 100, no: 100, whole: 100, piece: 100, pieces: 100,
+  // produce structure
+  head: 300,   // e.g. cabbage, lettuce
+  clove: 5,    // garlic
+  stalk: 30,   // celery, lemongrass
+  inch: 5,     // ginger, galangal, cinnamon
+  stick: 5,    // cinnamon stick, lemongrass
+  // leaves / herbs
+  leaf: 0.5, leaves: 0.5,
+  sprig: 2,
+  // small measures
+  sheet: 15,   // lasagne, nori, filo
+  dash: 0.6,
+  handful: 30, pinch: 0.3,
+  // packaged
+  can: 400, packet: 100, sachet: 7, bunch: 30,
 };
 
 /** Converts ingredient quantity + unit to approximate grams */

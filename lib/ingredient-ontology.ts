@@ -130,6 +130,15 @@ const UNIT_ALIASES: Record<string, MeasurementUnit | string> = {
   pieces: "piece",
   bunches: "bunch",
   "to-taste": "to taste",
+  // new plural/variant aliases
+  heads: "head",
+  stalks: "stalk",
+  inches: "inch",
+  sticks: "stick",
+  sheets: "sheet",
+  "no.": "no.",
+  no: "no.",
+  nos: "no.",
 };
 
 const GENERIC_GRAMS: Record<string, number> = {
@@ -144,10 +153,17 @@ const GENERIC_GRAMS: Record<string, number> = {
   dash: 0.6,
   handful: 18,
   sprig: 2,
-  leaf: 0.12,
+  leaf: 0.5,
   clove: 3,
   piece: 50,
+  whole: 100,
+  "no.": 100,
   bunch: 30,
+  head: 300,
+  stalk: 30,
+  inch: 5,
+  stick: 5,
+  sheet: 15,
 };
 
 export function normalizeUnit(unit: string): MeasurementUnit | string {
