@@ -182,7 +182,7 @@ export default function RecipesPage() {
             </Link>
           </motion.div>
 
-          <DeerDivider height={80} className="mb-6" />
+          <DeerDivider className="mb-6" />
 
           {/* ── Search + filter toggle ──────────────────────────────── */}
           <div className="flex gap-2 mb-4">

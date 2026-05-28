@@ -265,7 +265,7 @@ export default function PantryPage() {
           </div>
         </div>
 
-        <DeerDivider height={80} className="mb-5" />
+        <DeerDivider className="mb-5" />
 
         {/* Sort bar */}
         <div className="flex items-center gap-2 mb-5">
