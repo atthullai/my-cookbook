@@ -491,12 +491,25 @@ textarea,
 input:not([type="checkbox"]),
 select {
   width: 100%;
-  padding: 0.9rem 1rem;
+  padding-top: 0.9rem;
+  padding-right: 1rem;
+  padding-bottom: 0.9rem;
+  /* padding-left is set in @layer base below so Tailwind pl-* utilities can override it */
   min-height: 46px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(255, 250, 241, 0.88);
   color: var(--foreground);
+}
+
+/* Default left padding in base layer — Tailwind pl-* utilities take precedence over this. */
+@layer base {
+  textarea.input,
+  textarea,
+  input:not([type="checkbox"]),
+  select {
+    padding-left: 1rem;
+  }
 }
 
 /* Softer placeholder color so entered text stays the visual focus. */
