@@ -37,7 +37,11 @@ export default function SiteHeader() {
           {navItems.map((item) => {
             // Mark the link active when the current page exactly matches it,
             // or when we are inside that section, like /recipe/123 under Recipes.
-            const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+            // /recipe/[id] is the canonical recipe detail route, so highlight "Recipes" there too.
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname?.startsWith(item.href)) ||
+              (item.href === "/recipes" && (pathname?.startsWith("/recipe/") ?? false));
 
             return (
               <Link key={item.href} href={item.href} className={isActive ? "site-nav-link active" : "site-nav-link"}>

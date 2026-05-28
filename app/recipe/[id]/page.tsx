@@ -4,7 +4,7 @@
 // This file reads the recipe id from the URL, loads that recipe from Supabase, and handles loading/not-found.
 // The pretty recipe display is in RecipeClient.tsx so this wrapper stays small.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { RecipeRecord } from "@/lib/recipe-types";
@@ -22,7 +22,9 @@ export default function RecipePage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const fetchRecipe = async () => {
+  // Single fetch function used by both initial load (useEffect) and the Retry button.
+  // Using useCallback so useEffect dependency stays stable across renders.
+  const fetchRecipe = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
 
@@ -43,41 +45,25 @@ export default function RecipePage() {
     }
 
     setLoading(false);
-  };
+  }, [recipeId]);
 
   useEffect(() => {
     // Guard against setting state if the component unmounts before Supabase returns.
     let isMounted = true;
 
-    const loadRecipe = async () => {
-      if (!recipeId) {
-        setErrorMessage("Invalid recipe URL");
-        setLoading(false);
-        return;
-      }
-
-      // Fetch the latest recipe row directly from Supabase so edits show immediately.
-      const { data, error } = await supabase.from("recipes").select("*").eq("id", recipeId).single();
-
+    const run = async () => {
+      await fetchRecipe();
+      // fetchRecipe sets state synchronously after awaiting; if unmounted by then, bail out.
+      // The isMounted guard here prevents the double-set of loading state on fast navigation.
       if (!isMounted) return;
-
-      if (error || !data) {
-        setRecipe(null);
-        setErrorMessage(error?.message || "This recipe may have been deleted");
-      } else {
-        // Convert the raw DB row into the normalized front-end recipe shape.
-        setRecipe(normalizeRecipe(data));
-      }
-
-      setLoading(false);
     };
 
-    void loadRecipe();
+    void run();
 
     return () => {
       isMounted = false;
     };
-  }, [recipeId]);
+  }, [fetchRecipe]);
 
   if (loading) {
     return (
@@ -98,7 +84,7 @@ export default function RecipePage() {
   if (!recipeId) {
     return (
       <main className="container">
-        <Link href="/" className="back-link">
+        <Link href="/recipes" className="back-link">
           Back to cookbook
         </Link>
         <div className="empty-state empty-state-action">
@@ -113,7 +99,7 @@ export default function RecipePage() {
   if (!recipe) {
     return (
       <main className="container">
-        <Link href="/" className="back-link">
+        <Link href="/recipes" className="back-link">
           Back to cookbook
         </Link>
         <div className="empty-state empty-state-action">

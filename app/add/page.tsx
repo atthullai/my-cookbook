@@ -430,7 +430,7 @@ export default function AddRecipePage() {
       description_en:       description.trim() || null,
       description_de:       null,
       category:             category.trim() || null,
-      cuisine:              getCuisineTheme(cuisine).label,
+      cuisine:              cuisine,
       cuisine_de:           null,
       course:               null,
       course_de:            null,

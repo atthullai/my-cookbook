@@ -283,14 +283,27 @@ export default function EditRecipe() {
 
     setSaving(true);
 
-    const autoTitleDe = title.trim() ? await translateEnglishToGerman(title) : "";
-    const autoDescriptionDe = descriptionEn.trim() ? await translateEnglishToGerman(descriptionEn) : "";
-    const autoNotesDe = notesEn.trim() ? await translateEnglishToGerman(notesEn) : "";
-    const autoTipsDe = tipsEn.trim() ? await translateEnglishToGerman(tipsEn) : "";
-    const autoStorageDe = storageEn.trim() ? await translateEnglishToGerman(storageEn) : "";
-    const autoCuisineDe = cuisine.trim() ? await translateEnglishToGerman(cuisine) : "";
-    const autoCourseDe = course.trim() ? await translateEnglishToGerman(course) : "";
-    const autoDifficultyDe = difficulty.trim() ? await translateEnglishToGerman(difficulty) : "";
+    // Only translate if the German field is empty — avoids wasting API calls when already filled.
+    // Run all needed translations in parallel with Promise.all to minimise save latency.
+    const [
+      autoTitleDe,
+      autoDescriptionDe,
+      autoNotesDe,
+      autoTipsDe,
+      autoStorageDe,
+      autoCuisineDe,
+      autoCourseDe,
+      autoDifficultyDe,
+    ] = await Promise.all([
+      (!titleDe.trim() && title.trim())         ? translateEnglishToGerman(title)          : Promise.resolve(""),
+      (!descriptionDe.trim() && descriptionEn.trim()) ? translateEnglishToGerman(descriptionEn) : Promise.resolve(""),
+      (!notesDe.trim() && notesEn.trim())       ? translateEnglishToGerman(notesEn)        : Promise.resolve(""),
+      (!tipsDe.trim() && tipsEn.trim())         ? translateEnglishToGerman(tipsEn)         : Promise.resolve(""),
+      (!storageDe.trim() && storageEn.trim())   ? translateEnglishToGerman(storageEn)      : Promise.resolve(""),
+      (!cuisineDe.trim() && cuisine.trim())     ? translateEnglishToGerman(cuisine)        : Promise.resolve(""),
+      (!courseDe.trim() && course.trim())       ? translateEnglishToGerman(course)         : Promise.resolve(""),
+      (!difficultyDe.trim() && difficulty.trim()) ? translateEnglishToGerman(difficulty)  : Promise.resolve(""),
+    ]);
 
     const translatedGroups = await Promise.all(
       ingredientGroups.map(async (group) => ({
@@ -506,7 +519,7 @@ export default function EditRecipe() {
           onComplete={() => setTadkaBurst(false)}
         />
         <Link
-          href={`/recipes/${recipe.id}`}
+          href={`/recipe/${recipe.id}`}
           className="p-2 rounded-xl border transition"
           style={{ borderColor: "var(--border)", color: "var(--muted)" }}
         >

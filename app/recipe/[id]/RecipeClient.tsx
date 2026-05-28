@@ -376,7 +376,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                         {ingredient.optional ? " (optional)" : ""}
                         {ingredient.garnish ? " (garnish)" : ""}
                       </span>
-                      <span className="ingredient-weight">{ontology.estimatedWeightGrams}g est.</span>
+                      {(ontology.estimatedWeightGrams ?? 0) > 0 && (
+                        <span className="ingredient-weight">{ontology.estimatedWeightGrams}g est.</span>
+                      )}
                     </button>
                   );
                 })}
@@ -509,25 +511,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         </div>
       ) : null}
-
-      <div className="reader-section-grid">
-        <div className="card">
-          <h3>{lang === "de" ? "Ersetzungen" : "Substitutions"}</h3>
-          <div className="compact-list">
-            <span>Ghee {"->"} neutral oil or butter</span>
-            <span>Coriander leaves {"->"} parsley or mint</span>
-            <span>Chili heat {"->"} paprika for a softer family version</span>
-          </div>
-        </div>
-        <div className="card">
-          <h3>{lang === "de" ? "Aehnliche Rezepte" : "Related Recipes"}</h3>
-          <p style={{ marginBottom: 0 }}>
-            {recipe.course || recipe.cuisine
-              ? `Browse more ${[recipe.cuisine, recipe.course].filter(Boolean).join(" ")} recipes from the index.`
-              : "Related recipe matching will use cuisine, course, ingredient overlap, and recent cooking history."}
-          </p>
-        </div>
-      </div>
 
       <div className="card nutrition-panel" style={{ marginTop: 20 }}>
         <div className="nutrition-panel-header">

@@ -109,8 +109,8 @@ export default function RecipesPage() {
     return [...result].sort((a, b) => {
       if (sortBy === "name-az")    return a.title.localeCompare(b.title);
       if (sortBy === "time-quick") return (a.prepTimeMinutes + a.cookTimeMinutes) - (b.prepTimeMinutes + b.cookTimeMinutes);
-      if (sortBy === "oldest")     return a.id.localeCompare(b.id);
-      return b.id.localeCompare(a.id); // newest
+      if (sortBy === "oldest")     return parseInt(a.id) - parseInt(b.id);
+      return parseInt(b.id) - parseInt(a.id); // newest
     });
   }, [recipes, search, cuisines, tags, maxTime, sortBy]);
 
