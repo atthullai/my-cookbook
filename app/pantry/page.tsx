@@ -70,10 +70,12 @@ const STATUS_LABELS: Record<PantryItemStatus, string> = {
 type SortOption = "expiry" | "name" | "category";
 
 const EMPTY_FORM = {
-  name: "", quantity: "1", unit: "",
+  name: "", quantity: "1", unit: "no.",
   category: "other" as ShoppingCategory,
   expiryDate: "", lowStockThreshold: "",
 };
+
+const UNIT_OPTIONS = ["no.", "g", "kg", "L", "ml", "tsp", "tbsp", "cup"];
 
 export default function PantryPage() {
   const [items, setItems]           = useState<PantryItem[]>([]);
@@ -303,46 +305,47 @@ export default function PantryPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Row 1 col 1: name */}
+                {/* Row 1: Name · Qty · Unit */}
+                <div className="flex gap-2">
                   <input
                     type="text" placeholder="Name *" value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
-                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
+                    style={{ flex: 2, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
-                  {/* Row 1 col 2: compact qty + unit */}
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="number" placeholder="Qty" value={form.quantity}
-                      onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                      className="rounded-xl px-2 py-1.5 text-sm focus:outline-none text-center"
-                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", width: "3.5rem", minHeight: "unset" }}
-                    />
-                    <input
-                      type="text" placeholder="Unit (g, ml, pcs…)" value={form.unit}
-                      onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                      className="flex-1 min-w-0 rounded-xl px-3 py-2 text-sm focus:outline-none"
-                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                    />
-                  </div>
-                  {/* Row 2 col 1: category */}
+                  <input
+                    type="number" value={form.quantity}
+                    onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                    className="rounded-xl px-2 py-2.5 text-sm focus:outline-none text-center"
+                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", minHeight: "unset" }}
+                  />
+                  <select
+                    value={form.unit}
+                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                    className="rounded-xl px-2 py-2.5 text-sm focus:outline-none"
+                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                  >
+                    {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+
+                {/* Row 2: Category · Expiry date */}
+                <div className="flex gap-2">
                   <select
                     value={form.category}
                     onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ShoppingCategory }))}
-                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
-                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
+                    style={{ flex: 1, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   >
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
                     ))}
                   </select>
-                  {/* Row 2 col 2: date — tall enough to tap/type comfortably */}
                   <input
                     type="date" value={form.expiryDate}
                     onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                    className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none cursor-pointer"
-                    style={{ border: "2px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", minHeight: "3rem" }}
+                    className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
+                    style={{ flex: 1.4, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", minHeight: "unset" }}
                   />
                 </div>
 
