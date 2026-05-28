@@ -350,6 +350,7 @@ export default function Home() {
                   background: "var(--surface)",
                   border: "1px solid var(--border)",
                   color: "var(--foreground)",
+                  paddingLeft: "2.5rem",
                 }}
               />
               {search && (

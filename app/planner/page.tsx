@@ -633,7 +633,7 @@ export default function PlannerPage() {
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 rounded-xl text-xs focus:outline-none"
-                      style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
+                      style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)", paddingLeft: "2.5rem" }}
                     />
                   </div>
 

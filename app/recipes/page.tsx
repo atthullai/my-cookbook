@@ -198,6 +198,7 @@ export default function RecipesPage() {
                   border: "1px solid var(--border)",
                   background: "var(--surface)",
                   color: "var(--foreground)",
+                  paddingLeft: "2.5rem",
                 }}
               />
             </div>
