@@ -75,7 +75,7 @@ const EMPTY_FORM = {
   expiryDate: "", lowStockThreshold: "",
 };
 
-const UNIT_OPTIONS = ["no.", "g", "kg", "L", "ml", "tsp", "tbsp", "cup", "packet", "canned", "spring"];
+const UNIT_OPTIONS = ["no.", "g", "kg", "L", "ml", "tsp", "tbsp", "cup", "packet", "canned", "spring", "jar", "bottle", "box", "block", "stick"];
 
 export default function PantryPage() {
   const [items, setItems]           = useState<PantryItem[]>([]);
