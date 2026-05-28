@@ -427,16 +427,7 @@ export default function PlannerPage() {
 
           {/* ── Header ────────────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              {/* Meal planner animation */}
-              <div aria-hidden="true" className="flex-shrink-0">
-                <LottieAnimation
-                  src="/animations/meal-planner.json"
-                  loop
-                  style={{ width: 80, height: 80 }}
-                />
-              </div>
-              <div>
+            <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-1"
                 style={{ color: "var(--accent)", opacity: 0.8 }}>
                 Weekly Menu
@@ -473,9 +464,17 @@ export default function PlannerPage() {
                   </button>
                 )}
               </div>
-              </div>
             </div>
 
+            {/* Meal planner animation + action buttons */}
+            <div className="flex flex-col items-end gap-3">
+              <div aria-hidden="true">
+                <LottieAnimation
+                  src="/animations/meal-planner.json"
+                  loop
+                  style={{ width: 200, height: 200 }}
+                />
+              </div>
             <div className="flex items-center gap-2">
               {plannedMeals.length > 0 && (
                 <button
@@ -494,6 +493,7 @@ export default function PlannerPage() {
               >
                 <ShoppingCart size={15} /> Shopping List
               </Link>
+            </div>
             </div>
           </div>
 

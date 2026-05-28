@@ -34,12 +34,19 @@ export function toCuisineOrigin(record: RecipeRecord): CuisineOrigin {
     "chinese","japanese","thai","mexican","american","other",
   ]);
 
-  // Prefer the new origin column (set via Phase 1 migration)
-  if (record.origin && NEW_ORIGINS.has(record.origin)) {
+  // Prefer the origin column only when it's a specific non-default value.
+  // The Phase 1 migration defaulted every row to "other", so we skip "other"
+  // here and let the cuisine field (which has real data) take precedence.
+  if (record.origin && record.origin !== "other" && NEW_ORIGINS.has(record.origin)) {
     return record.origin as CuisineOrigin;
   }
 
-  // Fall back to free-text cuisine field
+  // Use the normalised cuisine key if it's already a valid specific origin
+  if (record.cuisine && record.cuisine !== "other" && NEW_ORIGINS.has(record.cuisine)) {
+    return record.cuisine as CuisineOrigin;
+  }
+
+  // Fall back to free-text cuisine field (handles legacy label-stored values)
   const c = (record.cuisine ?? "").toLowerCase();
   if (c.includes("tamil") || c.includes("chettinad"))  return "indian-tamil-nadu";
   if (c.includes("andhra") || c.includes("telangana")) return "indian-andhra";

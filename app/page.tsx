@@ -254,7 +254,7 @@ export default function Home() {
               <LottieAnimation
                 src="/animations/peacock.json"
                 loop
-                style={{ width: 280, height: 280 }}
+                style={{ width: 420, height: 420 }}
               />
             </div>
           </div>

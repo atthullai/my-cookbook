@@ -309,6 +309,38 @@ export function getCuisineTheme(cuisine: CuisineOrigin | string): CuisineTheme {
   return CUISINE_THEMES[cuisine as CuisineOrigin] ?? CUISINE_THEMES["other"];
 }
 
+/**
+ * Lazy-built reverse map: human-readable label → CuisineOrigin key.
+ * Used to heal legacy data saved with getCuisineTheme().label instead of the raw key.
+ * e.g. "Tamil Nadu" → "indian-tamil-nadu", "World Kitchen" → "other"
+ */
+let _labelToKey: Map<string, CuisineOrigin> | null = null;
+function getLabelToKeyMap(): Map<string, CuisineOrigin> {
+  if (!_labelToKey) {
+    _labelToKey = new Map();
+    for (const [key, theme] of Object.entries(CUISINE_THEMES) as [CuisineOrigin, CuisineTheme][]) {
+      _labelToKey.set(theme.label.toLowerCase(), key);
+    }
+  }
+  return _labelToKey;
+}
+
+/**
+ * Normalizes a cuisine value to a valid CuisineOrigin key.
+ * Accepts both valid keys ("indian-tamil-nadu") and the legacy human-readable
+ * labels that were incorrectly stored before the add-page bug was fixed
+ * ("Tamil Nadu", "World Kitchen", etc.). Falls back to "other".
+ */
+export function normalizeCuisineToKey(value: string | null | undefined): CuisineOrigin {
+  if (!value) return "other";
+  // Already a valid key?
+  if (value in CUISINE_THEMES) return value as CuisineOrigin;
+  // Try case-insensitive label match (heals legacy label data)
+  const fromLabel = getLabelToKeyMap().get(value.toLowerCase());
+  if (fromLabel) return fromLabel;
+  return "other";
+}
+
 /** Indian regional origins in display order */
 export const INDIAN_CUISINE_ORIGINS: CuisineOrigin[] = [
   "indian-tamil-nadu", "indian-andhra", "indian-karnataka", "indian-kerala",
