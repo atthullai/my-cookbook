@@ -25,19 +25,28 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import DeerDivider from "@/components/DeerDivider";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
-  "produce":         "🥦",
-  "dairy":           "🥛",
-  "meat-fish":       "🍗",
-  "spices":          "🫙",
-  "grains-pulses":   "🌾",
-  "oils-condiments": "🫒",
-  "frozen":          "🧊",
-  "other":           "🛒",
+  "produce":       "🥕",
+  "fresh-herbs":   "🌿",
+  "dairy":         "🥛",
+  "eggs":          "🥚",
+  "meat":          "🍖",
+  "fish-seafood":  "🐟",
+  "spices":        "🧂",
+  "grains-pulses": "🌾",
+  "nuts-seeds":    "🥜",
+  "canned-dried":  "🥫",
+  "bakery":        "🍞",
+  "sauces-pastes": "🧴",
+  "oils":          "🫒",
+  "frozen":        "🧊",
+  "beverages":     "🧃",
+  "other":         "🛒",
 };
 
 const CATEGORIES: ShoppingCategory[] = [
-  "produce","dairy","meat-fish","spices",
-  "grains-pulses","oils-condiments","frozen","other",
+  "produce","fresh-herbs","dairy","eggs","meat","fish-seafood",
+  "spices","grains-pulses","nuts-seeds","canned-dried","bakery",
+  "sauces-pastes","oils","frozen","beverages","other",
 ];
 
 /** Derives pantry item status from expiry date and stock quantity */

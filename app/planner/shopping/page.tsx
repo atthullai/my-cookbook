@@ -23,29 +23,46 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import type { ShoppingItem, ShoppingCategory } from "@/types";
 
 const CATEGORY_META: Record<ShoppingCategory, { label: string; icon: string }> = {
-  "produce":           { label: "Produce",           icon: "🥦" },
-  "dairy":             { label: "Dairy",              icon: "🥛" },
-  "meat-fish":         { label: "Meat & Fish",        icon: "🍗" },
-  "spices":            { label: "Spices",             icon: "🫙" },
-  "grains-pulses":     { label: "Grains & Pulses",    icon: "🌾" },
-  "oils-condiments":   { label: "Oils & Condiments",  icon: "🫒" },
-  "frozen":            { label: "Frozen",             icon: "🧊" },
-  "other":             { label: "Other",              icon: "🛒" },
+  "produce":       { label: "Produce",        icon: "🥕" },
+  "fresh-herbs":   { label: "Fresh Herbs",    icon: "🌿" },
+  "dairy":         { label: "Dairy",          icon: "🥛" },
+  "eggs":          { label: "Eggs",           icon: "🥚" },
+  "meat":          { label: "Meat",           icon: "🍖" },
+  "fish-seafood":  { label: "Fish & Seafood", icon: "🐟" },
+  "spices":        { label: "Spices",         icon: "🧂" },
+  "grains-pulses": { label: "Grains & Pulses",icon: "🌾" },
+  "nuts-seeds":    { label: "Nuts & Seeds",   icon: "🥜" },
+  "canned-dried":  { label: "Canned & Dried", icon: "🥫" },
+  "bakery":        { label: "Bakery",         icon: "🍞" },
+  "sauces-pastes": { label: "Sauces & Pastes",icon: "🧴" },
+  "oils":          { label: "Oils",           icon: "🫒" },
+  "frozen":        { label: "Frozen",         icon: "🧊" },
+  "beverages":     { label: "Beverages",      icon: "🧃" },
+  "other":         { label: "Other",          icon: "🛒" },
 };
 
 const CATEGORY_ORDER: ShoppingCategory[] = [
-  "produce", "dairy", "meat-fish", "spices",
-  "grains-pulses", "oils-condiments", "frozen", "other",
+  "produce","fresh-herbs","dairy","eggs","meat","fish-seafood",
+  "spices","grains-pulses","nuts-seeds","canned-dried","bakery",
+  "sauces-pastes","oils","frozen","beverages","other",
 ];
 
 function guessCategory(name: string): ShoppingCategory {
   if (/(milk|cream|butter|cheese|yogurt|curd|paneer|ghee|dairy)/.test(name)) return "dairy";
-  if (/(chicken|beef|lamb|pork|mutton|fish|prawn|shrimp|meat|tuna|salmon|egg)/.test(name)) return "meat-fish";
-  if (/(salt|pepper|turmeric|cumin|coriander|chilli|cardamom|cinnamon|clove|mustard|saffron|spice|masala|garam|fenugreek|bay leaf|star anise|herb)/.test(name)) return "spices";
-  if (/(rice|flour|dal|lentil|chickpea|pasta|bread|oats|wheat|barley|quinoa|semolina|rava|poha|idli|urad|moong)/.test(name)) return "grains-pulses";
-  if (/(oil|vinegar|sauce|ketchup|soy|mustard oil|coconut oil|sesame oil|olive oil|condiment)/.test(name)) return "oils-condiments";
+  if (/\begg(s)?\b/.test(name)) return "eggs";
+  if (/(chicken|beef|lamb|pork|mutton|meat|bacon|sausage|salami|ham)/.test(name)) return "meat";
+  if (/(fish|prawn|shrimp|tuna|salmon|cod|anchov|seafood|crab|lobster|mussel|squid)/.test(name)) return "fish-seafood";
+  if (/(mint|basil|coriander leaves|parsley|dill|thyme|rosemary|oregano|chive|sage|tarragon|bay leaf|fresh herb)/.test(name)) return "fresh-herbs";
+  if (/(salt|pepper|turmeric|cumin|coriander|chilli|cardamom|cinnamon|clove|mustard seed|saffron|spice|masala|garam|fenugreek|star anise|paprika|nutmeg|allspice)/.test(name)) return "spices";
+  if (/(rice|flour|dal|lentil|chickpea|pasta|oats|wheat|barley|quinoa|semolina|rava|poha|idli|urad|moong|millet)/.test(name)) return "grains-pulses";
+  if (/(almond|cashew|walnut|pistachio|peanut|pecan|hazelnut|nut|seed|sesame|flaxseed|chia|sunflower seed|pumpkin seed)/.test(name)) return "nuts-seeds";
+  if (/(canned|tinned|dried|pickle|jam|preserve|coconut milk|tomato paste|bean|legume)/.test(name)) return "canned-dried";
+  if (/(bread|roll|bun|croissant|cake|muffin|pastry|loaf|bakery|sourdough|pita|naan|tortilla)/.test(name)) return "bakery";
+  if (/(sauce|ketchup|soy sauce|vinegar|mustard|mayonnaise|paste|chutney|relish|sriracha|tabasco|worcestershire|hoisin|oyster sauce|fish sauce)/.test(name)) return "sauces-pastes";
+  if (/(oil|ghee|butter|lard|coconut oil|sesame oil|olive oil|sunflower oil|vegetable oil)/.test(name)) return "oils";
   if (/(frozen|ice cream)/.test(name)) return "frozen";
-  if (/(tomato|onion|garlic|ginger|potato|carrot|spinach|capsicum|mushroom|corn|peas|brinjal|cucumber|lettuce|cabbage|cauliflower|broccoli|eggplant|zucchini|celery|leek|scallion|spring onion|coriander leaves|mint|parsley|vegetable|fruit|lemon|lime|apple|mango|banana|coconut|tamarind|avocado|pepper)/.test(name)) return "produce";
+  if (/(juice|water|milk alternative|oat milk|almond milk|soda|tea|coffee|drink|beverage|wine|beer|kombucha)/.test(name)) return "beverages";
+  if (/(tomato|onion|garlic|ginger|potato|carrot|spinach|capsicum|mushroom|corn|peas|brinjal|cucumber|lettuce|cabbage|cauliflower|broccoli|eggplant|zucchini|celery|leek|scallion|spring onion|vegetable|fruit|lemon|lime|apple|mango|banana|coconut|tamarind|avocado|pepper)/.test(name)) return "produce";
   return "other";
 }
 

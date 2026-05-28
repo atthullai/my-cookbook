@@ -164,12 +164,20 @@ export type WeekPlan = Record<string, PlannedMeal[]>;
 // ---------------------------------------------------------------------------
 export type ShoppingCategory =
   | "produce"
+  | "fresh-herbs"
   | "dairy"
-  | "meat-fish"
+  | "eggs"
+  | "meat"
+  | "fish-seafood"
   | "spices"
   | "grains-pulses"
-  | "oils-condiments"
+  | "nuts-seeds"
+  | "canned-dried"
+  | "bakery"
+  | "sauces-pastes"
+  | "oils"
   | "frozen"
+  | "beverages"
   | "other";
 
 export interface ShoppingItem {
