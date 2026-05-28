@@ -486,16 +486,19 @@ p {
 }
 
 /* Keep native textareas/selects visually aligned with the app inputs.
-   :where() gives this rule specificity (0,0,0) so any Tailwind utility
-   like pl-10 (specificity 0,1,0) naturally overrides it without !important. */
-:where(textarea.input, textarea, input:not([type="checkbox"]), select) {
-  width: 100%;
-  padding: 0.9rem 1rem;
-  min-height: 46px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(255, 250, 241, 0.88);
-  color: var(--foreground);
+   Placed inside @layer base so @layer utilities (Tailwind) takes precedence.
+   Unlayered CSS always wins over layered CSS regardless of specificity, so
+   this must be layered for pl-10 / pl-8 etc. to override padding-left. */
+@layer base {
+  :where(textarea.input, textarea, input:not([type="checkbox"]), select) {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    min-height: 46px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 250, 241, 0.88);
+    color: var(--foreground);
+  }
 }
 
 /* Softer placeholder color so entered text stays the visual focus. */
