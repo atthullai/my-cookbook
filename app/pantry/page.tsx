@@ -19,7 +19,7 @@ import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
-import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory } from "@/types";
+import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory, StorageLocation } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DeerDivider from "@/components/DeerDivider";
@@ -47,6 +47,52 @@ const CATEGORIES: ShoppingCategory[] = [
   "produce","fresh-herbs","dairy","eggs","meat","fish-seafood",
   "spices","grains-pulses","nuts-seeds","canned-dried","bakery",
   "sauces-pastes","oils","frozen","beverages","other",
+];
+
+// Default storage location per category (used for auto-suggest)
+const DEFAULT_STORAGE: Record<ShoppingCategory, StorageLocation> = {
+  "produce":       "fridge",
+  "fresh-herbs":   "fridge",
+  "dairy":         "fridge",
+  "eggs":          "fridge",
+  "meat":          "fridge",
+  "fish-seafood":  "fridge",
+  "spices":        "room-temp",
+  "grains-pulses": "room-temp",
+  "nuts-seeds":    "room-temp",
+  "canned-dried":  "room-temp",
+  "bakery":        "room-temp",
+  "sauces-pastes": "room-temp",
+  "oils":          "room-temp",
+  "frozen":        "freezer",
+  "beverages":     "room-temp",
+  "other":         "room-temp",
+};
+
+// Typical homemade shelf life in days per category
+const HOMEMADE_SHELF_DAYS: Partial<Record<ShoppingCategory, number>> = {
+  "produce":       5,
+  "fresh-herbs":   3,
+  "dairy":         5,
+  "eggs":          21,
+  "meat":          3,
+  "fish-seafood":  2,
+  "bakery":        4,
+  "sauces-pastes": 14,
+  "frozen":        90,
+  "beverages":     7,
+  "grains-pulses": 180,
+  "canned-dried":  365,
+  "nuts-seeds":    30,
+  "oils":          60,
+  "spices":        365,
+  "other":         7,
+};
+
+const STORAGE_OPTIONS: { value: StorageLocation; icon: string; label: string }[] = [
+  { value: "room-temp", icon: "🌡️", label: "Room temp" },
+  { value: "fridge",    icon: "❄️",  label: "Fridge"    },
+  { value: "freezer",   icon: "🧊",  label: "Freezer"   },
 ];
 
 /** Derives pantry item status from expiry date and stock quantity */
@@ -78,10 +124,14 @@ const STATUS_LABELS: Record<PantryItemStatus, string> = {
 
 type SortOption = "expiry" | "name" | "category";
 
+const today = () => new Date().toISOString().split("T")[0];
+
 const EMPTY_FORM = {
   name: "", quantity: "1", unit: "no.",
   category: "other" as ShoppingCategory,
+  storage: "room-temp" as StorageLocation,
   expiryDate: "", lowStockThreshold: "",
+  brand: "", isHomemade: false, madeOn: today(),
 };
 
 const UNIT_OPTIONS = ["no.", "g", "kg", "L", "ml", "tsp", "tbsp", "cup", "packet", "canned", "spring", "jar", "bottle", "box", "block", "stick"];
@@ -121,8 +171,12 @@ export default function PantryPage() {
           quantity:           Number(row.quantity) || 0,
           unit:               row.unit ?? "",
           category:           (row.category ?? "other") as ShoppingCategory,
+          storage:            (row.storage_location ?? DEFAULT_STORAGE[row.category as ShoppingCategory] ?? "room-temp") as StorageLocation,
           expiryDate:         row.expiry_date ?? undefined,
           lowStockThreshold:  row.low_stock_threshold != null ? Number(row.low_stock_threshold) : undefined,
+          brand:              row.brand ?? undefined,
+          isHomemade:         row.is_homemade ?? false,
+          madeOn:             row.made_on ?? undefined,
           iconKey:            row.icon_key ?? undefined,
           notes:              row.notes ?? undefined,
           updatedAt:          row.updated_at ?? new Date().toISOString(),
@@ -151,8 +205,12 @@ export default function PantryPage() {
         quantity:             parseFloat(form.quantity) || 0,
         unit:                 form.unit.trim(),
         category:             form.category,
+        storage_location:     form.storage,
         expiry_date:          form.expiryDate || null,
         low_stock_threshold:  form.lowStockThreshold ? parseFloat(form.lowStockThreshold) : null,
+        brand:                form.isHomemade ? null : (form.brand.trim() || null),
+        is_homemade:          form.isHomemade,
+        made_on:              form.isHomemade ? (form.madeOn || null) : null,
       };
 
       if (editTarget) {
@@ -234,8 +292,12 @@ export default function PantryPage() {
       quantity:          String(item.quantity),
       unit:              item.unit,
       category:          item.category,
+      storage:           item.storage,
       expiryDate:        item.expiryDate ?? "",
       lowStockThreshold: item.lowStockThreshold != null ? String(item.lowStockThreshold) : "",
+      brand:             item.brand ?? "",
+      isHomemade:        item.isHomemade,
+      madeOn:            item.madeOn ?? today(),
     });
     setShowForm(true);
   };
@@ -314,7 +376,7 @@ export default function PantryPage() {
                   </button>
                 </div>
 
-                {/* Row 1: Name · Qty · Unit */}
+                {/* Row 1: Name · Amount · Unit */}
                 <div className="flex gap-2">
                   <input
                     type="text" placeholder="Name *" value={form.name}
@@ -326,7 +388,7 @@ export default function PantryPage() {
                     type="number" value={form.quantity}
                     onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
                     className="rounded-xl px-2 py-2.5 text-sm focus:outline-none text-center"
-                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", minHeight: "unset" }}
+                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
                   <select
                     value={form.unit}
@@ -338,39 +400,122 @@ export default function PantryPage() {
                   </select>
                 </div>
 
-                {/* Row 2: Category · Expiry date */}
-                <div className="flex gap-2">
+                {/* Row 2: Category · Storage toggle */}
+                <div className="flex gap-2 items-center">
                   <select
                     value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ShoppingCategory }))}
+                    onChange={(e) => {
+                      const cat = e.target.value as ShoppingCategory;
+                      setForm((f) => ({ ...f, category: cat, storage: DEFAULT_STORAGE[cat] }));
+                    }}
                     className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
-                    style={{ flex: 1, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   >
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
                     ))}
                   </select>
-                  <input
-                    type="date" value={form.expiryDate}
-                    onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                    className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
-                    style={{ flex: 1.4, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", minHeight: "unset" }}
-                  />
+                  {/* Storage 3-way toggle */}
+                  <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    {STORAGE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        title={opt.label}
+                        onClick={() => setForm((f) => ({ ...f, storage: opt.value }))}
+                        className="px-3 py-2.5 text-base transition"
+                        style={{
+                          background: form.storage === opt.value ? "var(--accent)" : "var(--surface)",
+                          color: form.storage === opt.value ? "#fff" : "var(--foreground)",
+                          borderRight: opt.value !== "freezer" ? "1px solid var(--border)" : undefined,
+                        }}
+                      >
+                        {opt.icon}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-1">
-                  <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                    className="px-4 py-2 rounded-xl text-sm font-medium transition"
-                    style={{ color: "var(--muted)" }}
+                {/* Row 3: Brand + Expiry (store-bought) / Made on + Expiry (homemade) */}
+                <div className="flex gap-2">
+                  {form.isHomemade ? (
+                    <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Made on</label>
+                      <input
+                        type="date" value={form.madeOn}
+                        onChange={(e) => setForm((f) => ({ ...f, madeOn: e.target.value }))}
+                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
+                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Brand</label>
+                      <input
+                        type="text" placeholder="Brand (optional)" value={form.brand}
+                        onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
+                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
+                    <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                      {form.isHomemade
+                        ? (() => {
+                            const days = HOMEMADE_SHELF_DAYS[form.category];
+                            if (!days || !form.madeOn) return "Use by";
+                            const d = new Date(form.madeOn);
+                            d.setDate(d.getDate() + days);
+                            const hint = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                            return `Use by · hint: ${hint}`;
+                          })()
+                        : "Expiry (from package)"}
+                    </label>
+                    <input
+                      type="date" value={form.expiryDate}
+                      onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                      placeholder={form.isHomemade && form.madeOn && HOMEMADE_SHELF_DAYS[form.category]
+                        ? (() => {
+                            const d = new Date(form.madeOn);
+                            d.setDate(d.getDate() + (HOMEMADE_SHELF_DAYS[form.category] ?? 7));
+                            return d.toISOString().split("T")[0];
+                          })()
+                        : undefined}
+                      className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Homemade toggle */}
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, isHomemade: !f.isHomemade }))}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: form.isHomemade ? "var(--accent)" : "var(--surface)",
+                      color: form.isHomemade ? "#fff" : "var(--muted)",
+                    }}
                   >
-                    Cancel
+                    🫙 Homemade {form.isHomemade && <Check size={13} />}
                   </button>
-                  <button type="button" onClick={saveItem} disabled={isSaving}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-60 transition"
-                    style={{ background: "var(--accent)", color: "#fff" }}
-                  >
-                    {isSaving ? "Saving…" : <><Check size={14} /> {editTarget ? "Update" : "Add"}</>}
-                  </button>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
+                      className="px-4 py-2 rounded-xl text-sm font-medium transition"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      Cancel
+                    </button>
+                    <button type="button" onClick={saveItem} disabled={isSaving}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-60 transition"
+                      style={{ background: "var(--accent)", color: "#fff" }}
+                    >
+                      {isSaving ? "Saving…" : <><Check size={14} /> {editTarget ? "Update" : "Add"}</>}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -426,9 +571,14 @@ export default function PantryPage() {
                     </span>
                   </div>
 
-                  {/* Quantity & expiry */}
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
+                  {/* Quantity, storage & expiry */}
+                  <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
                     <span className="font-medium" style={{ color: "var(--foreground)" }}>{item.quantity} {item.unit}</span>
+                    <span title={STORAGE_OPTIONS.find((s) => s.value === item.storage)?.label}>
+                      {STORAGE_OPTIONS.find((s) => s.value === item.storage)?.icon}
+                    </span>
+                    {item.isHomemade && <span className="italic">homemade</span>}
+                    {item.brand && <span>· {item.brand}</span>}
                     {item.expiryDate && <span>· exp {new Date(item.expiryDate).toLocaleDateString("en-GB", { day:"numeric", month:"short" })}</span>}
                   </div>
 

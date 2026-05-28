@@ -199,12 +199,18 @@ export interface PantryItem {
   quantity: number;
   unit: string;
   category: ShoppingCategory;
+  storage: StorageLocation;
   expiryDate?: string;
   lowStockThreshold?: number;
+  brand?: string;
+  isHomemade: boolean;
+  madeOn?: string;
   iconKey?: string;
   notes?: string;
   updatedAt: string;
 }
+
+export type StorageLocation = "room-temp" | "fridge" | "freezer";
 
 export type PantryItemStatus = "ok" | "expiring-soon" | "expired" | "low-stock";
 
