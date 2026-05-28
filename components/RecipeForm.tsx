@@ -22,7 +22,6 @@ import type {
 import AppIcon from "@/components/AppIcon";
 import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
 import { getEquipmentIcon } from "@/lib/ingredient-icons";
-import { stableCompositeId } from "@/lib/stable-ids";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
 const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
@@ -311,7 +310,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.ingredientGroups.map((group, groupIndex) => (
-          <div key={stableCompositeId("form-ingredient-group", group.group_en, group.group_de, groupIndex)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`group-${groupIndex}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <div className="three-field-row">
               <input
                 className="input"
@@ -333,7 +332,7 @@ export default function RecipeForm(props: RecipeFormProps) {
 
             {group.items.map((ingredient, ingredientIndex) => (
               <div
-                key={stableCompositeId("form-ingredient", group.group_en, ingredient.name_en, ingredient.unit, ingredientIndex)}
+                key={`ing-${groupIndex}-${ingredientIndex}`}
                 className="ingredient-row"
               >
                 <input
@@ -424,7 +423,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.instructionSections.map((section, index) => (
-          <div key={stableCompositeId("form-instruction-section", section.title_en, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`section-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <div className="three-field-row">
               <input
                 className="input"
@@ -473,7 +472,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.stepPhotos.map((item, index) => (
-          <div key={stableCompositeId("form-step-photo", item.image_url, item.step_number, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`step-photo-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <div className="step-photo-row">
               <input
                 className="input"
@@ -516,12 +515,12 @@ export default function RecipeForm(props: RecipeFormProps) {
           const equipIcon = getEquipmentIcon(item.label_en || item.label_de || "");
           return (
             <div
-              key={stableCompositeId("form-equipment", item.label_en, index)}
+              key={`equipment-${index}`}
               style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
             >
               {/* Equipment icon */}
               <motion.span
-                key={item.label_en}
+                key={`equip-icon-${index}`}
                 initial={{ scale: 0.7, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 400, damping: 20 }}
@@ -639,7 +638,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.faq.map((item, index) => (
-          <div key={stableCompositeId("form-faq", item.question_en, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`faq-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <input
               className="input"
               value={item.question_en}
@@ -685,7 +684,7 @@ export default function RecipeForm(props: RecipeFormProps) {
         </div>
 
         {props.troubleshooting.map((item, index) => (
-          <div key={stableCompositeId("form-troubleshooting", item.issue_en, index)} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
+          <div key={`troubleshooting-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
             <input
               className="input"
               value={item.issue_en}
