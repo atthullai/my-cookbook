@@ -22,6 +22,12 @@ interface LottieAnimationProps {
   className?: string;
   /** Called once the animation data has loaded */
   onReady?: () => void;
+  /**
+   * Passed straight through to the underlying lottie-web renderer.
+   * Useful for controlling SVG alignment via `preserveAspectRatio`.
+   * Example: { preserveAspectRatio: 'xMaxYMid meet' }
+   */
+  rendererSettings?: Record<string, unknown>;
 }
 
 export default function LottieAnimation({
@@ -31,6 +37,7 @@ export default function LottieAnimation({
   style,
   className,
   onReady,
+  rendererSettings,
 }: LottieAnimationProps) {
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const [animationData, setAnimationData] = useState<unknown>(null);
@@ -70,6 +77,7 @@ export default function LottieAnimation({
       autoplay={autoplay}
       style={style}
       className={className}
+      {...(rendererSettings ? { rendererSettings } : {})}
     />
   );
 }
