@@ -48,6 +48,8 @@ export default function AddRecipe() {
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [nutritionEstimateMessage, setNutritionEstimateMessage] = useState("");
   const [refreshingCoverPhoto, setRefreshingCoverPhoto] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   // ── Form state (identical shape to Edit page) ───────────────────────────────
   const [title, setTitle] = useState("");
@@ -325,6 +327,81 @@ export default function AddRecipe() {
     }
   };
 
+  // ── Import recipe from URL ─────────────────────────────────────────────────
+  const handleImportFromUrl = async () => {
+    const url = importUrl.trim();
+    if (!url) { notify({ tone: "info", title: "Paste a recipe URL first" }); return; }
+    setImporting(true);
+    try {
+      const result = await apiRequest<{ recipe?: ImportedRecipeDraft; error?: string }>(
+        "/api/import-recipe",
+        { method: "POST", body: { url }, timeoutMs: 30000 }
+      );
+      if (!result.recipe) throw new Error(result.error || "Could not import recipe.");
+
+      const draft = result.recipe;
+      setTitle(draft.title || "");
+      setDescriptionEn(draft.description || "");
+      setCategory(draft.category || "");
+      setCuisine(draft.cuisine || "");
+      setCourse(draft.course || "");
+      setDifficulty(draft.difficulty || "");
+      setTags(draft.tags || "");
+      setBadges(draft.badges || []);
+      setLearnedFrom(draft.learnedFrom || "");
+      setServings(draft.servings || "");
+      setPrepTime(draft.prepTime || "");
+      setCookTime(draft.cookTime || "");
+      setTotalTime(draft.totalTime || "");
+      setNotesEn(draft.notesEn || "");
+      setTipsEn(draft.tipsEn || "");
+      setSourceUrl(draft.sourceUrl || "");
+      setVideoUrl(draft.videoUrl || "");
+      setCoverImageUrl(draft.coverImageUrl || "");
+      setImageUrls(draft.imageUrls?.join("\n") || "");
+
+      if (draft.ingredients?.length > 0) {
+        setIngredientGroups(
+          draft.ingredients.map((g) => ({
+            ...EMPTY_INGREDIENT_GROUP,
+            group_en: g.group_en || "",
+            items: g.items?.length > 0
+              ? g.items.map((i) => ({ ...EMPTY_INGREDIENT, name_en: i.name_en || "", amount: i.amount || "", unit: i.unit || "" }))
+              : [{ ...EMPTY_INGREDIENT }],
+          }))
+        );
+      }
+
+      if (draft.instructionSections?.length > 0) {
+        setInstructionSections(
+          draft.instructionSections.map((s) => ({
+            ...EMPTY_INSTRUCTION_SECTION,
+            title_en: s.title_en || "",
+            steps_en: Array.isArray(s.steps_en) ? s.steps_en.join("\n") : (s.steps_en || ""),
+          }))
+        );
+      }
+
+      if (draft.faq?.length > 0) {
+        setFaq(
+          draft.faq.map((f) => ({ ...EMPTY_FAQ, question_en: f.question_en || "", answer_en: f.answer_en || "" }))
+        );
+      }
+
+      if (draft.equipment?.length > 0) {
+        setEquipment(
+          draft.equipment.map((e) => ({ ...EMPTY_EQUIPMENT, label_en: e.label_en || "" }))
+        );
+      }
+
+      notify({ tone: "success", title: "Recipe imported!", message: `"${draft.title}" is ready to review and save.` });
+    } catch (err) {
+      notify({ tone: "error", title: "Import failed", message: err instanceof Error ? err.message : "Could not import recipe." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <>
       <main className="edit-shell max-w-3xl mx-auto px-4 py-8 min-h-screen">
@@ -344,6 +421,33 @@ export default function AddRecipe() {
               Your Cookbook
             </p>
             <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>Add Recipe</h1>
+          </div>
+        </div>
+
+        {/* Import from URL panel */}
+        <div className="card import-panel mb-6">
+          <p className="eyebrow mb-2">Import from URL</p>
+          <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>
+            Paste a recipe URL to auto-fill the form from another blog or website.
+          </p>
+          <div className="import-row">
+            <input
+              type="url"
+              className="input"
+              placeholder="https://example.com/recipe/..."
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleImportFromUrl(); } }}
+            />
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => void handleImportFromUrl()}
+              disabled={importing}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {importing ? "Importing…" : "Import Recipe"}
+            </button>
           </div>
         </div>
 
