@@ -20,6 +20,7 @@ import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import type { AppUser, RecipeRecord } from "@/lib/recipe-types";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import LottieAnimation from "@/components/LottieAnimation";
 
 // ── Quick-nav card ────────────────────────────────────────────────────────────
 function NavCard({
@@ -129,10 +130,10 @@ export default function Home() {
             ].join(", "),
           }}
         >
-          <div className="relative max-w-5xl mx-auto">
+          <div className="relative max-w-5xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-8">
 
             {/* ── Editorial text ─────────────────────────────────────── */}
-            <div className="text-center lg:text-left max-w-lg">
+            <div className="flex-1 text-center lg:text-left">
 
               {/* Eyebrow */}
               <p
@@ -246,6 +247,15 @@ export default function Home() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* ── Peacock animation ──────────────────────────────────── */}
+            <div className="flex-shrink-0 flex items-center justify-center lg:justify-end" aria-hidden="true">
+              <LottieAnimation
+                src="/animations/peacock.json"
+                loop
+                style={{ width: 280, height: 280 }}
+              />
             </div>
           </div>
         </section>

@@ -28,6 +28,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import LottieAnimation from "@/components/LottieAnimation";
 import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -426,7 +427,16 @@ export default function PlannerPage() {
 
           {/* ── Header ────────────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-            <div>
+            <div className="flex items-center gap-3">
+              {/* Meal planner animation */}
+              <div aria-hidden="true" className="flex-shrink-0">
+                <LottieAnimation
+                  src="/animations/meal-planner.json"
+                  loop
+                  style={{ width: 80, height: 80 }}
+                />
+              </div>
+              <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-1"
                 style={{ color: "var(--accent)", opacity: 0.8 }}>
                 Weekly Menu
@@ -462,6 +472,7 @@ export default function PlannerPage() {
                     ← Today
                   </button>
                 )}
+              </div>
               </div>
             </div>
 

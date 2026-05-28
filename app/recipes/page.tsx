@@ -25,7 +25,7 @@ import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import KolamDivider from "@/components/KolamDivider";
+import DeerDivider from "@/components/DeerDivider";
 import type { RecipeSummary, CuisineOrigin, RecipeTag } from "@/types";
 
 // Slow, breathing, handcrafted — Tamil Nadu motion philosophy
@@ -182,7 +182,7 @@ export default function RecipesPage() {
             </Link>
           </motion.div>
 
-          <KolamDivider color="rgba(200, 140, 30, 0.2)" animateOnView={false} className="mb-6" />
+          <DeerDivider size={80} className="mb-6" />
 
           {/* ── Search + filter toggle ──────────────────────────────── */}
           <div className="flex gap-2 mb-4">

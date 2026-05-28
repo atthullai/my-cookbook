@@ -22,7 +22,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import KolamDivider from "@/components/KolamDivider";
+import DeerDivider from "@/components/DeerDivider";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "produce":         "🥦",
@@ -263,7 +263,7 @@ export default function PantryPage() {
           </div>
         </div>
 
-        <KolamDivider color="rgba(200, 140, 30, 0.2)" animateOnView={false} className="mb-5" />
+        <DeerDivider size={80} className="mb-5" />
 
         {/* Sort bar */}
         <div className="flex items-center gap-2 mb-5">
