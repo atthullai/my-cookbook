@@ -1088,6 +1088,36 @@ export default function PantryPage() {
                     </div>
                   </div>
 
+                  {/* Egg: Move to Fridge button when still at room temp */}
+                  {item.category === "eggs" && item.storage === "room-temp" && item.madeOn && (() => {
+                    const suggestedRoomTempEnd = addDays(item.madeOn, EGG_ROOM_TEMP_DAYS);
+                    const roomTempUntil = item.expiryDate && item.expiryDate < suggestedRoomTempEnd
+                      ? item.expiryDate : suggestedRoomTempEnd;
+                    const daysLeft = Math.ceil((new Date(roomTempUntil).getTime() - Date.now()) / 86_400_000);
+                    return (
+                      <button type="button"
+                        onClick={async () => {
+                          setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "fridge" } : i));
+                          const { error } = await supabase.from("pantry_items").update({ storage_location: "fridge" }).eq("id", item.id);
+                          if (error) {
+                            setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "room-temp" } : i));
+                            toast.error("Failed to update storage");
+                          } else {
+                            toast.success(`Eggs moved to fridge ❄️`);
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-xs rounded-xl font-semibold transition mb-1"
+                        style={{ background: "rgba(96,165,250,0.15)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.4)" }}
+                      >
+                        ❄️ Move to Fridge
+                        {daysLeft <= 0
+                          ? " — overdue!"
+                          : daysLeft === 0 ? " — do it today!"
+                          : ` — ${daysLeft} day${daysLeft !== 1 ? "s" : ""} left at room temp`}
+                      </button>
+                    );
+                  })()}
+
                   {/* Smart action strip — always visible */}
                   <div className="flex gap-1.5 flex-wrap -mt-1">
                     {/* Find Recipes — hidden for frozen and expired items */}
