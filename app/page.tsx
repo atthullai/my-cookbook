@@ -133,7 +133,7 @@ export default function Home() {
           <div className="relative max-w-5xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-8">
 
             {/* ── Editorial text ─────────────────────────────────────── */}
-            <div className="flex-1 text-center lg:text-left">
+            <div className="w-full lg:w-1/2 text-center lg:text-left">
 
               {/* Eyebrow */}
               <p
@@ -250,12 +250,14 @@ export default function Home() {
             </div>
 
             {/* ── Peacock animation ──────────────────────────────────── */}
-            <div className="flex-1 w-full flex items-center justify-center lg:justify-end peacock-wrap" aria-hidden="true">
-              <style>{`.peacock-wrap svg { width: 100% !important; height: auto !important; display: block; }`}</style>
+            <div
+              className="w-full lg:w-1/2 flex items-center justify-center lg:justify-end"
+              aria-hidden="true"
+            >
               <LottieAnimation
                 src="/animations/peacock.json"
                 loop
-                style={{ width: "100%", maxWidth: 640 }}
+                style={{ width: "clamp(320px, 45vw, 680px)", height: "clamp(320px, 45vw, 680px)" }}
               />
             </div>
           </div>
