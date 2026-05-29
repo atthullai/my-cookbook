@@ -189,6 +189,7 @@ export interface ShoppingItem {
   checked: boolean;
   recipeIds: string[];
   notes?: string;
+  source?: "planner" | "low-stock" | "manual";
 }
 
 // ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@ import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LottieAnimation from "@/components/LottieAnimation";
 import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
+import { CATEGORY_MAP } from "@/lib/pantry-items";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DAYS    = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -193,6 +194,24 @@ export default function PlannerPage() {
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [migrationNeeded, setMigrationNeeded] = useState(false);
 
+  // ── Expiry suggestions banner ──────────────────────────────────────────────
+  interface ExpirySuggestion {
+    itemName: string;
+    daysLeft: number;
+    recipe: RecipeSummary;
+  }
+  const [expirySuggestions, setExpirySuggestions] = useState<ExpirySuggestion[]>([]);
+  const [expiryBannerDismissed, setExpiryBannerDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const t = localStorage.getItem("planner-expiry-banner-dismissed");
+    return t ? Date.now() - parseInt(t) < 86_400_000 : false;
+  });
+  // Day+slot picker for "Add to plan"
+  const [addToPlanSuggestion, setAddToPlanSuggestion] = useState<ExpirySuggestion | null>(null);
+  const [addToPlanDay, setAddToPlanDay] = useState("");
+  const [addToPlanSlot, setAddToPlanSlot] = useState<MealSlot>("dinner");
+  const [isAddingToPlan, setIsAddingToPlan] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -229,6 +248,42 @@ export default function PlannerPage() {
       if (recipesRes.error) throw recipesRes.error;
 
       setMigrationNeeded(false);
+
+      // Load pantry items for expiry suggestions
+      const { data: pantryRows } = await supabase.from("pantry_items")
+        .select("name, expiry_date, storage_location, category")
+        .eq("user_id", user.id);
+
+      const now = Date.now();
+      const expiringPantry = (pantryRows ?? []).filter((p: { expiry_date: string | null; storage_location: string; category: string }) => {
+        if (!p.expiry_date) return false;
+        const daysLeft = Math.ceil((new Date(p.expiry_date).getTime() - now) / 86_400_000);
+        if (daysLeft < 0) return false;
+        const isFridge = p.storage_location === "fridge" || CATEGORY_MAP[p.category]?.openedStorage === "fridge";
+        return isFridge ? daysLeft <= 3 : daysLeft <= 7;
+      });
+
+      const allRecipesForSuggestions = toRecipeSummaries(mapRecipeRows(recipesRes.data ?? []));
+      const rawForSuggestions = mapRecipeRows(recipesRes.data ?? []);
+      const suggestions: ExpirySuggestion[] = [];
+      for (const pantryItem of expiringPantry.slice(0, 10)) {
+        const nameL = (pantryItem.name as string).toLowerCase();
+        const daysLeft = Math.ceil((new Date(pantryItem.expiry_date as string).getTime() - now) / 86_400_000);
+        for (const raw of rawForSuggestions) {
+          const recipe = allRecipesForSuggestions.find((r) => r.id === String(raw.id));
+          if (!recipe) continue;
+          const matches = raw.ingredients.some((g) =>
+            g.items.some((i) => i.name_en.toLowerCase().includes(nameL) || nameL.includes(i.name_en.toLowerCase()))
+          );
+          if (matches) {
+            suggestions.push({ itemName: pantryItem.name as string, daysLeft, recipe });
+            break;
+          }
+        }
+        if (suggestions.length >= 3) break;
+      }
+      setExpirySuggestions(suggestions);
+
       const mealRows: PlannedMeal[] = (mealsRes.data ?? []).map((row) => ({
         id:       row.id as string,
         date:     row.meal_date as string,
@@ -248,6 +303,34 @@ export default function PlannerPage() {
   }, [monday]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // ── Add to plan from expiry suggestion ────────────────────────────────────
+  const addSuggestionToPlan = async () => {
+    if (!addToPlanSuggestion || !addToPlanDay) return;
+    setIsAddingToPlan(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      if (plannedMeals.find((m) => m.date === addToPlanDay && m.slot === addToPlanSlot)) {
+        toast.error("That slot is already filled — pick another"); setIsAddingToPlan(false); return;
+      }
+      const { data, error } = await supabase.from("planned_meals").insert({
+        user_id: user.id, meal_date: addToPlanDay, meal_slot: addToPlanSlot,
+        recipe_id: parseInt(addToPlanSuggestion.recipe.id), servings: 1,
+      }).select().single();
+      if (error) throw error;
+      setPlannedMeals((prev) => [...prev, {
+        id: data.id as string, date: data.meal_date as string,
+        slot: data.meal_slot as MealSlot, recipeId: String(data.recipe_id), servings: 1,
+      }]);
+      toast.success(`${addToPlanSuggestion.recipe.title} added to plan`);
+      setAddToPlanSuggestion(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setIsAddingToPlan(false);
+    }
+  };
 
   // ── DnD: drag start ────────────────────────────────────────────────────────
   const handleDragStart = (event: DragStartEvent) => {
@@ -524,6 +607,51 @@ export default function PlannerPage() {
             </div>
           )}
 
+          {/* ── Expiry-driven suggestions banner ─────────────────────────── */}
+          {!expiryBannerDismissed && expirySuggestions.length > 0 && (
+            <div className="rounded-2xl p-4 mb-5 space-y-2"
+              style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.28)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#b45309" }}>
+                  ⏰ Use before they expire
+                </p>
+                <button type="button"
+                  onClick={() => {
+                    setExpiryBannerDismissed(true);
+                    if (typeof window !== "undefined") localStorage.setItem("planner-expiry-banner-dismissed", String(Date.now()));
+                  }}
+                  className="text-xs px-2 py-1 rounded-lg transition"
+                  style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
+                >
+                  Dismiss
+                </button>
+              </div>
+              {expirySuggestions.map((s, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5"
+                  style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                  <p className="text-sm" style={{ color: "var(--foreground)" }}>
+                    Use <strong>{s.itemName}</strong>{" "}
+                    <span className="text-xs" style={{ color: "#b45309" }}>
+                      ({s.daysLeft === 0 ? "expires today!" : s.daysLeft === 1 ? "exp tomorrow" : `${s.daysLeft}d left`})
+                    </span>{" "}
+                    → <span className="font-medium">{s.recipe.title}</span>
+                  </p>
+                  <button type="button"
+                    onClick={() => {
+                      setAddToPlanSuggestion(s);
+                      setAddToPlanDay(toISO(monday));
+                      setAddToPlanSlot("dinner");
+                    }}
+                    className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-medium transition whitespace-nowrap"
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                  >
+                    Add to plan →
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* ── DnD context ────────────────────────────────────────────────── */}
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={(e) => void handleDragEnd(e)}>
             <div className="flex gap-5">
@@ -676,6 +804,64 @@ export default function PlannerPage() {
               })()}
             </DragOverlay>
           </DndContext>
+
+          {/* ── Add-to-plan picker modal ───────────────────────────────────── */}
+          {addToPlanSuggestion && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ background: "rgba(0,0,0,0.5)" }}
+              onClick={() => setAddToPlanSuggestion(null)}>
+              <div className="rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}>
+                <div>
+                  <p className="font-semibold" style={{ color: "var(--foreground)" }}>Add to plan</p>
+                  <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                    {addToPlanSuggestion.recipe.title}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Day</label>
+                  <select value={addToPlanDay} onChange={(e) => setAddToPlanDay(e.target.value)}
+                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}>
+                    {weekDates.map((d) => (
+                      <option key={toISO(d)} value={toISO(d)}>
+                        {d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Slot</label>
+                  <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    {SLOTS.map((s, i) => (
+                      <button key={s} type="button"
+                        onClick={() => setAddToPlanSlot(s)}
+                        className="flex-1 py-2 text-xs font-medium transition capitalize"
+                        style={{
+                          background: addToPlanSlot === s ? "var(--accent)" : "var(--surface)",
+                          color: addToPlanSlot === s ? "#fff" : "var(--foreground)",
+                          borderRight: i < SLOTS.length - 1 ? "1px solid var(--border)" : undefined,
+                        }}>
+                        {SLOT_ICONS[s]} {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setAddToPlanSuggestion(null)}
+                    className="px-4 py-2 rounded-xl text-sm" style={{ color: "var(--muted)" }}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={() => void addSuggestionToPlan()} disabled={isAddingToPlan}
+                    className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-60"
+                    style={{ background: "var(--accent)", color: "#fff" }}>
+                    {isAddingToPlan ? "Adding…" : "✓ Add"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Empty week hint ────────────────────────────────────────────── */}
           {!loadingMeals && !migrationNeeded && plannedMeals.length === 0 && (

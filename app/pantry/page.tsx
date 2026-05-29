@@ -168,9 +168,16 @@ export default function PantryPage() {
   const [sortBy, setSortBy]         = useState<SortOption>("name");
   const [suggestions, setSuggestions] = useState<RecipeSummary[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [alertsExpanded, setAlertsExpanded]   = useState(true);
+  const [expandedGroups, setExpandedGroups]   = useState<Set<string>>(new Set());
+  const [groupedView, setGroupedView]         = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pantry-grouped-view") !== "false";
+    }
+    return true;
+  });
   const [showScanner, setShowScanner] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
-  const [isAddingToList, setIsAddingToList] = useState(false);
 
   // ── Recipe request / food sharing modal ───────────────────────────────────
   const [noRecipeItem, setNoRecipeItem] = useState<PantryItem | null>(null);
@@ -376,6 +383,7 @@ export default function PantryPage() {
         unit:     item.unit ?? "",
         category: item.category,
         checked:  false,
+        source:   "low-stock",
       });
       if (error) throw error;
       toast.success(`${item.name} added to shopping list`);
@@ -384,60 +392,12 @@ export default function PantryPage() {
     }
   };
 
-  // ── Add low-stock items to shopping list (bulk, from alert banner) ────────
-  const addLowStockToShoppingList = async () => {
-    if (isAddingToList) return;
-    const lowStock = items.filter((i) => getPantryStatus(i) === "low-stock");
-    if (!lowStock.length) return;
-    setIsAddingToList(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = "/login"; return; }
 
-      // Fetch ALL shopping list items (unchecked) to avoid duplicates
-      const { data: existing } = await supabase
-        .from("shopping_list")
-        .select("name, checked")
-        .eq("user_id", user.id);
+  // ── Suggest recipes (scored by ingredient availability) ──────────────────
+  const [recipeScores, setRecipeScores] = useState<
+    { id: string; matched: number; total: number; missing: string[] }[]
+  >([]);
 
-      const existingNames = new Set(
-        (existing ?? [])
-          .filter((r: { name: string; checked: boolean | string }) => !r.checked)
-          .map((r: { name: string }) => r.name.toLowerCase())
-      );
-
-      const toAdd = lowStock.filter((i) => !existingNames.has(i.name.toLowerCase()));
-      const skipped = lowStock.length - toAdd.length;
-
-      if (!toAdd.length) {
-        toast("Already in your shopping list", { icon: "ℹ️" });
-        return;
-      }
-
-      const rows = toAdd.map((i) => ({
-        user_id:  user.id,
-        name:     i.name,
-        quantity: i.lowStockThreshold ?? 1,
-        unit:     i.unit ?? "",
-        category: i.category,
-        checked:  false,
-      }));
-      const { error } = await supabase.from("shopping_list").insert(rows);
-      if (error) throw error;
-
-      toast.success(
-        skipped > 0
-          ? `${toAdd.length} added · ${skipped} already in list`
-          : `${toAdd.length} item${toAdd.length > 1 ? "s" : ""} added to shopping list`
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add to shopping list");
-    } finally {
-      setIsAddingToList(false);
-    }
-  };
-
-  // ── Suggest recipes ───────────────────────────────────────────────────────
   const suggestRecipes = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -445,16 +405,34 @@ export default function PantryPage() {
 
       const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
       const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
+      const rawRows = mapRecipeRows(data ?? []);
       const pantryNames = new Set(items.map((i) => i.name.toLowerCase()));
 
-      // Score recipes by % of ingredients available in pantry
-      // (Using title keywords as a simplification since RecipeSummary doesn't have ingredients)
-      const scored = allRecipes.filter((r) => {
-        const words = r.title.toLowerCase().split(/\s+/);
-        return words.some((w) => pantryNames.has(w));
-      });
+      // Score by ingredient availability using full recipe ingredient lists
+      const scored: { recipe: RecipeSummary; matched: number; total: number; missing: string[] }[] = [];
 
-      setSuggestions(scored.slice(0, 8));
+      for (const recipe of allRecipes) {
+        const raw = rawRows.find((r) => String(r.id) === recipe.id);
+        if (!raw) continue;
+        const allIngredients = raw.ingredients.flatMap((g) => g.items.map((i) => i.name_en));
+        if (allIngredients.length === 0) continue;
+        const matched: string[] = [];
+        const missing: string[] = [];
+        for (const ingName of allIngredients) {
+          const lower = ingName.toLowerCase();
+          const found = [...pantryNames].some((p) => p.includes(lower) || lower.includes(p));
+          if (found) matched.push(ingName);
+          else missing.push(ingName);
+        }
+        scored.push({ recipe, matched: matched.length, total: allIngredients.length, missing });
+      }
+
+      // Sort by score desc, take top 5
+      scored.sort((a, b) => b.matched / b.total - a.matched / a.total);
+      const top5 = scored.slice(0, 5);
+
+      setSuggestions(top5.map((s) => s.recipe));
+      setRecipeScores(top5.map((s) => ({ id: s.recipe.id, matched: s.matched, total: s.total, missing: s.missing })));
       setShowSuggestions(true);
     } catch {
       toast.error("Failed to suggest recipes");
@@ -744,56 +722,131 @@ export default function PantryPage() {
 
         <DeerDivider className="mb-5" />
 
-        {/* ── Alert banner ─────────────────────────────────────────────── */}
+        {/* ── Three-tier alert banner ───────────────────────────────────── */}
         {!loading && (() => {
-          const expired    = items.filter((i) => getPantryStatus(i) === "expired");
-          const expiring   = items.filter((i) => getPantryStatus(i) === "expiring-soon");
-          const lowStock   = items.filter((i) => getPantryStatus(i) === "low-stock");
-          if (!expired.length && !expiring.length && !lowStock.length) return null;
+          const expired  = items.filter((i) => getPantryStatus(i) === "expired");
+          const expiring = items.filter((i) => getPantryStatus(i) === "expiring-soon");
+          const outOfStock = items.filter((i) => i.quantity === 0);
+          const totalAlerts = expired.length + expiring.length + outOfStock.length;
+          if (!totalAlerts) return null;
+
+          const addAlertItemToList = async (item: PantryItem, source: string) => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) { window.location.href = "/login"; return; }
+              const { data: existing } = await supabase
+                .from("shopping_list").select("name, checked").eq("user_id", user.id);
+              const alreadyIn = (existing ?? [])
+                .filter((r: { checked: boolean }) => !r.checked)
+                .some((r: { name: string }) => r.name.toLowerCase() === item.name.toLowerCase());
+              if (alreadyIn) { toast("Already in your shopping list", { icon: "ℹ️" }); return; }
+              const { error } = await supabase.from("shopping_list").insert({
+                user_id: user.id, name: item.name,
+                quantity: item.lowStockThreshold ?? 1,
+                unit: item.unit ?? "", category: item.category, checked: false, source,
+              });
+              if (error) throw error;
+              toast.success(`${item.name} added to shopping list`);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Failed");
+            }
+          };
 
           return (
-            <div className="rounded-2xl p-4 mb-5 space-y-2" style={{ background: "rgba(201,149,42,0.08)", border: "1px solid rgba(201,149,42,0.25)" }}>
-              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--accent)" }}>
-                ⚠ Pantry alerts
-              </p>
-              {expired.length > 0 && (
-                <p className="text-sm text-red-600">
-                  <span className="font-semibold">✗ Expired:</span>{" "}
-                  {expired.map((i) => i.name).join(", ")}
-                </p>
-              )}
-              {expiring.length > 0 && (
-                <p className="text-sm text-amber-700">
-                  <span className="font-semibold">⚠ Expiring soon:</span>{" "}
-                  {expiring.map((i) => {
-                    const days = Math.ceil((new Date(i.expiryDate!).getTime() - Date.now()) / 86_400_000);
-                    return `${i.name} (${days === 0 ? "today" : days === 1 ? "tomorrow" : `${days}d`})`;
-                  }).join(", ")}
-                </p>
-              )}
-              {lowStock.length > 0 && (
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <p className="text-sm" style={{ color: "var(--foreground)" }}>
-                    <span className="font-semibold">↓ Low stock:</span>{" "}
-                    {lowStock.map((i) => `${i.name} (${i.quantity} ${i.unit})`).join(", ")}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={addLowStockToShoppingList}
-                    disabled={isAddingToList}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap disabled:opacity-60"
-                    style={{ background: "var(--accent)", color: "#fff" }}
-                  >
-                    {isAddingToList ? "Adding…" : "+ Add to shopping list"}
-                  </button>
+            <div className="rounded-2xl mb-5 overflow-hidden" style={{ border: "1px solid rgba(201,149,42,0.25)" }}>
+              {/* Header row */}
+              <button
+                type="button"
+                onClick={() => setAlertsExpanded((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3"
+                style={{ background: "rgba(201,149,42,0.08)" }}
+              >
+                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--accent)" }}>
+                  ⚠ Pantry alerts
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: "var(--accent)", color: "#fff" }}>
+                    {totalAlerts}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>{alertsExpanded ? "▲" : "▼"}</span>
+                </div>
+              </button>
+
+              {alertsExpanded && (
+                <div className="divide-y" style={{ borderTop: "1px solid rgba(201,149,42,0.15)" }}>
+                  {/* 🔴 Expired */}
+                  {expired.map((item) => {
+                    const days = Math.abs(Math.ceil((new Date(item.expiryDate!).getTime() - Date.now()) / 86_400_000));
+                    return (
+                      <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2.5"
+                        style={{ borderTop: "1px solid rgba(239,68,68,0.1)" }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-base flex-shrink-0">🔴</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{item.name}</p>
+                            <p className="text-xs text-red-500">expired {days}d ago</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => void addAlertItemToList(item, "low-stock")}
+                          className="flex-shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition"
+                          style={{ background: "rgba(239,68,68,0.1)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.25)" }}>
+                          🛒 Add to list
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {/* 🟠 Expiring soon */}
+                  {expiring.map((item) => {
+                    const days = Math.ceil((new Date(item.expiryDate!).getTime() - Date.now()) / 86_400_000);
+                    return (
+                      <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2.5"
+                        style={{ borderTop: "1px solid rgba(249,115,22,0.1)" }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-base flex-shrink-0">🟠</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{item.name}</p>
+                            <p className="text-xs text-amber-600">
+                              {days === 0 ? "expires today!" : days === 1 ? "expires tomorrow" : `${days}d left`}
+                            </p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => void addAlertItemToList(item, "low-stock")}
+                          className="flex-shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition"
+                          style={{ background: "rgba(249,115,22,0.1)", color: "#c2410c", border: "1px solid rgba(249,115,22,0.25)" }}>
+                          🛒 Add to list
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {/* 🟡 Out of stock */}
+                  {outOfStock.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2.5"
+                      style={{ borderTop: "1px solid rgba(234,179,8,0.1)" }}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base flex-shrink-0">🟡</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{item.name}</p>
+                          <p className="text-xs" style={{ color: "var(--muted)" }}>out of stock</p>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => void addAlertItemToList(item, "low-stock")}
+                        className="flex-shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition"
+                        style={{ background: "rgba(234,179,8,0.1)", color: "#b45309", border: "1px solid rgba(234,179,8,0.25)" }}>
+                        🛒 Add to list
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           );
         })()}
 
-        {/* Sort bar */}
-        <div className="flex items-center gap-2 mb-5">
+        {/* Sort bar + Grouped/All toggle */}
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
           <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Sort:</span>
           {(["name","expiry","category"] as SortOption[]).map((s) => (
             <button key={s} type="button" onClick={() => setSortBy(s)}
@@ -807,6 +860,25 @@ export default function PantryPage() {
               {s}
             </button>
           ))}
+          <div className="ml-auto flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            {(["Grouped", "All"] as const).map((v, i) => (
+              <button key={v} type="button"
+                onClick={() => {
+                  const grouped = v === "Grouped";
+                  setGroupedView(grouped);
+                  if (typeof window !== "undefined") localStorage.setItem("pantry-grouped-view", String(grouped));
+                }}
+                className="px-3 py-1.5 text-xs font-medium transition"
+                style={{
+                  background: (v === "Grouped") === groupedView ? "var(--accent)" : "var(--surface)",
+                  color: (v === "Grouped") === groupedView ? "#fff" : "var(--foreground)",
+                  borderRight: i === 0 ? "1px solid var(--border)" : undefined,
+                }}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Inline add/edit form ──────────────────────────────────────── */}
@@ -1187,15 +1259,69 @@ export default function PantryPage() {
           </div>
         )}
 
-        {/* Pantry grid */}
-        {!loading && sorted.length > 0 && (
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
-          >
-            {sorted.map((item) => {
+        {/* Pantry grid — Grouped or All */}
+        {!loading && sorted.length > 0 && groupedView && (() => {
+          // Group by name (case-insensitive)
+          const groups = new Map<string, PantryItem[]>();
+          for (const item of sorted) {
+            const key = item.name.toLowerCase();
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(item);
+          }
+          return (
+            <div className="space-y-4">
+              {[...groups.entries()].map(([key, groupItems]) => {
+                const firstName = groupItems[0].name;
+                const totalQty = groupItems.reduce((s, i) => s + i.quantity, 0);
+                const unit = groupItems[0].unit;
+                const isExpanded = expandedGroups.has(key);
+                const worstStatus = groupItems.reduce<PantryItemStatus>((worst, i) => {
+                  const s = getPantryStatus(i);
+                  const priority: Record<PantryItemStatus, number> = { expired: 0, "expiring-soon": 1, "low-stock": 2, ok: 3 };
+                  return priority[s] < priority[worst] ? s : worst;
+                }, "ok");
+                return (
+                  <div key={key} className="rounded-2xl overflow-hidden shadow-sm"
+                    style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                    {/* Group headline */}
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                      onClick={() => setExpandedGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(key)) next.delete(key); else next.add(key);
+                        return next;
+                      })}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{CATEGORY_ICONS[groupItems[0].category]}</span>
+                        <div>
+                          <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+                            {firstName}
+                            {groupItems.length > 1 && (
+                              <span className="ml-2 text-xs font-normal px-1.5 py-0.5 rounded-full"
+                                style={{ background: "var(--surface-strong)", color: "var(--muted)" }}>
+                                {groupItems.length} entries
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs" style={{ color: "var(--muted)" }}>
+                            {totalQty} {unit} total
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES[worstStatus]}`}>
+                          {STATUS_LABELS[worstStatus]}
+                        </span>
+                        <span className="text-xs" style={{ color: "var(--muted)" }}>{isExpanded ? "▲" : "▼"}</span>
+                      </div>
+                    </button>
+                    {/* Expanded individual entries */}
+                    {isExpanded && (
+                      <div className="border-t grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-3"
+                        style={{ borderColor: "var(--border)" }}>
+                        {groupItems.map((item) => {
               const status = getPantryStatus(item);
               const daysLeft = item.expiryDate
                 ? Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86_400_000)
@@ -1490,6 +1616,141 @@ export default function PantryPage() {
                 </motion.div>
               );
             })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* Pantry grid — All (flat) view */}
+        {!loading && sorted.length > 0 && !groupedView && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+          >
+            {sorted.map((item) => {
+              const status = getPantryStatus(item);
+              const daysLeft = item.expiryDate
+                ? Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86_400_000)
+                : null;
+              const cardBorder =
+                status === "expired"        ? "2px solid #ef4444" :
+                status === "expiring-soon"  ? "2px solid #f59e0b" :
+                status === "low-stock"      ? "2px solid #f97316" :
+                                              "1px solid var(--border)";
+              const freezableCategories: ShoppingCategory[] = [
+                "produce","meat","fish-seafood","dairy","bakery","grains-pulses","beverages",
+              ];
+              const canFreeze = freezableCategories.includes(item.category) && item.storage === "fridge";
+              return (
+                <motion.div
+                  key={item.id}
+                  variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
+                  className="rounded-2xl shadow-sm p-4 flex flex-col gap-3"
+                  style={{ background: "var(--surface)", border: cardBorder }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl" aria-hidden="true">{CATEGORY_ICONS[item.category]}</span>
+                      <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
+                    </div>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>
+                      {STATUS_LABELS[status]}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 -mt-1 flex-wrap">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium capitalize"
+                      style={{ background: "var(--surface-strong)", color: "var(--muted)" }}>
+                      {CATEGORY_ICONS[item.category]} {item.category.replace(/-/g, " ")}
+                    </span>
+                    {daysLeft !== null ? (
+                      <p className={`text-xs font-medium ${status === "expired" ? "text-red-500" : status === "expiring-soon" ? "text-amber-600" : "text-gray-400"}`}>
+                        {status === "expired" ? `Expired ${Math.abs(daysLeft)}d ago` : daysLeft === 0 ? "Expires today!" : daysLeft === 1 ? "Expires tomorrow" : status === "expiring-soon" ? `${daysLeft}d left` : `Exp ${new Date(item.expiryDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
+                      </p>
+                    ) : (
+                      <p className="text-[10px]" style={{ color: "var(--muted)", opacity: 0.6 }}>No expiry set</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
+                      <span title={STORAGE_OPTIONS.find((s) => s.value === item.storage)?.label}>
+                        {STORAGE_OPTIONS.find((s) => s.value === item.storage)?.icon}
+                      </span>
+                      {item.isOpened && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                          style={{ background: "rgba(234,179,8,0.12)", color: "#b45309", border: "1px solid rgba(234,179,8,0.3)" }}>
+                          📂 Opened
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
+                      <button type="button" onClick={() => adjustQuantity(item, -1)} disabled={item.quantity <= 0}
+                        className="px-2 py-1 text-sm font-bold disabled:opacity-30 transition"
+                        style={{ background: "var(--surface)", color: "var(--foreground)" }}>−</button>
+                      <span className="px-2 text-xs font-semibold tabular-nums" style={{ color: "var(--foreground)", minWidth: 48, textAlign: "center" }}>
+                        {item.quantity} {item.unit}
+                      </span>
+                      <button type="button" onClick={() => adjustQuantity(item, 1)}
+                        className="px-2 py-1 text-sm font-bold transition"
+                        style={{ background: "var(--surface)", color: "var(--foreground)" }}>+</button>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap -mt-1">
+                    {item.storage !== "freezer" && status !== "expired" && (
+                      <button type="button" onClick={() => findRecipesFor(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={status === "expiring-soon" ? { background: "rgba(201,149,42,0.14)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.35)" } : { background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }}>
+                        🍳 Recipes
+                      </button>
+                    )}
+                    {CATEGORY_MAP[item.category]?.hasOpenedState && !item.isOpened && status !== "expired" && (
+                      <button type="button" onClick={() => void markOpened(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(234,179,8,0.08)", color: "#b45309", border: "1px solid rgba(234,179,8,0.25)" }}>
+                        📂 Click here if opened
+                      </button>
+                    )}
+                    {status === "expiring-soon" && canFreeze && !item.isFrozen && (
+                      <button type="button" onClick={() => moveToFreezer(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(96,165,250,0.12)", color: "#3b82f6", border: "1px solid rgba(96,165,250,0.3)" }}>
+                        🧊 Freeze
+                      </button>
+                    )}
+                    {(status === "expiring-soon" || status === "expired") && (
+                      <button type="button" onClick={() => addItemToShoppingList(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(201,149,42,0.10)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.3)" }}>
+                        🛒 Buy more
+                      </button>
+                    )}
+                    {(status === "expired" || status === "expiring-soon") && (
+                      <button type="button" onClick={() => discardItem(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}>
+                        🗑 Discard
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-auto pt-1" style={{ borderTop: "1px solid var(--border)" }}>
+                    <button type="button" onClick={() => openEdit(item)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg transition"
+                      style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}>
+                      <Pencil size={11} /> Edit
+                    </button>
+                    <button type="button" onClick={() => setDeleteTarget(item)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg border border-red-100 text-red-500 hover:bg-red-50 transition">
+                      <Trash2 size={11} /> Remove
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </motion.div>
         )}
 
@@ -1502,28 +1763,58 @@ export default function PantryPage() {
             >
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowSuggestions(false)} />
               <motion.div
-                className="relative bg-white rounded-2xl shadow-xl p-6 mx-4 w-full max-w-md max-h-[70vh] flex flex-col"
+                className="relative rounded-2xl shadow-xl p-6 mx-4 w-full max-w-md max-h-[80vh] flex flex-col"
+                style={{ background: "var(--surface)" }}
                 initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 380, damping: 28 }}
               >
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-semibold text-gray-900">Recipes You Can Make</h2>
-                  <button type="button" onClick={() => setShowSuggestions(false)}><X size={16} /></button>
+                  <h2 className="font-semibold" style={{ color: "var(--foreground)" }}>Recipes You Can Make</h2>
+                  <button type="button" onClick={() => setShowSuggestions(false)}><X size={16} style={{ color: "var(--muted)" }} /></button>
                 </div>
                 {suggestions.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-8">
+                  <p className="text-sm text-center py-8" style={{ color: "var(--muted)" }}>
                     No recipes found matching your pantry items.
                   </p>
                 ) : (
-                  <ul className="overflow-y-auto space-y-2">
-                    {suggestions.map((r) => (
-                      <li key={r.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                        <span className="text-xl">{r.imageUrl ? "🍽️" : "🍳"}</span>
-                        <a href={`/recipes/${r.id}`} className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
-                          {r.title}
-                        </a>
-                      </li>
-                    ))}
+                  <ul className="overflow-y-auto space-y-3">
+                    {suggestions.map((r) => {
+                      const score = recipeScores.find((s) => s.id === r.id);
+                      return (
+                        <li key={r.id} className="rounded-xl p-4 space-y-2"
+                          style={{ background: "var(--surface-strong)", border: "1px solid var(--border)" }}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">🍳</span>
+                              <a href={`/recipes/${r.id}`} className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
+                                {r.title}
+                              </a>
+                            </div>
+                            <Link href="/planner"
+                              className="flex-shrink-0 text-xs px-2.5 py-1 rounded-lg font-medium transition whitespace-nowrap"
+                              style={{ background: "var(--accent)", color: "#fff" }}
+                            >
+                              Plan →
+                            </Link>
+                          </div>
+                          {score && (
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                                <div className="h-full rounded-full" style={{ background: "var(--accent)", width: `${(score.matched / score.total) * 100}%` }} />
+                              </div>
+                              <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--muted)" }}>
+                                {score.matched}/{score.total} ingredients
+                              </span>
+                            </div>
+                          )}
+                          {score && score.missing.length > 0 && (
+                            <p className="text-xs" style={{ color: "#ef4444" }}>
+                              Missing: {score.missing.slice(0, 5).join(", ")}{score.missing.length > 5 ? ` +${score.missing.length - 5} more` : ""}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </motion.div>

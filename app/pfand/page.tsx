@@ -126,6 +126,21 @@ export default function PfandPage() {
 
   useEffect(() => load(), [load]);
 
+  // ── Mark all pending returned ─────────────────────────────────────────────
+  const markAllReturned = async () => {
+    const ids = pending.map((e) => e.id);
+    if (!ids.length) return;
+    const totalAmt = pending.reduce((s, e) => s + e.deposit, 0);
+    setEntries((prev) => prev.map((e) => ids.includes(e.id) ? { ...e, returned: true } : e));
+    const { error } = await supabase.from("pfand_items").update({ returned: true }).in("id", ids);
+    if (error) {
+      setEntries((prev) => prev.map((e) => ids.includes(e.id) ? { ...e, returned: false } : e));
+      toast.error("Failed to update");
+    } else {
+      toast.success(`✓ All ${ids.length} items returned · €${totalAmt.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    }
+  };
+
   // ── Mark returned ─────────────────────────────────────────────────────────
   const markReturned = async (entry: PfandEntry) => {
     setEntries((prev) => prev.map((e) => e.id === entry.id ? { ...e, returned: true } : e));
@@ -217,9 +232,20 @@ export default function PfandPage() {
       </div>
 
       {/* Pending section */}
-      <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--muted)" }}>
-        Pending return
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--muted)" }}>
+          Pending return
+        </p>
+        {pending.length > 1 && (
+          <button
+            onClick={() => void markAllReturned()}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition hover:bg-green-500 hover:text-white"
+            style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+          >
+            <Check size={12} /> Mark all returned
+          </button>
+        )}
+      </div>
 
       {loading ? (
         <p className="text-sm text-center py-8" style={{ color: "var(--muted)" }}>Loading…</p>

@@ -22,6 +22,7 @@ import { detectPfand, pfandBadgeLabel } from "@/lib/pfand";
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { ShoppingItem, ShoppingCategory } from "@/types";
+import { lookupItem, suggestExpiryDate, CATEGORY_MAP } from "@/lib/pantry-items";
 
 const CATEGORY_META: Record<ShoppingCategory, { label: string; icon: string }> = {
   "produce":       { label: "Produce",        icon: "🥕" },
@@ -89,6 +90,9 @@ export default function ShoppingListPage() {
   // ── Restock popup (shown when checking off an item) ───────────────────────
   const [restockTarget, setRestockTarget] = useState<ShoppingItem | null>(null);
   const [restockQty, setRestockQty]       = useState("1");
+  const [restockExpiry, setRestockExpiry] = useState("");
+  const [restockStorage, setRestockStorage] = useState<"room-temp" | "fridge" | "freezer">("room-temp");
+  const [restockPfand, setRestockPfand]   = useState<number | null>(null);
   const [isRestocking, setIsRestocking]   = useState(false);
 
   // ── Notes expand state & delete ───────────────────────────────────────────
@@ -119,6 +123,7 @@ export default function ShoppingListPage() {
           checked:   Boolean(row.checked),
           recipeIds: [],
           notes:     row.notes ?? "",
+          source:    (row.source ?? "manual") as ShoppingItem["source"],
         }))
       );
     } catch (err) {
@@ -147,6 +152,7 @@ export default function ShoppingListPage() {
           unit:     addForm.unit.trim() || null,
           category: addForm.category,
           checked:  false,
+          source:   "manual",
         })
         .select()
         .single();
@@ -161,6 +167,7 @@ export default function ShoppingListPage() {
         category:  (data.category ?? "other") as ShoppingCategory,
         checked:   false,
         recipeIds: [],
+        source:    "manual" as const,
       }]);
       setAddForm(EMPTY_ADD_FORM);
       setShowAddForm(false);
@@ -268,6 +275,7 @@ export default function ShoppingListPage() {
         unit:     n.unit || null,
         category: n.category,
         checked:  false,
+        source:   "planner",
       }));
 
       const { data: inserted, error: insertError } = await supabase
@@ -285,6 +293,7 @@ export default function ShoppingListPage() {
         category:  (row.category ?? "other") as ShoppingCategory,
         checked:   false,
         recipeIds: [],
+        source:    "planner" as const,
       }));
 
       setItems((prev) => [...prev, ...newItems]);
@@ -302,6 +311,18 @@ export default function ShoppingListPage() {
       // Checking ON → show restock popup pre-filled with shopping list qty
       setRestockTarget(item);
       setRestockQty(String(item.quantity));
+      // Pre-fill expiry and storage from lookup table
+      const itemDef = lookupItem(item.category, item.name);
+      const cat = CATEGORY_MAP[item.category];
+      if (itemDef) {
+        setRestockExpiry(suggestExpiryDate(item.category, item.name));
+        setRestockStorage((itemDef.defaultStorage ?? cat?.openedStorage ?? "room-temp") as "room-temp" | "fridge" | "freezer");
+        setRestockPfand(item.category === "beverages" ? (itemDef.pfand ?? null) : null);
+      } else {
+        setRestockExpiry("");
+        setRestockStorage("room-temp");
+        setRestockPfand(null);
+      }
     } else {
       // Unchecking — just uncheck, no pantry update
       void markChecked(item, false);
@@ -341,11 +362,12 @@ export default function ShoppingListPage() {
         quantity:         qty,
         unit:             restockTarget.unit || (isEggs ? "M" : ""),
         category:         restockTarget.category,
-        storage_location: "room-temp",
+        storage_location: restockStorage,
         is_homemade:      false,
         is_frozen:        false,
         made_on:          boughtToday,
-        expiry_date:      null,
+        expiry_date:      restockExpiry || null,
+        pfand_amount:     restockPfand,
       });
       toast.success(
         isEggs
@@ -644,6 +666,20 @@ export default function ShoppingListPage() {
                               {item.name}
                             </motion.span>
 
+                            {/* Source tag */}
+                            {item.source === "planner" && (
+                              <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-lg font-semibold"
+                                style={{ background: "rgba(59,130,246,0.12)", color: "#2563eb", border: "1px solid rgba(59,130,246,0.25)" }}>
+                                📋 Planner
+                              </span>
+                            )}
+                            {item.source === "low-stock" && (
+                              <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-lg font-semibold"
+                                style={{ background: "rgba(245,158,11,0.12)", color: "#b45309", border: "1px solid rgba(245,158,11,0.25)" }}>
+                                ⚠ Low stock
+                              </span>
+                            )}
+
                             {/* Pfand badge */}
                             {(() => {
                               const pfand = detectPfand(item.name);
@@ -739,9 +775,24 @@ export default function ShoppingListPage() {
                 How much did you buy?
               </p>
               <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
-                This will be added to your pantry for <span className="font-medium" style={{ color: "var(--foreground)" }}>{restockTarget.name}</span>.
+                Adding <span className="font-medium" style={{ color: "var(--foreground)" }}>{restockTarget.name}</span> to pantry.
               </p>
             </div>
+
+            {/* Lookup tip */}
+            {(() => {
+              const def = lookupItem(restockTarget.category, restockTarget.name);
+              if (!def?.tip) return null;
+              return (
+                <div className="rounded-xl px-3 py-2 text-xs flex gap-2 items-start"
+                  style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)", color: "var(--muted)" }}>
+                  <span className="flex-shrink-0">💡</span>
+                  <span>{def.tip}</span>
+                </div>
+              );
+            })()}
+
+            {/* Qty row */}
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -757,6 +808,58 @@ export default function ShoppingListPage() {
                 {restockTarget.unit || "units"}
               </span>
             </div>
+
+            {/* Expiry */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Expiry date</label>
+              <input
+                type="date"
+                value={restockExpiry}
+                onChange={(e) => setRestockExpiry(e.target.value)}
+                className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}
+              />
+            </div>
+
+            {/* Storage */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Storage</label>
+              <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                {(["room-temp", "fridge", "freezer"] as const).map((s, i) => (
+                  <button key={s} type="button"
+                    onClick={() => setRestockStorage(s)}
+                    className="flex-1 py-2 text-xs font-medium transition"
+                    style={{
+                      background: restockStorage === s ? "var(--accent)" : "var(--surface)",
+                      color: restockStorage === s ? "#fff" : "var(--foreground)",
+                      borderRight: i < 2 ? "1px solid var(--border)" : undefined,
+                    }}
+                  >
+                    {s === "room-temp" ? "🌡️ Room" : s === "fridge" ? "❄️ Fridge" : "🧊 Freezer"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pfand selector — beverages only */}
+            {restockTarget.category === "beverages" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Pfand deposit</label>
+                <select
+                  value={restockPfand === null ? "none" : String(restockPfand)}
+                  onChange={(e) => setRestockPfand(e.target.value === "none" ? null : parseFloat(e.target.value))}
+                  className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}
+                >
+                  <option value="none">Carton — No Pfand</option>
+                  <option value="0.25">PET €0.25</option>
+                  <option value="0.25">Can €0.25</option>
+                  <option value="0.15">Einweg glass €0.15</option>
+                  <option value="0.08">Mehrweg €0.08</option>
+                </select>
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
