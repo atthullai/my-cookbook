@@ -284,6 +284,30 @@ export default function PantryPage() {
     }
   };
 
+  // ── Add low-stock items to shopping list ─────────────────────────────────
+  const addLowStockToShoppingList = async () => {
+    const lowStock = items.filter((i) => getPantryStatus(i) === "low-stock");
+    if (!lowStock.length) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+
+      const rows = lowStock.map((i) => ({
+        user_id:  user.id,
+        name:     i.name,
+        quantity: i.lowStockThreshold ?? 1,
+        unit:     i.unit ?? "",
+        category: i.category,
+        checked:  false,
+      }));
+      const { error } = await supabase.from("shopping_list").insert(rows);
+      if (error) throw error;
+      toast.success(`${lowStock.length} item${lowStock.length > 1 ? "s" : ""} added to shopping list`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add to shopping list");
+    }
+  };
+
   // ── Suggest recipes ───────────────────────────────────────────────────────
   const suggestRecipes = async () => {
     try {
@@ -377,6 +401,53 @@ export default function PantryPage() {
         </div>
 
         <DeerDivider className="mb-5" />
+
+        {/* ── Alert banner ─────────────────────────────────────────────── */}
+        {!loading && (() => {
+          const expired    = items.filter((i) => getPantryStatus(i) === "expired");
+          const expiring   = items.filter((i) => getPantryStatus(i) === "expiring-soon");
+          const lowStock   = items.filter((i) => getPantryStatus(i) === "low-stock");
+          if (!expired.length && !expiring.length && !lowStock.length) return null;
+
+          return (
+            <div className="rounded-2xl p-4 mb-5 space-y-2" style={{ background: "rgba(201,149,42,0.08)", border: "1px solid rgba(201,149,42,0.25)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--accent)" }}>
+                ⚠ Pantry alerts
+              </p>
+              {expired.length > 0 && (
+                <p className="text-sm text-red-600">
+                  <span className="font-semibold">✗ Expired:</span>{" "}
+                  {expired.map((i) => i.name).join(", ")}
+                </p>
+              )}
+              {expiring.length > 0 && (
+                <p className="text-sm text-amber-700">
+                  <span className="font-semibold">⚠ Expiring soon:</span>{" "}
+                  {expiring.map((i) => {
+                    const days = Math.ceil((new Date(i.expiryDate!).getTime() - Date.now()) / 86_400_000);
+                    return `${i.name} (${days === 0 ? "today" : days === 1 ? "tomorrow" : `${days}d`})`;
+                  }).join(", ")}
+                </p>
+              )}
+              {lowStock.length > 0 && (
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-sm" style={{ color: "var(--foreground)" }}>
+                    <span className="font-semibold">↓ Low stock:</span>{" "}
+                    {lowStock.map((i) => `${i.name} (${i.quantity} ${i.unit})`).join(", ")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addLowStockToShoppingList}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap"
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                  >
+                    + Add to shopping list
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Sort bar */}
         <div className="flex items-center gap-2 mb-5">
@@ -528,7 +599,26 @@ export default function PantryPage() {
                   </div>
                 </div>
 
-                {/* Row 4: Homemade toggle */}
+                {/* Row 4: Low stock threshold */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                    Alert when below (optional)
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number" min="0" placeholder={`e.g. 50`}
+                      value={form.lowStockThreshold}
+                      onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: e.target.value }))}
+                      className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
+                      style={{ width: 100, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    />
+                    <span className="text-sm" style={{ color: "var(--muted)" }}>
+                      {form.unit || "units"} — shows Low Stock badge when quantity drops below this
+                    </span>
+                  </div>
+                </div>
+
+                {/* Row 5: Homemade toggle */}
                 <div className="flex items-center justify-between pt-1">
                   <button
                     type="button"
