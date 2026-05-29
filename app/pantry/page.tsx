@@ -23,6 +23,7 @@ import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory, Sto
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DeerDivider from "@/components/DeerDivider";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "produce":       "🥕",
@@ -147,6 +148,8 @@ export default function PantryPage() {
   const [sortBy, setSortBy]         = useState<SortOption>("name");
   const [suggestions, setSuggestions] = useState<RecipeSummary[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -190,6 +193,36 @@ export default function PantryPage() {
   }, []);
 
   useEffect(() => { loadItems(); }, [loadItems]);
+
+  // ── Barcode lookup ────────────────────────────────────────────────────────
+  const handleBarcode = async (code: string) => {
+    setShowScanner(false);
+    setBarcodeLoading(true);
+    try {
+      const res = await fetch(`/api/barcode?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (!data.found) {
+        toast.error(`Barcode ${code} not found in product database`);
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        name:     data.name  || f.name,
+        brand:    data.brand || f.brand,
+        category: (data.category as ShoppingCategory) ?? f.category,
+        storage:  DEFAULT_STORAGE[(data.category as ShoppingCategory) ?? f.category],
+        quantity: data.quantity ? String(data.quantity) : f.quantity,
+        unit:     data.unit   || f.unit,
+        isHomemade: false,
+      }));
+      setShowForm(true);
+      toast.success(`Found: ${data.name}`);
+    } catch {
+      toast.error("Barcode lookup failed");
+    } finally {
+      setBarcodeLoading(false);
+    }
+  };
 
   // ── Save item (add or edit) ───────────────────────────────────────────────
   const saveItem = async () => {
@@ -320,12 +353,19 @@ export default function PantryPage() {
               {items.length} item{items.length !== 1 ? "s" : ""} tracked
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button type="button" onClick={suggestRecipes}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
               style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
             >
               <ChefHat size={16} /> Suggest Recipes
+            </button>
+            <button type="button" onClick={() => setShowScanner(true)} disabled={barcodeLoading}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-60"
+              style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+              title="Scan barcode"
+            >
+              {barcodeLoading ? "Looking up…" : "📷 Scan"}
             </button>
             <button type="button" onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setShowForm((s) => !s); }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
@@ -640,6 +680,13 @@ export default function PantryPage() {
           )}
         </AnimatePresence>
       </main>
+
+      {showScanner && (
+        <BarcodeScanner
+          onDetected={handleBarcode}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}
