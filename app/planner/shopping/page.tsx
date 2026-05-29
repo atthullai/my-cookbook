@@ -89,6 +89,9 @@ export default function ShoppingListPage() {
   const [restockQty, setRestockQty]       = useState("1");
   const [isRestocking, setIsRestocking]   = useState(false);
 
+  // ── Notes expand state & delete ───────────────────────────────────────────
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+
   // ── Load shopping list from Supabase ─────────────────────────────────────
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -113,6 +116,7 @@ export default function ShoppingListPage() {
           category:  (row.category ?? "other") as ShoppingCategory,
           checked:   Boolean(row.checked),
           recipeIds: [],
+          notes:     row.notes ?? "",
         }))
       );
     } catch (err) {
@@ -375,6 +379,25 @@ export default function ShoppingListPage() {
     }
   };
 
+  // ── Save note for an item ─────────────────────────────────────────────────
+  const saveNote = async (item: ShoppingItem, note: string) => {
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, notes: note } : i));
+    await supabase.from("shopping_list").update({ notes: note }).eq("id", item.id);
+  };
+
+  // ── Delete a single item ──────────────────────────────────────────────────
+  const deleteItem = async (item: ShoppingItem) => {
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    try {
+      const { error } = await supabase.from("shopping_list").delete().eq("id", item.id);
+      if (error) throw error;
+      toast.success(`${item.name} removed`);
+    } catch {
+      setItems((prev) => [...prev, item]);
+      toast.error("Failed to delete item");
+    }
+  };
+
   // ── Copy to clipboard ─────────────────────────────────────────────────────
   const copyToClipboard = async () => {
     const text = CATEGORY_ORDER
@@ -611,39 +634,94 @@ export default function ShoppingListPage() {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="flex items-center gap-3 px-4 py-3 cursor-pointer transition"
+                          className="flex flex-col px-4 py-3 transition"
                           style={{ color: "var(--foreground)" }}
-                          onClick={() => void toggleItem(item)}
                         >
-                          {/* Checkbox */}
-                          <div className={[
-                            "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition",
-                            item.checked
-                              ? "bg-green-500 border-green-500"
-                              : "border-gray-300 hover:border-green-400",
-                          ].join(" ")}>
-                            {item.checked && (
-                              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
+                          {/* Main row */}
+                          <div className="flex items-center gap-3 cursor-pointer" onClick={() => void toggleItem(item)}>
+                            {/* Checkbox */}
+                            <div className={[
+                              "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition",
+                              item.checked
+                                ? "bg-green-500 border-green-500"
+                                : "border-gray-300 hover:border-green-400",
+                            ].join(" ")}>
+                              {item.checked && (
+                                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                  <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </div>
+
+                            {/* Quantity badge */}
+                            <span className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-lg flex-shrink-0"
+                              style={{ background: "rgba(201,149,42,0.12)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.2)" }}
+                            >
+                              {item.quantity} {item.unit || "×"}
+                            </span>
+
+                            {/* Name */}
+                            <motion.span
+                              animate={{ opacity: item.checked ? 0.45 : 1 }}
+                              className={`flex-1 text-sm ${item.checked ? "line-through" : ""}`}
+                              style={{ color: "var(--foreground)" }}
+                            >
+                              {item.name}
+                            </motion.span>
+
+                            {/* Notes toggle */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedNotes((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(item.id)) { next.delete(item.id); } else { next.add(item.id); }
+                                  return next;
+                                });
+                              }}
+                              className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded transition"
+                              style={{ color: item.notes ? "var(--accent)" : "var(--muted)", opacity: 0.7 }}
+                              title="Add note"
+                            >
+                              {item.notes ? "📝" : "✏️"}
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); void deleteItem(item); }}
+                              className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded transition hover:text-red-500"
+                              style={{ color: "var(--muted)" }}
+                              title="Remove item"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
 
-                          {/* Quantity badge */}
-                          <span className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-lg flex-shrink-0"
-                            style={{ background: "rgba(201,149,42,0.12)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.2)" }}
-                          >
-                            {item.quantity} {item.unit || "×"}
-                          </span>
-
-                          {/* Name */}
-                          <motion.span
-                            animate={{ opacity: item.checked ? 0.45 : 1 }}
-                            className={`flex-1 text-sm ${item.checked ? "line-through" : ""}`}
-                            style={{ color: "var(--foreground)" }}
-                          >
-                            {item.name}
-                          </motion.span>
+                          {/* Notes area — expandable */}
+                          <AnimatePresence>
+                            {expandedNotes.has(item.id) && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <textarea
+                                  autoFocus
+                                  value={item.notes ?? ""}
+                                  onChange={(e) => setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, notes: e.target.value } : i))}
+                                  onBlur={(e) => void saveNote(item, e.target.value)}
+                                  placeholder="Add a note — brand, size, where to find it…"
+                                  rows={2}
+                                  className="w-full mt-2 ml-8 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none"
+                                  style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", width: "calc(100% - 2rem)" }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </motion.li>
                       ))}
                     </AnimatePresence>

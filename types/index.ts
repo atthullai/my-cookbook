@@ -188,6 +188,7 @@ export interface ShoppingItem {
   category: ShoppingCategory;
   checked: boolean;
   recipeIds: string[];
+  notes?: string;
 }
 
 // ---------------------------------------------------------------------------
