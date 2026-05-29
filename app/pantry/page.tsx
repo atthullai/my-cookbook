@@ -158,6 +158,7 @@ export default function PantryPage() {
   const [noRecipeItem, setNoRecipeItem] = useState<PantryItem | null>(null);
   const [requestStep, setRequestStep] = useState<"prompt" | "form" | "done">("prompt");
   const [requestNote, setRequestNote] = useState("");
+  const [availableIngredients, setAvailableIngredients] = useState<string[]>([]);
   const [requestIngredients, setRequestIngredients] = useState<string[]>([]);
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [shareItem, setShareItem] = useState<PantryItem | null>(null);
@@ -440,12 +441,13 @@ export default function PantryPage() {
         setNoRecipeItem(item);
         setRequestStep("prompt");
         setRequestNote("");
-        setRequestIngredients(
+        setAvailableIngredients(
           items
             .filter((i) => i.id !== item.id && getPantryStatus(i) !== "expired")
             .map((i) => i.name)
-            .slice(0, 12)
+            .slice(0, 20)
         );
+        setRequestIngredients([]); // start with nothing selected — user taps to add
       }
     } catch {
       toast.error("Failed to find recipes");
@@ -1140,26 +1142,29 @@ export default function PantryPage() {
                     <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
                       Other ingredients you have (tick what you want to use):
                     </p>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                      {requestIngredients.map((name) => {
-                        const checked = requestIngredients.includes(name);
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                      {availableIngredients.length === 0 && (
+                        <p className="text-xs italic" style={{ color: "var(--muted)" }}>No other pantry items found.</p>
+                      )}
+                      {availableIngredients.map((name) => {
+                        const selected = requestIngredients.includes(name);
                         return (
                           <button
                             key={name}
                             type="button"
                             onClick={() =>
                               setRequestIngredients((prev) =>
-                                prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+                                selected ? prev.filter((n) => n !== name) : [...prev, name]
                               )
                             }
                             className="px-2.5 py-1 rounded-full text-xs font-medium transition"
                             style={
-                              checked
+                              selected
                                 ? { background: "var(--accent)", color: "#fff" }
                                 : { border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }
                             }
                           >
-                            {name}
+                            {selected ? "✓ " : ""}{name}
                           </button>
                         );
                       })}
