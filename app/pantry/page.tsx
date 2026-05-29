@@ -959,7 +959,7 @@ export default function PantryPage() {
                         setForm((f) => ({
                           ...f,
                           category: cat,
-                          storage: f.isHomemade ? "fridge" : DEFAULT_STORAGE[cat],
+                          storage: DEFAULT_STORAGE[cat],
                           unit: f.unit === "M" || f.unit === "S" || f.unit === "L" || f.unit === "XL" ? "no." : f.unit,
                         }));
                       }
@@ -972,12 +972,12 @@ export default function PantryPage() {
                     ))}
                   </select>
 
-                  {/* Storage toggle — locked for homemade/eggs */}
-                  {(form.isHomemade || form.category === "eggs") ? (
+                  {/* Storage toggle — locked for eggs only */}
+                  {form.category === "eggs" ? (
                     <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm"
                       style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "var(--surface)", whiteSpace: "nowrap" }}
                     >
-                      {form.category === "eggs" ? "🌡️→❄️ auto" : "❄️ Fridge only"}
+                      🌡️→❄️ auto
                     </div>
                   ) : (
                     <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
@@ -1110,7 +1110,7 @@ export default function PantryPage() {
                     onClick={() => setForm((f) => ({
                       ...f,
                       isHomemade: !f.isHomemade,
-                      storage: !f.isHomemade ? "fridge" : DEFAULT_STORAGE[f.category],
+                      storage: f.storage,  // keep current storage — homemade items vary
                     }))}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
                     style={{
