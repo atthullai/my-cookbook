@@ -133,11 +133,18 @@ const EMPTY_FORM = {
   name: "", quantity: "1", unit: "no.",
   category: "other" as ShoppingCategory,
   storage: "room-temp" as StorageLocation,
-  expiryDate: "", lowStockThreshold: "",
+  expiryDate: "", lowStockThreshold: "3",   // default for "no."
   brand: "", isHomemade: false, madeOn: today(),
 };
 
 const UNIT_OPTIONS = ["no.", "g", "mL", "kg", "L"];
+const DEFAULT_THRESHOLD: Record<string, number> = {
+  "kg":  0.5,
+  "g":   100,
+  "mL":  100,
+  "L":   0.5,
+  "no.": 3,
+};
 const EGG_SIZES = ["S", "M", "L", "XL"] as const;
 const EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE = 7; // move to fridge 1 week before expiry
 
@@ -754,7 +761,15 @@ export default function PantryPage() {
                   ) : (
                     <select
                       value={form.unit}
-                      onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                      onChange={(e) => {
+                        const u = e.target.value;
+                        setForm((f) => ({
+                          ...f,
+                          unit: u,
+                          // Auto-fill threshold only if user hasn't set one yet
+                          lowStockThreshold: f.lowStockThreshold || String(DEFAULT_THRESHOLD[u] ?? ""),
+                        }));
+                      }}
                       className="rounded-xl px-2 py-2.5 text-sm focus:outline-none"
                       style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     >
