@@ -218,7 +218,7 @@ export default function PantryPage() {
           id:                 row.id,
           name:               row.name,
           quantity:           Number(row.quantity) || 0,
-          unit:               row.unit ?? "",
+          unit:               UNIT_OPTIONS.includes(row.unit ?? "") ? (row.unit ?? "no.") : "no.",
           category:           (row.category ?? "other") as ShoppingCategory,
           storage:            (row.storage_location ?? DEFAULT_STORAGE[row.category as ShoppingCategory] ?? "room-temp") as StorageLocation,
           expiryDate:         row.expiry_date ?? undefined,
@@ -894,14 +894,13 @@ export default function PantryPage() {
                     </div>
                   ) : (
                     <select
-                      value={form.unit}
+                      value={UNIT_OPTIONS.includes(form.unit) ? form.unit : "no."}
                       onChange={(e) => {
                         const u = e.target.value;
                         setForm((f) => ({
                           ...f,
                           unit: u,
-                          // Auto-fill threshold only if user hasn't set one yet
-                          lowStockThreshold: f.lowStockThreshold || String(DEFAULT_THRESHOLD[u] ?? ""),
+                          lowStockThreshold: String(DEFAULT_THRESHOLD[u] ?? f.lowStockThreshold ?? ""),
                         }));
                       }}
                       className="rounded-xl px-2 py-2.5 text-sm focus:outline-none"
