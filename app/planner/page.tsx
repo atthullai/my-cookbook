@@ -12,7 +12,7 @@
  * - Migration-aware error: shows clear instructions when table is missing
  * - All colors use CSS custom properties for dark-mode support
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ShoppingCart, X, Search, Minus, Plus, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, X, Search, Minus, Plus, Calendar, UtensilsCrossed, Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -31,6 +31,8 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import LottieAnimation from "@/components/LottieAnimation";
 import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
 import { CATEGORY_MAP } from "@/lib/pantry-items";
+import { convertToBase } from "@/lib/conversion";
+import { markMealCooked } from "@/app/actions/planner";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DAYS    = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -94,15 +96,16 @@ function DraggableRecipeChip({ recipe }: { recipe: RecipeSummary }) {
 
 // ── Droppable slot cell ───────────────────────────────────────────────────────
 interface SlotCellProps {
-  date:          Date;
-  slot:          MealSlot;
-  meal?:         PlannedMeal;
-  recipe?:       RecipeSummary;
-  onRemove:      () => void;
-  onServings:    (delta: number) => void;
+  date:       Date;
+  slot:       MealSlot;
+  meal?:      PlannedMeal;
+  recipe?:    RecipeSummary;
+  onRemove:   () => void;
+  onServings: (delta: number) => void;
+  onCooked:   () => void;
 }
 
-function SlotCell({ date, slot, meal, recipe, onRemove, onServings }: SlotCellProps) {
+function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: SlotCellProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `${toISO(date)}-${slot}`,
     data: { date: toISO(date), slot },
@@ -145,7 +148,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings }: SlotCellPr
             </button>
           </div>
 
-          {/* Servings adjuster */}
+          {/* Servings adjuster + cooked button */}
           <div className="flex items-center gap-1 mt-1">
             <span className="text-[9px] opacity-60 mr-0.5">{theme.emoji}</span>
             <button
@@ -168,6 +171,16 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings }: SlotCellPr
               <Plus size={7} />
             </button>
             <span className={`text-[9px] opacity-60 ${theme.textColor}`}>srv</span>
+            {/* Mark as cooked */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCooked(); }}
+              className="ml-auto p-0.5 rounded-full bg-black/15 hover:bg-green-500/80 transition text-white flex-shrink-0"
+              aria-label="Mark as cooked"
+              title="Mark as cooked"
+            >
+              <UtensilsCrossed size={8} />
+            </button>
           </div>
         </motion.div>
       ) : (
@@ -192,6 +205,14 @@ export default function PlannerPage() {
   const [removeTarget,  setRemoveTarget]  = useState<PlannedMeal | null>(null);
   const [isRemoving,    setIsRemoving]    = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
+
+  // ── Mark as Cooked modal ──────────────────────────────────────────────────
+  const [cookedTarget,    setCookedTarget]    = useState<PlannedMeal | null>(null);
+  const [cookedMultiplier, setCookedMultiplier] = useState(1);
+  const [cookedIngredients, setCookedIngredients] = useState<
+    { name: string; qty: number; unit: string; neededBase: number; baseUnit: string; tier: number }[]
+  >([]);
+  const [isPendingCooked, startCookedTransition] = useTransition();
   const [migrationNeeded, setMigrationNeeded] = useState(false);
 
   // ── Expiry suggestions banner ──────────────────────────────────────────────
@@ -425,6 +446,52 @@ export default function PlannerPage() {
     } finally {
       setIsRemoving(false);
     }
+  };
+
+  // ── Open Mark as Cooked modal ─────────────────────────────────────────────
+  const openCookedModal = useCallback(async (meal: PlannedMeal) => {
+    setCookedTarget(meal);
+    setCookedMultiplier(1);
+    // Fetch ingredients from recipe_ingredients for preview
+    try {
+      const { data } = await supabase
+        .from("recipe_ingredients")
+        .select("name, quantity, unit")
+        .eq("recipe_id", parseInt(meal.recipeId));
+
+      const recipe = recipes.find((r) => r.id === meal.recipeId);
+      const baseServings = recipe ? (recipe as RecipeSummary & { servings?: number }).servings ?? 1 : 1;
+      const scale = meal.servings / baseServings;
+
+      setCookedIngredients(
+        (data ?? []).map((ing) => {
+          const scaledQty = (ing.quantity ?? 1) * scale;
+          const { base, baseUnit, tier } = convertToBase(scaledQty, ing.unit ?? "", ing.name);
+          return { name: ing.name, qty: scaledQty, unit: ing.unit ?? "", neededBase: base, baseUnit, tier };
+        })
+      );
+    } catch {
+      setCookedIngredients([]);
+    }
+  }, [recipes]);
+
+  // ── Confirm cooked ────────────────────────────────────────────────────────
+  const confirmCooked = (skip: boolean) => {
+    if (!cookedTarget) return;
+    startCookedTransition(async () => {
+      try {
+        const result = await markMealCooked(cookedTarget.id, cookedMultiplier, skip);
+        // Optimistic removal
+        setPlannedMeals((prev) => prev.filter((m) => m.id !== cookedTarget.id));
+        setCookedTarget(null);
+        const pfandMsg = result.pfandCreated.length
+          ? ` · ♻️ ${result.pfandCreated.length} Pfand item${result.pfandCreated.length > 1 ? "s" : ""} logged`
+          : "";
+        toast.success(skip ? "✓ Marked cooked — pantry unchanged" : `✓ Cooked! Pantry updated${pfandMsg}`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to mark as cooked");
+      }
+    });
   };
 
   // ── Clear entire week ──────────────────────────────────────────────────────
@@ -734,6 +801,7 @@ export default function PlannerPage() {
                               recipe={recipe}
                               onRemove={() => meal && setRemoveTarget(meal)}
                               onServings={(delta) => meal && void handleServings(meal.id, delta)}
+                              onCooked={() => meal && void openCookedModal(meal)}
                             />
                           );
                         })}
@@ -892,6 +960,133 @@ export default function PlannerPage() {
         onCancel={() => setRemoveTarget(null)}
         loading={isRemoving}
       />
+
+      {/* ── Mark as Cooked modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {cookedTarget && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="cooked-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isPendingCooked && setCookedTarget(null)}
+            />
+            {/* Modal */}
+            <motion.div
+              key="cooked-modal"
+              initial={{ opacity: 0, scale: 0.92, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 24 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-md mx-auto rounded-2xl overflow-hidden shadow-2xl"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              role="dialog"
+              aria-modal
+              onKeyDown={(e) => e.key === "Escape" && !isPendingCooked && setCookedTarget(null)}
+            >
+              <div className="px-5 pt-5 pb-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-base font-bold" style={{ color: "var(--foreground)" }}>
+                    🍳 Mark as Cooked
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => !isPendingCooked && setCookedTarget(null)}
+                    className="p-1 rounded-full transition hover:bg-black/10"
+                    style={{ color: "var(--muted)" }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>
+                  {recipes.find((r) => r.id === cookedTarget.recipeId)?.title ?? "Recipe"} · {cookedTarget.slot}
+                </p>
+
+                {/* Servings multiplier */}
+                <p className="text-[10px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted)" }}>
+                  Servings multiplier
+                </p>
+                <div className="flex gap-2 mb-4">
+                  {[0.5, 1, 1.5, 2, 3].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setCookedMultiplier(m)}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition"
+                      style={{
+                        background: cookedMultiplier === m ? "var(--accent)" : "var(--surface-strong)",
+                        color: cookedMultiplier === m ? "#fff" : "var(--foreground)",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      {m}×
+                    </button>
+                  ))}
+                </div>
+
+                {/* Ingredient preview */}
+                {cookedIngredients.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted)" }}>
+                      Pantry deduction preview
+                    </p>
+                    <ul className="space-y-1 max-h-48 overflow-y-auto mb-4">
+                      {cookedIngredients.map((ing, i) => {
+                        const scaled = ing.neededBase * cookedMultiplier;
+                        return (
+                          <li key={i} className="flex items-center gap-2 text-xs py-1 border-b last:border-b-0" style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
+                            <span className="flex-1 truncate">{ing.name}</span>
+                            <span className="tabular-nums text-[10px]" style={{ color: "var(--muted)" }}>
+                              {ing.tier === 3
+                                ? "—"
+                                : scaled >= 1000
+                                ? `${(scaled / 1000).toFixed(1)}${ing.baseUnit === "g" ? "kg" : "L"}`
+                                : `${Math.round(scaled)}${ing.baseUnit}`}
+                            </span>
+                            {ing.tier === 3
+                              ? <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "var(--surface-strong)", color: "var(--muted)" }}>skip</span>
+                              : <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a" }}>deduct</span>
+                            }
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+
+                {/* Footer buttons */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isPendingCooked}
+                    onClick={() => confirmCooked(true)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
+                    style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface-strong)" }}
+                  >
+                    Skip deduction
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPendingCooked}
+                    onClick={() => confirmCooked(false)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50"
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                  >
+                    {isPendingCooked
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <UtensilsCrossed size={14} />}
+                    Confirm &amp; deduct
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }
