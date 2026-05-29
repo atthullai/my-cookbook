@@ -52,6 +52,24 @@ interface OFFResponse {
   product?: OFFProduct;
 }
 
+/** Translate any language → English using MyMemory (free, no key needed). */
+async function toEnglish(text: string): Promise<string> {
+  if (!text) return text;
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|en`,
+      { signal: AbortSignal.timeout(4000) }
+    );
+    if (!res.ok) return text;
+    const data = await res.json() as { responseData?: { translatedText?: string } };
+    const translated = data.responseData?.translatedText?.trim();
+    // MyMemory echoes the input when it can't detect — treat that as a no-op
+    return translated && translated.toLowerCase() !== text.toLowerCase() ? translated : text;
+  } catch {
+    return text; // translation is best-effort; never block the response
+  }
+}
+
 function parseQuantity(raw: string | undefined): { quantity: number; unit: string } | null {
   if (!raw) return null;
   const m = raw.trim().match(/^([\d.]+)\s*([a-zA-Z]+)?$/);
@@ -83,7 +101,12 @@ export async function GET(req: NextRequest) {
     }
 
     const p = data.product;
-    const name = p.product_name_en || p.product_name || "";
+    // Prefer the English name from OFF; if absent, translate whatever name is available
+    const rawName = p.product_name || "";
+    const name = p.product_name_en?.trim()
+      ? p.product_name_en.trim()
+      : await toEnglish(rawName);
+
     const brand = p.brands?.split(",")[0].trim() ?? "";
     const qtyParsed = parseQuantity(p.quantity);
 
