@@ -196,6 +196,7 @@ export default function PantryPage() {
           iconKey:            row.icon_key ?? undefined,
           notes:              row.notes ?? undefined,
           updatedAt:          row.updated_at ?? new Date().toISOString(),
+          isFrozen:           row.is_frozen ?? false,
         }))
       );
     } catch (err) {
@@ -392,18 +393,31 @@ export default function PantryPage() {
     }
   };
 
-  // ── Move item to freezer ──────────────────────────────────────────────────
+  // ── Move item to freezer (only once — extends expiry by 14 days) ──────────
   const moveToFreezer = async (item: PantryItem) => {
-    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "freezer" } : i));
+    if (item.isFrozen) {
+      toast.error(`${item.name} has already been frozen once — refreezing is bad for health. Please discard.`, { duration: 4000 });
+      return;
+    }
+    // Extend expiry by 14 days from today (or from existing expiry if still in future)
+    const baseDate = item.expiryDate && new Date(item.expiryDate) > new Date()
+      ? new Date(item.expiryDate)
+      : new Date();
+    baseDate.setDate(baseDate.getDate() + 14);
+    const newExpiry = baseDate.toISOString().split("T")[0];
+
+    setItems((prev) => prev.map((i) =>
+      i.id === item.id ? { ...i, storage: "freezer", expiryDate: newExpiry, isFrozen: true } : i
+    ));
     try {
       const { error } = await supabase
         .from("pantry_items")
-        .update({ storage_location: "freezer" })
+        .update({ storage_location: "freezer", expiry_date: newExpiry, is_frozen: true })
         .eq("id", item.id);
       if (error) throw error;
-      toast.success(`${item.name} moved to freezer`);
+      toast.success(`${item.name} frozen 🧊 — use by ${new Date(newExpiry).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`);
     } catch {
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: item.storage } : i));
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: item.storage, expiryDate: item.expiryDate, isFrozen: item.isFrozen } : i));
       toast.error("Failed to update storage");
     }
   };
@@ -954,8 +968,8 @@ export default function PantryPage() {
                       🍳 Recipes
                     </button>
 
-                    {/* Freeze — expiring + freezable only */}
-                    {status === "expiring-soon" && canFreeze && (
+                    {/* Freeze — expiring + freezable + not yet frozen */}
+                    {status === "expiring-soon" && canFreeze && !item.isFrozen && (
                       <button type="button" onClick={() => moveToFreezer(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(96,165,250,0.12)", color: "#3b82f6", border: "1px solid rgba(96,165,250,0.3)" }}
@@ -964,8 +978,18 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Share — expiring or expired */}
-                    {(status === "expiring-soon" || status === "expired") && (
+                    {/* Already frozen — show warning chip instead */}
+                    {item.isFrozen && status !== "ok" && (
+                      <span
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium text-center whitespace-nowrap"
+                        style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
+                      >
+                        ⚠ Frozen once — discard
+                      </span>
+                    )}
+
+                    {/* Share — expiring or expired, but NOT if already frozen */}
+                    {(status === "expiring-soon" || status === "expired") && !item.isFrozen && (
                       <button type="button" onClick={() => setShareItem(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.3)" }}

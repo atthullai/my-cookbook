@@ -208,6 +208,8 @@ export interface PantryItem {
   iconKey?: string;
   notes?: string;
   updatedAt: string;
+  /** True once the item has been frozen — cannot be frozen again */
+  isFrozen: boolean;
 }
 
 export type StorageLocation = "room-temp" | "fridge" | "freezer";
