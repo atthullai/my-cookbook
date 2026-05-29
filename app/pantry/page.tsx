@@ -158,7 +158,7 @@ export default function PantryPage() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setItems([]); return; }
+      if (!user) { window.location.href = "/login"; return; }
 
       const { data, error } = await supabase
         .from("pantry_items")
@@ -230,7 +230,7 @@ export default function PantryPage() {
     setIsSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { toast.error("Please log in to save items"); window.location.href = "/login"; return; }
 
       const payload = {
         user_id:              user.id,
@@ -288,7 +288,7 @@ export default function PantryPage() {
   const suggestRecipes = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { window.location.href = "/login"; return; }
 
       const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
       const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
