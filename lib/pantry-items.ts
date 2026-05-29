@@ -1,13 +1,35 @@
 /**
- * Pantry item lookup table — v1.0.0
- * Maps category → item → expiry defaults, opened-state expiry, Pfand, packaging.
+ * Pantry item lookup table — v2.0.0
+ * Maps category → item → expiry defaults, opened-state expiry, Pfand, packaging,
+ * base units, display units, and storage state.
  *
- * Used for:
- *  - Auto-suggesting item names when a category is selected in the add form
- *  - Auto-filling expiry date when a known item is selected
- *  - Calculating "opened expiry" when user marks an item as opened
- *  - Driving Pfand detection for beverages (more accurate than keyword-only)
+ * Unit system:
+ *   baseUnit   = internal storage unit (g | ml | no.)
+ *   displayUnit = user-facing unit (g | kg | ml | L | no.)
+ *   conversions: 1 kg = 1000 g, 1 L = 1000 ml
  */
+
+export type BaseUnit = "g" | "ml" | "no.";
+export type DisplayUnit = "g" | "kg" | "ml" | "L" | "no.";
+export type StorageState = "room-temp" | "fridge" | "freezer";
+
+export const UNIT_CONVERSIONS: Record<DisplayUnit, { toBase: number; baseUnit: BaseUnit }> = {
+  "g":   { toBase: 1,     baseUnit: "g"   },
+  "kg":  { toBase: 1000,  baseUnit: "g"   },
+  "ml":  { toBase: 1,     baseUnit: "ml"  },
+  "L":   { toBase: 1000,  baseUnit: "ml"  },
+  "no.": { toBase: 1,     baseUnit: "no." },
+};
+
+/** Convert a display quantity to base unit */
+export function toBaseQty(qty: number, displayUnit: DisplayUnit): number {
+  return qty * UNIT_CONVERSIONS[displayUnit].toBase;
+}
+
+/** Convert a base quantity to display unit */
+export function fromBaseQty(baseQty: number, displayUnit: DisplayUnit): number {
+  return baseQty / UNIT_CONVERSIONS[displayUnit].toBase;
+}
 
 export interface PantryItemDef {
   name: string;
@@ -25,8 +47,14 @@ export interface PantryItemDef {
   subgroup?: string;
   /** Storage tip shown in the form when item is recognised */
   tip?: string;
-  /** Preferred storage location for this item */
-  defaultStorage?: "fridge" | "freezer" | "room-temp";
+  /** Preferred storage location for this item (sealed) */
+  defaultStorage?: StorageState;
+  /** Storage location once the item is opened */
+  openedStorage?: StorageState;
+  /** Internal base unit for this item */
+  baseUnit?: BaseUnit;
+  /** Preferred display unit shown to user */
+  defaultDisplayUnit?: DisplayUnit;
 }
 
 export interface PantryCategory {
@@ -40,248 +68,258 @@ export interface PantryCategory {
   hasPfand: boolean;
   defaultExpiryDays: number;
   defaultOpenedExpiryDays?: number;
+  /** Default storage when opened (category-level fallback) */
+  openedStorage?: StorageState;
+  /** Units valid for this category — shown in unit dropdown */
+  suggestedDisplayUnits?: DisplayUnit[];
   items: PantryItemDef[];
 }
 
 export const PANTRY_CATEGORIES: PantryCategory[] = [
   {
     id: "produce", label: "Produce", emoji: "🥕",
-    defaultUnit: "no.", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 5,
+    defaultUnit: "g", hasOpenedState: false, hasPfand: false,
+    defaultExpiryDays: 5, openedStorage: "fridge",
+    suggestedDisplayUnits: ["g", "kg", "no."],
     items: [
-      { name: "Tomato (round/oval)",     expiryDays: 7  },
-      { name: "Tomato (cherry/cocktail)",expiryDays: 4  },
-      { name: "Onion",                   expiryDays: 14 },
-      { name: "Onion (spring)",          expiryDays: 5  },
-      { name: "Garlic",                  expiryDays: 30 },
-      { name: "Potato",                  expiryDays: 30 },
-      { name: "Sweet potato",            expiryDays: 21 },
-      { name: "Carrot",                  expiryDays: 21 },
-      { name: "Cucumber",                expiryDays: 7  },
-      { name: "Zucchini",                expiryDays: 7  },
-      { name: "Bell pepper",             expiryDays: 7  },
-      { name: "Chili pepper",            expiryDays: 7  },
-      { name: "Broccoli",                expiryDays: 5  },
-      { name: "Cauliflower",             expiryDays: 5  },
-      { name: "Cabbage",                 expiryDays: 14 },
-      { name: "Lettuce",                 expiryDays: 4  },
-      { name: "Spinach",                 expiryDays: 4  },
-      { name: "Kale",                    expiryDays: 5  },
-      { name: "Celery",                  expiryDays: 10 },
-      { name: "Leek",                    expiryDays: 10 },
-      { name: "Mushroom",                expiryDays: 5  },
-      { name: "Apple",                   expiryDays: 21 },
-      { name: "Banana",                  expiryDays: 5  },
-      { name: "Strawberry",              expiryDays: 3  },
-      { name: "Blueberry",               expiryDays: 5  },
-      { name: "Raspberry",               expiryDays: 3  },
-      { name: "Grape",                   expiryDays: 7  },
-      { name: "Orange",                  expiryDays: 14 },
-      { name: "Lemon",                   expiryDays: 14 },
-      { name: "Lime",                    expiryDays: 14 },
-      { name: "Mango",                   expiryDays: 5  },
-      { name: "Avocado",                 expiryDays: 4  },
-      { name: "Pear",                    expiryDays: 7  },
-      { name: "Peach",                   expiryDays: 5  },
-      { name: "Pineapple",               expiryDays: 5  },
-      { name: "Watermelon (whole)",      expiryDays: 14 },
-      { name: "Watermelon (cut)",        expiryDays: 4  },
-      { name: "Corn",                    expiryDays: 3  },
-      { name: "Eggplant",                expiryDays: 7  },
-      { name: "Asparagus",               expiryDays: 4  },
-      { name: "Beetroot",                expiryDays: 21 },
-      { name: "Radish",                  expiryDays: 7  },
+      { name: "Tomato (round/oval)",     expiryDays: 7,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Tomato (cherry/cocktail)",expiryDays: 4,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Onion",                   expiryDays: 14, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "kg"  },
+      { name: "Onion (spring)",          expiryDays: 5,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Garlic",                  expiryDays: 30, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Potato",                  expiryDays: 30, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "kg"  },
+      { name: "Sweet potato",            expiryDays: 21, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Carrot",                  expiryDays: 21, defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "kg"  },
+      { name: "Cucumber",                expiryDays: 7,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Zucchini",                expiryDays: 7,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Bell pepper",             expiryDays: 7,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Chili pepper",            expiryDays: 7,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Broccoli",                expiryDays: 5,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Cauliflower",             expiryDays: 5,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Cabbage",                 expiryDays: 14, defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Lettuce",                 expiryDays: 4,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Spinach",                 expiryDays: 4,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Kale",                    expiryDays: 5,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Celery",                  expiryDays: 10, defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Leek",                    expiryDays: 10, defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Mushroom",                expiryDays: 5,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Apple",                   expiryDays: 21, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Banana",                  expiryDays: 5,  defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Strawberry",              expiryDays: 3,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Blueberry",               expiryDays: 5,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Raspberry",               expiryDays: 3,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Grape",                   expiryDays: 7,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Orange",                  expiryDays: 14, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Lemon",                   expiryDays: 14, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Lime",                    expiryDays: 14, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Mango",                   expiryDays: 5,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Avocado",                 expiryDays: 4,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Pear",                    expiryDays: 7,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Peach",                   expiryDays: 5,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Pineapple",               expiryDays: 5,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Watermelon (whole)",      expiryDays: 14, defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Watermelon (cut)",        expiryDays: 4,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Corn",                    expiryDays: 3,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Eggplant",                expiryDays: 7,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Asparagus",               expiryDays: 4,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Beetroot",                expiryDays: 21, defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Radish",                  expiryDays: 7,  defaultStorage: "fridge",    openedStorage: "fridge", defaultDisplayUnit: "g"   },
     ],
   },
   {
     id: "fresh-herbs", label: "Fresh herbs", emoji: "🌿",
-    defaultUnit: "no.", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 4,
+    defaultUnit: "g", hasOpenedState: false, hasPfand: false,
+    defaultExpiryDays: 4, suggestedDisplayUnits: ["g", "no."],
     items: [
-      { name: "Basil",              expiryDays: 3  },
-      { name: "Parsley",            expiryDays: 5  },
-      { name: "Coriander",          expiryDays: 4  },
-      { name: "Mint",               expiryDays: 5  },
-      { name: "Rosemary",           expiryDays: 10 },
-      { name: "Thyme",              expiryDays: 10 },
-      { name: "Dill",               expiryDays: 4  },
-      { name: "Chives",             expiryDays: 7  },
-      { name: "Sage",               expiryDays: 10 },
-      { name: "Bay leaves (fresh)", expiryDays: 7  },
+      { name: "Basil",              expiryDays: 3,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Parsley",            expiryDays: 5,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Coriander",          expiryDays: 4,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Mint",               expiryDays: 5,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Rosemary",           expiryDays: 10, defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Thyme",              expiryDays: 10, defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Dill",               expiryDays: 4,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Chives",             expiryDays: 7,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Sage",               expiryDays: 10, defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Bay leaves (fresh)", expiryDays: 7,  defaultStorage: "fridge", defaultDisplayUnit: "no." },
     ],
   },
   {
     id: "dairy", label: "Dairy", emoji: "🥛",
     defaultUnit: "ml", hasOpenedState: true, hasPfand: false,
     defaultExpiryDays: 7, defaultOpenedExpiryDays: 5,
+    openedStorage: "fridge", suggestedDisplayUnits: ["ml", "L", "g"],
     items: [
-      { name: "Milk",              expiryDays: 7,  openedExpiryDays: 5  },
-      { name: "Cream",             expiryDays: 7,  openedExpiryDays: 3  },
-      { name: "Sour cream",        expiryDays: 14, openedExpiryDays: 7  },
-      { name: "Yogurt",            expiryDays: 14, openedExpiryDays: 5  },
-      { name: "Butter",            expiryDays: 30, openedExpiryDays: 14 },
-      { name: "Cream cheese",      expiryDays: 14, openedExpiryDays: 7  },
-      { name: "Cheese (soft)",     expiryDays: 10, openedExpiryDays: 5  },
-      { name: "Cheese (hard)",     expiryDays: 30, openedExpiryDays: 21 },
-      { name: "Mozzarella (fresh)",expiryDays: 7,  openedExpiryDays: 3  },
+      { name: "Milk",              expiryDays: 7,  openedExpiryDays: 5,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "L"  },
+      { name: "Cream",             expiryDays: 7,  openedExpiryDays: 3,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "ml" },
+      { name: "Sour cream",        expiryDays: 14, openedExpiryDays: 7,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
+      { name: "Yogurt",            expiryDays: 14, openedExpiryDays: 5,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
+      { name: "Butter",            expiryDays: 30, openedExpiryDays: 14, defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
+      { name: "Cream cheese",      expiryDays: 14, openedExpiryDays: 7,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
+      { name: "Cheese (soft)",     expiryDays: 10, openedExpiryDays: 5,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
+      { name: "Cheese (hard)",     expiryDays: 30, openedExpiryDays: 21, defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
+      { name: "Mozzarella (fresh)",expiryDays: 7,  openedExpiryDays: 3,  defaultStorage: "fridge", openedStorage: "fridge", defaultDisplayUnit: "g"  },
     ],
   },
   {
     id: "eggs", label: "Eggs", emoji: "🥚",
     defaultUnit: "no.", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 21,
-    items: [{ name: "Eggs", expiryDays: 21 }],
+    defaultExpiryDays: 21, suggestedDisplayUnits: ["no."],
+    items: [{ name: "Eggs", expiryDays: 21, defaultStorage: "fridge", defaultDisplayUnit: "no." }],
   },
   {
     id: "meat", label: "Meat", emoji: "🥩",
     defaultUnit: "g", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 3,
+    defaultExpiryDays: 3, suggestedDisplayUnits: ["g", "kg"],
     items: [
-      { name: "Chicken (raw)",      expiryDays: 2 },
-      { name: "Beef (raw)",         expiryDays: 3 },
-      { name: "Pork (raw)",         expiryDays: 3 },
-      { name: "Lamb (raw)",         expiryDays: 3 },
-      { name: "Mince (raw)",        expiryDays: 2 },
-      { name: "Sausage (raw)",      expiryDays: 3 },
-      { name: "Cooked meat",        expiryDays: 4 },
-      { name: "Deli meat (opened)", expiryDays: 5 },
+      { name: "Chicken (raw)",      expiryDays: 2, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Beef (raw)",         expiryDays: 3, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Pork (raw)",         expiryDays: 3, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Lamb (raw)",         expiryDays: 3, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Mince (raw)",        expiryDays: 2, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Sausage (raw)",      expiryDays: 3, defaultStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Cooked meat",        expiryDays: 4, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
+      { name: "Deli meat (opened)", expiryDays: 5, defaultStorage: "fridge", defaultDisplayUnit: "g"   },
     ],
   },
   {
     id: "fish-seafood", label: "Fish & seafood", emoji: "🐟",
     defaultUnit: "g", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 2,
+    defaultExpiryDays: 2, suggestedDisplayUnits: ["g", "kg"],
     items: [
-      { name: "Fresh fish",   expiryDays: 2 },
-      { name: "Shrimp (raw)", expiryDays: 2 },
-      { name: "Salmon (raw)", expiryDays: 2 },
-      { name: "Smoked fish",  expiryDays: 7 },
-      { name: "Cooked fish",  expiryDays: 3 },
+      { name: "Fresh fish",   expiryDays: 2, defaultStorage: "fridge", defaultDisplayUnit: "g" },
+      { name: "Shrimp (raw)", expiryDays: 2, defaultStorage: "fridge", defaultDisplayUnit: "g" },
+      { name: "Salmon (raw)", expiryDays: 2, defaultStorage: "fridge", defaultDisplayUnit: "g" },
+      { name: "Smoked fish",  expiryDays: 7, defaultStorage: "fridge", defaultDisplayUnit: "g" },
+      { name: "Cooked fish",  expiryDays: 3, defaultStorage: "fridge", defaultDisplayUnit: "g" },
     ],
   },
   {
     id: "spices", label: "Spices", emoji: "🧂",
     defaultUnit: "g", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 365,
+    defaultExpiryDays: 365, suggestedDisplayUnits: ["g"],
     items: [
-      { name: "Ground spices", expiryDays: 365  },
-      { name: "Whole spices",  expiryDays: 730  },
-      { name: "Dried herbs",   expiryDays: 365  },
-      { name: "Salt",          expiryDays: 1825 },
-      { name: "Black pepper",  expiryDays: 730  },
-      { name: "Chili powder",  expiryDays: 365  },
-      { name: "Cumin",         expiryDays: 365  },
-      { name: "Paprika",       expiryDays: 365  },
-      { name: "Turmeric",      expiryDays: 365  },
-      { name: "Cinnamon",      expiryDays: 365  },
+      { name: "Ground spices", expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Whole spices",  expiryDays: 730,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Dried herbs",   expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Salt",          expiryDays: 1825, defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Black pepper",  expiryDays: 730,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Chili powder",  expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Cumin",         expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Paprika",       expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Turmeric",      expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Cinnamon",      expiryDays: 365,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
     ],
   },
   {
     id: "grains-pulses", label: "Grains & pulses", emoji: "🌾",
     defaultUnit: "g", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 365,
+    defaultExpiryDays: 365, suggestedDisplayUnits: ["g", "kg"],
     items: [
-      { name: "Rice (white)",        expiryDays: 730 },
-      { name: "Rice (brown)",        expiryDays: 180 },
-      { name: "Pasta (dry)",         expiryDays: 730 },
-      { name: "Flour (white)",       expiryDays: 365 },
-      { name: "Flour (whole wheat)", expiryDays: 180 },
-      { name: "Oats",                expiryDays: 365 },
-      { name: "Lentils (dry)",       expiryDays: 730 },
-      { name: "Chickpeas (dry)",     expiryDays: 730 },
-      { name: "Kidney beans (dry)",  expiryDays: 730 },
-      { name: "Quinoa",              expiryDays: 365 },
-      { name: "Breadcrumbs",         expiryDays: 180 },
-      { name: "Couscous",            expiryDays: 365 },
+      { name: "Rice (white)",        expiryDays: 730, defaultStorage: "room-temp", defaultDisplayUnit: "kg" },
+      { name: "Rice (brown)",        expiryDays: 180, defaultStorage: "room-temp", defaultDisplayUnit: "kg" },
+      { name: "Pasta (dry)",         expiryDays: 730, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Flour (white)",       expiryDays: 365, defaultStorage: "room-temp", defaultDisplayUnit: "kg" },
+      { name: "Flour (whole wheat)", expiryDays: 180, defaultStorage: "room-temp", defaultDisplayUnit: "kg" },
+      { name: "Oats",                expiryDays: 365, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Lentils (dry)",       expiryDays: 730, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Chickpeas (dry)",     expiryDays: 730, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Kidney beans (dry)",  expiryDays: 730, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Quinoa",              expiryDays: 365, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Breadcrumbs",         expiryDays: 180, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Couscous",            expiryDays: 365, defaultStorage: "room-temp", defaultDisplayUnit: "g"  },
     ],
   },
   {
     id: "nuts-seeds", label: "Nuts & seeds", emoji: "🥜",
     defaultUnit: "g", hasOpenedState: true, hasPfand: false,
     defaultExpiryDays: 180, defaultOpenedExpiryDays: 60,
+    suggestedDisplayUnits: ["g", "kg"],
     items: [
-      { name: "Almonds",         expiryDays: 180, openedExpiryDays: 90  },
-      { name: "Walnuts",         expiryDays: 180, openedExpiryDays: 60  },
-      { name: "Cashews",         expiryDays: 180, openedExpiryDays: 60  },
-      { name: "Peanuts",         expiryDays: 180, openedExpiryDays: 60  },
-      { name: "Pine nuts",       expiryDays: 90,  openedExpiryDays: 30  },
-      { name: "Sesame seeds",    expiryDays: 180, openedExpiryDays: 90  },
-      { name: "Sunflower seeds", expiryDays: 180, openedExpiryDays: 90  },
-      { name: "Chia seeds",      expiryDays: 365, openedExpiryDays: 180 },
-      { name: "Flaxseeds",       expiryDays: 180, openedExpiryDays: 60  },
+      { name: "Almonds",         expiryDays: 180, openedExpiryDays: 90,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Walnuts",         expiryDays: 180, openedExpiryDays: 60,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Cashews",         expiryDays: 180, openedExpiryDays: 60,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Peanuts",         expiryDays: 180, openedExpiryDays: 60,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Pine nuts",       expiryDays: 90,  openedExpiryDays: 30,  defaultStorage: "fridge",    defaultDisplayUnit: "g" },
+      { name: "Sesame seeds",    expiryDays: 180, openedExpiryDays: 90,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Sunflower seeds", expiryDays: 180, openedExpiryDays: 90,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Chia seeds",      expiryDays: 365, openedExpiryDays: 180, defaultStorage: "room-temp", defaultDisplayUnit: "g" },
+      { name: "Flaxseeds",       expiryDays: 180, openedExpiryDays: 60,  defaultStorage: "room-temp", defaultDisplayUnit: "g" },
     ],
   },
   {
     id: "canned-dried", label: "Canned & dried", emoji: "🥫",
     defaultUnit: "no.", hasOpenedState: true, hasPfand: false,
     defaultExpiryDays: 730, defaultOpenedExpiryDays: 4,
+    openedStorage: "fridge", suggestedDisplayUnits: ["no.", "g"],
     items: [
-      { name: "Canned tomatoes", expiryDays: 730, openedExpiryDays: 4  },
-      { name: "Canned beans",    expiryDays: 730, openedExpiryDays: 4  },
-      { name: "Canned tuna",     expiryDays: 730, openedExpiryDays: 2  },
-      { name: "Canned corn",     expiryDays: 730, openedExpiryDays: 4  },
-      { name: "Canned soup",     expiryDays: 730, openedExpiryDays: 3  },
-      { name: "Coconut milk",    expiryDays: 730, openedExpiryDays: 5  },
-      { name: "Dried fruit",     expiryDays: 180, openedExpiryDays: 90 },
+      { name: "Canned tomatoes", expiryDays: 730, openedExpiryDays: 4,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Canned beans",    expiryDays: 730, openedExpiryDays: 4,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Canned tuna",     expiryDays: 730, openedExpiryDays: 2,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Canned corn",     expiryDays: 730, openedExpiryDays: 4,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Canned soup",     expiryDays: 730, openedExpiryDays: 3,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Coconut milk",    expiryDays: 730, openedExpiryDays: 5,  defaultStorage: "room-temp", openedStorage: "fridge", defaultDisplayUnit: "no." },
+      { name: "Dried fruit",     expiryDays: 180, openedExpiryDays: 90, defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "g" },
     ],
   },
   {
     id: "bakery", label: "Bakery", emoji: "🍞",
     defaultUnit: "no.", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 5,
+    defaultExpiryDays: 5, suggestedDisplayUnits: ["no.", "g"],
     items: [
-      { name: "Bread (sliced)",    expiryDays: 5 },
-      { name: "Bread (whole loaf)",expiryDays: 7 },
-      { name: "Croissant",         expiryDays: 2 },
-      { name: "Pita bread",        expiryDays: 5 },
-      { name: "Tortilla wrap",     expiryDays: 7 },
-      { name: "Bagel",             expiryDays: 5 },
+      { name: "Bread (sliced)",    expiryDays: 5, defaultStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Bread (whole loaf)",expiryDays: 7, defaultStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Croissant",         expiryDays: 2, defaultStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Pita bread",        expiryDays: 5, defaultStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Tortilla wrap",     expiryDays: 7, defaultStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Bagel",             expiryDays: 5, defaultStorage: "room-temp", defaultDisplayUnit: "no." },
     ],
   },
   {
     id: "sauces-pastes", label: "Sauces & pastes", emoji: "🫙",
     defaultUnit: "g", hasOpenedState: true, hasPfand: false,
     defaultExpiryDays: 365, defaultOpenedExpiryDays: 14,
+    openedStorage: "fridge", suggestedDisplayUnits: ["g", "ml", "no."],
     items: [
-      { name: "Tomato sauce",  expiryDays: 730,  openedExpiryDays: 7    },
-      { name: "Tomato paste",  expiryDays: 730,  openedExpiryDays: 5    },
-      { name: "Pesto",         expiryDays: 180,  openedExpiryDays: 7    },
-      { name: "Ketchup",       expiryDays: 365,  openedExpiryDays: 30   },
-      { name: "Mayonnaise",    expiryDays: 180,  openedExpiryDays: 60   },
-      { name: "Mustard",       expiryDays: 365,  openedExpiryDays: 60   },
-      { name: "Soy sauce",     expiryDays: 730,  openedExpiryDays: 30   },
-      { name: "Hot sauce",     expiryDays: 730,  openedExpiryDays: 180  },
-      { name: "Tahini",        expiryDays: 365,  openedExpiryDays: 30   },
-      { name: "Peanut butter", expiryDays: 365,  openedExpiryDays: 90   },
-      { name: "Jam",           expiryDays: 365,  openedExpiryDays: 30   },
-      { name: "Honey",         expiryDays: 1825, openedExpiryDays: 1825 },
+      { name: "Tomato sauce",  expiryDays: 730,  openedExpiryDays: 7,    defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Tomato paste",  expiryDays: 730,  openedExpiryDays: 5,    defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Pesto",         expiryDays: 180,  openedExpiryDays: 7,    defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Ketchup",       expiryDays: 365,  openedExpiryDays: 30,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Mayonnaise",    expiryDays: 180,  openedExpiryDays: 60,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Mustard",       expiryDays: 365,  openedExpiryDays: 60,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Soy sauce",     expiryDays: 730,  openedExpiryDays: 30,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Hot sauce",     expiryDays: 730,  openedExpiryDays: 180,  defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Tahini",        expiryDays: 365,  openedExpiryDays: 30,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Peanut butter", expiryDays: 365,  openedExpiryDays: 90,   defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "no." },
+      { name: "Jam",           expiryDays: 365,  openedExpiryDays: 30,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "no." },
+      { name: "Honey",         expiryDays: 1825, openedExpiryDays: 1825, defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "no." },
     ],
   },
   {
     id: "oils", label: "Oils", emoji: "🫒",
     defaultUnit: "ml", hasOpenedState: true, hasPfand: false,
     defaultExpiryDays: 365, defaultOpenedExpiryDays: 90,
+    openedStorage: "room-temp", suggestedDisplayUnits: ["ml", "L"],
     items: [
-      { name: "Olive oil",        expiryDays: 365,  openedExpiryDays: 60   },
-      { name: "Vegetable oil",    expiryDays: 365,  openedExpiryDays: 90   },
-      { name: "Coconut oil",      expiryDays: 730,  openedExpiryDays: 180  },
-      { name: "Sesame oil",       expiryDays: 180,  openedExpiryDays: 45   },
-      { name: "Vinegar",          expiryDays: 1825, openedExpiryDays: 1825 },
-      { name: "Balsamic vinegar", expiryDays: 1825, openedExpiryDays: 1825 },
+      { name: "Olive oil",        expiryDays: 365,  openedExpiryDays: 60,   defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "ml" },
+      { name: "Vegetable oil",    expiryDays: 365,  openedExpiryDays: 90,   defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "ml" },
+      { name: "Coconut oil",      expiryDays: 730,  openedExpiryDays: 180,  defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "g"  },
+      { name: "Sesame oil",       expiryDays: 180,  openedExpiryDays: 45,   defaultStorage: "room-temp", openedStorage: "fridge",    defaultDisplayUnit: "ml" },
+      { name: "Vinegar",          expiryDays: 1825, openedExpiryDays: 1825, defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "ml" },
+      { name: "Balsamic vinegar", expiryDays: 1825, openedExpiryDays: 1825, defaultStorage: "room-temp", openedStorage: "room-temp", defaultDisplayUnit: "ml" },
     ],
   },
   {
     id: "frozen", label: "Frozen", emoji: "🧊",
     defaultUnit: "g", hasOpenedState: false, hasPfand: false,
-    defaultExpiryDays: 90,
+    defaultExpiryDays: 90, suggestedDisplayUnits: ["g", "kg", "no."],
     items: [
-      { name: "Frozen vegetables",  expiryDays: 180 },
-      { name: "Frozen meat",        expiryDays: 90  },
-      { name: "Frozen fish",        expiryDays: 90  },
-      { name: "Frozen fruit",       expiryDays: 180 },
-      { name: "Ice cream",          expiryDays: 60  },
-      { name: "Frozen bread/dough", expiryDays: 60  },
-      { name: "Frozen meals",       expiryDays: 90  },
+      { name: "Frozen vegetables",  expiryDays: 180, defaultStorage: "freezer", defaultDisplayUnit: "g"   },
+      { name: "Frozen meat",        expiryDays: 90,  defaultStorage: "freezer", defaultDisplayUnit: "g"   },
+      { name: "Frozen fish",        expiryDays: 90,  defaultStorage: "freezer", defaultDisplayUnit: "g"   },
+      { name: "Frozen fruit",       expiryDays: 180, defaultStorage: "freezer", defaultDisplayUnit: "g"   },
+      { name: "Ice cream",          expiryDays: 60,  defaultStorage: "freezer", defaultDisplayUnit: "ml"  },
+      { name: "Frozen bread/dough", expiryDays: 60,  defaultStorage: "freezer", defaultDisplayUnit: "no." },
+      { name: "Frozen meals",       expiryDays: 90,  defaultStorage: "freezer", defaultDisplayUnit: "no." },
     ],
   },
   {
@@ -528,4 +566,34 @@ export function homemadeSubgroups(): string[] {
 export function suggestFreezerExpiryDate(itemDef: PantryItemDef): string | undefined {
   if (!itemDef.freezerExpiryDays) return undefined;
   return expiryDateFromDays(itemDef.freezerExpiryDays);
+}
+
+/**
+ * Returns the suggested display units for a category.
+ * Falls back to all UNIT_OPTIONS if not specified.
+ */
+export function suggestedUnitsForCategory(categoryId: string): DisplayUnit[] {
+  return CATEGORY_MAP[categoryId]?.suggestedDisplayUnits ?? ["g", "kg", "ml", "L", "no."];
+}
+
+/**
+ * Returns the preferred display unit for a specific item.
+ * Falls back to category default unit.
+ */
+export function defaultUnitForItem(categoryId: string, name: string): DisplayUnit | undefined {
+  const item = lookupItem(categoryId, name) ?? lookupHomemadeItem(name);
+  return item?.defaultDisplayUnit;
+}
+
+/**
+ * Returns the storage state when an item is opened.
+ * Checks item-level first, then category-level.
+ */
+export function openedStorageForItem(
+  categoryId: string,
+  name: string
+): "room-temp" | "fridge" | "freezer" | undefined {
+  const item = lookupItem(categoryId, name) ?? lookupHomemadeItem(name);
+  if (item?.openedStorage) return item.openedStorage;
+  return CATEGORY_MAP[categoryId]?.openedStorage;
 }

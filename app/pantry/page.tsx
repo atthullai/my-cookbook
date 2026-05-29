@@ -37,6 +37,9 @@ import {
   lookupHomemadeItem,
   homemadeItemNames,
   suggestFreezerExpiryDate,
+  suggestedUnitsForCategory,
+  defaultUnitForItem,
+  openedStorageForItem,
   CATEGORY_MAP,
 } from "@/lib/pantry-items";
 
@@ -494,7 +497,7 @@ export default function PantryPage() {
     }
   };
 
-  // ── Mark item as opened (recalculates expiry) ────────────────────────────
+  // ── Mark item as opened (recalculates expiry, may move storage) ─────────
   const markOpened = async (item: PantryItem) => {
     if (item.isOpened) return;
     const openedDate = today();
@@ -502,24 +505,28 @@ export default function PantryPage() {
       lookupItem(item.category, item.name)?.openedExpiryDays ??
       CATEGORY_MAP[item.category]?.defaultOpenedExpiryDays ??
       3;
-    // Calculate new expiry = today + openedExpiryDays (but don't extend past original)
     const newExpiryFromOpen = addDays(openedDate, openedExpiryDays);
     const newExpiry = item.expiryDate && item.expiryDate < newExpiryFromOpen
-      ? item.expiryDate   // don't extend past original
+      ? item.expiryDate
       : newExpiryFromOpen;
 
+    // Check if storage should change on opening (e.g. canned → fridge)
+    const targetStorage = openedStorageForItem(item.category, item.name);
+    const newStorage = (targetStorage && targetStorage !== item.storage) ? targetStorage : item.storage;
+
     setItems((prev) => prev.map((i) =>
-      i.id === item.id ? { ...i, isOpened: true, openedDate, expiryDate: newExpiry } : i
+      i.id === item.id ? { ...i, isOpened: true, openedDate, expiryDate: newExpiry, storage: newStorage } : i
     ));
     try {
       const { error } = await supabase
         .from("pantry_items")
-        .update({ is_opened: true, opened_date: openedDate, expiry_date: newExpiry })
+        .update({ is_opened: true, opened_date: openedDate, expiry_date: newExpiry, storage_location: newStorage })
         .eq("id", item.id);
       if (error) throw error;
-      toast.success(`${item.name} marked opened — use by ${new Date(newExpiry).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`);
+      const storageMsg = newStorage !== item.storage ? ` — moved to ${newStorage}` : "";
+      toast.success(`${item.name} opened — use by ${new Date(newExpiry).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}${storageMsg}`);
     } catch {
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, isOpened: false, openedDate: undefined, expiryDate: item.expiryDate } : i));
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, isOpened: false, openedDate: undefined, expiryDate: item.expiryDate, storage: item.storage } : i));
       toast.error("Failed to update");
     }
   };
@@ -669,7 +676,7 @@ export default function PantryPage() {
     setForm({
       name:              item.name,
       quantity:          String(item.quantity),
-      unit:              item.unit,
+      unit:              defaultUnitForItem(item.category, item.name) as string ?? item.unit,
       category:          item.category,
       // Eggs manage storage via their own button — don't carry over stale fridge value
       storage:           item.category === "eggs" ? "room-temp" : item.storage,
@@ -843,6 +850,8 @@ export default function PantryPage() {
                         const itemDef = f.isHomemade
                           ? lookupHomemadeItem(name)
                           : lookupItem(f.category, name);
+                        const suggestedUnit = defaultUnitForItem(f.category, name) as string | undefined;
+                        const validUnits = suggestedUnitsForCategory(f.category) as string[];
                         return {
                           ...f,
                           name,
@@ -850,8 +859,12 @@ export default function PantryPage() {
                           expiryDate: itemDef
                             ? suggestExpiryDate(f.isHomemade ? "homemade" : f.category, name)
                             : f.expiryDate,
-                          // Auto-set storage for homemade items
-                          storage: (itemDef?.defaultStorage && f.isHomemade)
+                          // Auto-set unit from item default
+                          unit: (suggestedUnit && validUnits.includes(suggestedUnit))
+                            ? suggestedUnit
+                            : (validUnits.includes(f.unit) ? f.unit : (validUnits[0] ?? f.unit)),
+                          // Auto-set storage
+                          storage: (itemDef?.defaultStorage)
                             ? (itemDef.defaultStorage as typeof f.storage)
                             : f.storage,
                         };
@@ -884,7 +897,10 @@ export default function PantryPage() {
                     </div>
                   ) : (
                     <select
-                      value={UNIT_OPTIONS.includes(form.unit) ? form.unit : "no."}
+                      value={(() => {
+                        const valid = suggestedUnitsForCategory(form.category) as string[];
+                        return valid.includes(form.unit) ? form.unit : (valid[0] ?? "no.");
+                      })()}
                       onChange={(e) => {
                         const u = e.target.value;
                         setForm((f) => ({
@@ -896,7 +912,9 @@ export default function PantryPage() {
                       className="rounded-xl px-2 py-2.5 text-sm focus:outline-none"
                       style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     >
-                      {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                      {(suggestedUnitsForCategory(form.category) as string[]).map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
                     </select>
                   )}
                 </div>
