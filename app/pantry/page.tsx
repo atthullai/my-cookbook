@@ -28,6 +28,14 @@ import DeerDivider from "@/components/DeerDivider";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
 import { addPfandEntry } from "@/lib/pfand-tracker";
+import {
+  itemNamesForCategory,
+  lookupItem,
+  suggestExpiryDate,
+  suggestOpenedExpiryDate,
+  lookupPfandAmount,
+  CATEGORY_MAP,
+} from "@/lib/pantry-items";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "produce":       "🥕",
@@ -137,6 +145,7 @@ const EMPTY_FORM = {
   storage: "room-temp" as StorageLocation,
   expiryDate: "", lowStockThreshold: "3",   // default for "no."
   brand: "", isHomemade: false, madeOn: today(),
+  isOpened: false,
 };
 
 const UNIT_OPTIONS = ["no.", "g", "mL", "kg", "L"];
@@ -218,6 +227,9 @@ export default function PantryPage() {
           notes:              row.notes ?? undefined,
           updatedAt:          row.updated_at ?? new Date().toISOString(),
           isFrozen:           row.is_frozen ?? false,
+          isOpened:           row.is_opened ?? false,
+          openedDate:         row.opened_date ?? undefined,
+          pfandAmount:        row.pfand_amount != null ? Number(row.pfand_amount) : undefined,
         }))
       );
     } catch (err) {
@@ -267,6 +279,16 @@ export default function PantryPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Please log in to save items"); window.location.href = "/login"; return; }
 
+      // Auto-detect Pfand from lookup table (beverages) or keyword detection
+      const pfandFromLookup = lookupPfandAmount(form.category, form.name.trim());
+      const pfandFromKeywords = detectPfand(form.name.trim());
+      const pfandAmount =
+        pfandFromLookup !== null
+          ? pfandFromLookup
+          : pfandFromKeywords.pfandType !== "none"
+          ? pfandFromKeywords.deposit
+          : null;
+
       const payload = {
         user_id:              user.id,
         name:                 form.name.trim(),
@@ -279,6 +301,8 @@ export default function PantryPage() {
         brand:                form.isHomemade ? null : (form.brand.trim() || null),
         is_homemade:          form.isHomemade,
         made_on:              form.isHomemade ? (form.madeOn || null) : null,
+        is_opened:            form.isOpened,
+        pfand_amount:         pfandAmount,
       };
 
       if (editTarget) {
@@ -478,6 +502,36 @@ export default function PantryPage() {
     }
   };
 
+  // ── Mark item as opened (recalculates expiry) ────────────────────────────
+  const markOpened = async (item: PantryItem) => {
+    if (item.isOpened) return;
+    const openedDate = today();
+    const openedExpiryDays =
+      lookupItem(item.category, item.name)?.openedExpiryDays ??
+      CATEGORY_MAP[item.category]?.defaultOpenedExpiryDays ??
+      3;
+    // Calculate new expiry = today + openedExpiryDays (but don't extend past original)
+    const newExpiryFromOpen = addDays(openedDate, openedExpiryDays);
+    const newExpiry = item.expiryDate && item.expiryDate < newExpiryFromOpen
+      ? item.expiryDate   // don't extend past original
+      : newExpiryFromOpen;
+
+    setItems((prev) => prev.map((i) =>
+      i.id === item.id ? { ...i, isOpened: true, openedDate, expiryDate: newExpiry } : i
+    ));
+    try {
+      const { error } = await supabase
+        .from("pantry_items")
+        .update({ is_opened: true, opened_date: openedDate, expiry_date: newExpiry })
+        .eq("id", item.id);
+      if (error) throw error;
+      toast.success(`${item.name} marked opened — use by ${new Date(newExpiry).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`);
+    } catch {
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, isOpened: false, openedDate: undefined, expiryDate: item.expiryDate } : i));
+      toast.error("Failed to update");
+    }
+  };
+
   // ── Quick discard (expired items) ─────────────────────────────────────────
   const discardItem = async (item: PantryItem) => {
     setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -632,6 +686,7 @@ export default function PantryPage() {
       brand:             item.brand ?? "",
       isHomemade:        item.isHomemade,
       madeOn:            item.madeOn ?? today(),
+      isOpened:          item.isOpened,
     });
     setShowForm(true);
   };
@@ -772,10 +827,28 @@ export default function PantryPage() {
                 </div>
 
                 {/* Row 1: Name · Amount · Unit (or Egg Size) */}
+                {/* Datalist for item name suggestions from lookup table */}
+                <datalist id="pantry-item-suggestions">
+                  {itemNamesForCategory(form.category).map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
                 <div className="flex gap-2">
                   <input
                     type="text" placeholder="Name *" value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    list="pantry-item-suggestions"
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const itemDef = lookupItem(form.category, name);
+                      setForm((f) => ({
+                        ...f,
+                        name,
+                        // Auto-fill expiry if item is recognised and expiry not yet set
+                        expiryDate: (itemDef && !f.expiryDate)
+                          ? suggestExpiryDate(f.category, name)
+                          : f.expiryDate,
+                      }));
+                    }}
                     className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
                     style={{ flex: 2, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
@@ -950,6 +1023,35 @@ export default function PantryPage() {
                   </div>
                 </div>
 
+                {/* Opened toggle — only for categories with hasOpenedState */}
+                {CATEGORY_MAP[form.category]?.hasOpenedState && (
+                  <div className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                    style={{ background: form.isOpened ? "rgba(234,179,8,0.08)" : "var(--surface)", border: "1px solid var(--border)" }}>
+                    <div>
+                      <p className="text-sm font-medium">📂 Already opened?</p>
+                      {form.isOpened && (
+                        <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+                          Opened expiry: {suggestOpenedExpiryDate(form.category, form.name) ?? "—"} ({
+                            lookupItem(form.category, form.name)?.openedExpiryDays ??
+                            CATEGORY_MAP[form.category]?.defaultOpenedExpiryDays ?? 3
+                          } days)
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, isOpened: !f.isOpened }))}
+                      className="w-12 h-6 rounded-full transition relative"
+                      style={{ background: form.isOpened ? "var(--accent)" : "var(--border)" }}
+                    >
+                      <span
+                        className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+                        style={{ left: form.isOpened ? "calc(100% - 1.35rem)" : "0.125rem" }}
+                      />
+                    </button>
+                  </div>
+                )}
+
                 {/* Row 4: Low stock threshold */}
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
@@ -1108,6 +1210,18 @@ export default function PantryPage() {
                       </span>
                       {item.isHomemade && <span className="italic">homemade</span>}
                       {item.brand && <span>{item.brand}</span>}
+                      {item.isOpened && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                          style={{ background: "rgba(234,179,8,0.12)", color: "#b45309", border: "1px solid rgba(234,179,8,0.3)" }}>
+                          📂 Opened
+                        </span>
+                      )}
+                      {item.pfandAmount != null && item.pfandAmount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                          style={{ background: "rgba(34,197,94,0.1)", color: "#15803d", border: "1px solid rgba(34,197,94,0.25)" }}>
+                          ♻️ €{item.pfandAmount.toFixed(2)}
+                        </span>
+                      )}
                     </div>
                     {/* +/- stepper */}
                     <div className="flex items-center gap-1 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
@@ -1214,6 +1328,16 @@ export default function PantryPage() {
                         }
                       >
                         🍳 Recipes
+                      </button>
+                    )}
+
+                    {/* Mark Opened — for items that support opened state, not yet opened */}
+                    {CATEGORY_MAP[item.category]?.hasOpenedState && !item.isOpened && status !== "expired" && (
+                      <button type="button" onClick={() => void markOpened(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(234,179,8,0.08)", color: "#b45309", border: "1px solid rgba(234,179,8,0.25)" }}
+                      >
+                        📂 Opened
                       </button>
                     )}
 

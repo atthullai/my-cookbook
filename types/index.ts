@@ -211,6 +211,12 @@ export interface PantryItem {
   updatedAt: string;
   /** True once the item has been frozen — cannot be frozen again */
   isFrozen: boolean;
+  /** True once opened — triggers opened-expiry countdown */
+  isOpened: boolean;
+  /** ISO date when the item was opened */
+  openedDate?: string;
+  /** Pfand deposit amount in € (null = no Pfand) */
+  pfandAmount?: number | null;
 }
 
 export type StorageLocation = "room-temp" | "fridge" | "freezer";
