@@ -139,8 +139,7 @@ const EMPTY_FORM = {
 
 const UNIT_OPTIONS = ["no.", "g", "mL", "kg", "L"];
 const EGG_SIZES = ["S", "M", "L", "XL"] as const;
-const EGG_ROOM_TEMP_DAYS = 7;   // safe at room temp (unwashed, EU)
-const EGG_TOTAL_DAYS     = 28;  // total shelf life from purchase
+const EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE = 7; // move to fridge 1 week before expiry
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
@@ -764,24 +763,16 @@ export default function PantryPage() {
                   )}
                 </div>
 
-                {/* Egg lifecycle hint — uses actual bought date + carton expiry */}
-                {form.category === "eggs" && form.madeOn && (() => {
-                  const suggestedRoomTempEnd = addDays(form.madeOn, EGG_ROOM_TEMP_DAYS);
-                  // Room temp can't go past expiry — cap it
-                  const roomTempUntil = form.expiryDate && form.expiryDate < suggestedRoomTempEnd
-                    ? form.expiryDate
-                    : suggestedRoomTempEnd;
-                  const discardBy = form.expiryDate || addDays(form.madeOn, EGG_TOTAL_DAYS);
+                {/* Egg lifecycle hint — fridge date = expiry - 7 days */}
+                {form.category === "eggs" && (() => {
+                  const fridgeDate = form.expiryDate ? addDays(form.expiryDate, -EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE) : null;
                   return (
                     <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)" }}>
                       <p className="font-semibold" style={{ color: "var(--accent)" }}>🥚 Egg lifecycle</p>
-                      <p style={{ color: "var(--muted)" }}>🛒 Bought: <strong>{fmtDate(form.madeOn)}</strong></p>
-                      <p style={{ color: "var(--muted)" }}>🌡️ Room temp until: <strong>{fmtDate(roomTempUntil)}</strong></p>
-                      <p style={{ color: "var(--muted)" }}>❄️ Move to fridge by: <strong>{fmtDate(roomTempUntil)}</strong></p>
-                      <p style={{ color: form.expiryDate ? "var(--muted)" : "var(--muted)" }}>
-                        🗑 Discard by: <strong>{fmtDate(discardBy)}</strong>
-                        {!form.expiryDate && <span className="ml-1 opacity-60">(suggested — set carton date below)</span>}
-                      </p>
+                      <p style={{ color: "var(--muted)" }}>🛒 Bought: <strong>{form.madeOn ? fmtDate(form.madeOn) : "set below"}</strong></p>
+                      <p style={{ color: "var(--muted)" }}>🌡️ Room temp until: <strong>{fridgeDate ? fmtDate(fridgeDate) : "set expiry date below"}</strong></p>
+                      <p style={{ color: fridgeDate ? "#2563eb" : "var(--muted)" }}>❄️ Move to fridge by: <strong>{fridgeDate ? fmtDate(fridgeDate) : "—"}</strong></p>
+                      <p style={{ color: form.expiryDate ? "#dc2626" : "var(--muted)" }}>🗑 Discard by: <strong>{form.expiryDate ? fmtDate(form.expiryDate) : "set carton expiry below"}</strong></p>
                     </div>
                   );
                 })()}
@@ -848,9 +839,19 @@ export default function PantryPage() {
                   )}
                 </div>
 
-                {/* Row 3: Brand + Expiry (store-bought) / Made on + Expiry (homemade) */}
+                {/* Row 3: Bought on + Expiry (eggs) / Made on + Expiry (homemade) / Brand + Expiry (others) */}
                 <div className="flex gap-2">
-                  {form.isHomemade ? (
+                  {form.category === "eggs" ? (
+                    <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Bought on</label>
+                      <input
+                        type="date" value={form.madeOn}
+                        onChange={(e) => setForm((f) => ({ ...f, madeOn: e.target.value }))}
+                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
+                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                  ) : form.isHomemade ? (
                     <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Made on</label>
                       <input
@@ -873,27 +874,19 @@ export default function PantryPage() {
                   )}
                   <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
                     <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-                      {form.isHomemade
-                        ? (() => {
-                            const days = HOMEMADE_SHELF_DAYS[form.category];
-                            if (!days || !form.madeOn) return "Use by";
-                            const d = new Date(form.madeOn);
-                            d.setDate(d.getDate() + days);
-                            const hint = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-                            return `Use by · hint: ${hint}`;
-                          })()
-                        : "Expiry (from package)"}
+                      {form.category === "eggs" ? "Expiry (from carton)" :
+                       form.isHomemade ? (() => {
+                          const days = HOMEMADE_SHELF_DAYS[form.category];
+                          if (!days || !form.madeOn) return "Use by";
+                          const d = new Date(form.madeOn);
+                          d.setDate(d.getDate() + days);
+                          return `Use by · hint: ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+                        })()
+                       : "Expiry (from package)"}
                     </label>
                     <input
                       type="date" value={form.expiryDate}
                       onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                      placeholder={form.isHomemade && form.madeOn && HOMEMADE_SHELF_DAYS[form.category]
-                        ? (() => {
-                            const d = new Date(form.madeOn);
-                            d.setDate(d.getDate() + (HOMEMADE_SHELF_DAYS[form.category] ?? 7));
-                            return d.toISOString().split("T")[0];
-                          })()
-                        : undefined}
                       className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
                       style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                     />
@@ -1040,22 +1033,15 @@ export default function PantryPage() {
                     </p>
                   )}
 
-                  {/* Egg lifecycle mini-timeline */}
-                  {item.category === "eggs" && item.madeOn && (() => {
-                    const suggestedRoomTempEnd = addDays(item.madeOn, EGG_ROOM_TEMP_DAYS);
-                    const roomTempUntil = item.expiryDate && item.expiryDate < suggestedRoomTempEnd
-                      ? item.expiryDate
-                      : suggestedRoomTempEnd;
-                    const discardBy = item.expiryDate || addDays(item.madeOn, EGG_TOTAL_DAYS);
-                    return (
-                      <div className="text-[10px] space-y-0.5 -mt-1 pb-1" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
-                        <p>🛒 Bought: <strong>{fmtDate(item.madeOn)}</strong></p>
-                        <p>🌡️ Room temp until: <strong>{fmtDate(roomTempUntil)}</strong></p>
-                        <p>❄️ Move to fridge by: <strong>{fmtDate(roomTempUntil)}</strong></p>
-                        <p>🗑 Discard by: <strong>{fmtDate(discardBy)}</strong></p>
-                      </div>
-                    );
-                  })()}
+                  {/* Egg lifecycle mini-timeline — fridge date = expiry - 7 days */}
+                  {item.category === "eggs" && (
+                    <div className="text-[10px] space-y-0.5 -mt-1 pb-1" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+                      {item.madeOn && <p>🛒 Bought: <strong>{fmtDate(item.madeOn)}</strong></p>}
+                      {item.expiryDate && <p>🌡️ Room temp until: <strong>{fmtDate(addDays(item.expiryDate, -EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE))}</strong></p>}
+                      {item.expiryDate && <p>❄️ Move to fridge by: <strong>{fmtDate(addDays(item.expiryDate, -EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE))}</strong></p>}
+                      {item.expiryDate && <p>🗑 Discard by: <strong>{fmtDate(item.expiryDate)}</strong></p>}
+                    </div>
+                  )}
 
                   {/* Quantity row with +/- */}
                   <div className="flex items-center justify-between gap-2">
@@ -1101,22 +1087,16 @@ export default function PantryPage() {
                         toast.success("Eggs moved to fridge ❄️");
                       }
                     };
-                    const moveToRoomTemp = async () => {
-                      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "room-temp" } : i));
-                      const { error } = await supabase.from("pantry_items").update({ storage_location: "room-temp" }).eq("id", item.id);
-                      if (error) {
-                        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "fridge" } : i));
-                        toast.error("Failed to update storage");
-                      } else {
-                        toast.success("Eggs moved back to room temp 🌡️");
-                      }
-                    };
 
-                    // Days left at room temp (based on madeOn or "now")
-                    const base = item.madeOn ?? new Date().toISOString().split("T")[0];
-                    const suggestedEnd = addDays(base, EGG_ROOM_TEMP_DAYS);
-                    const roomTempUntil = item.expiryDate && item.expiryDate < suggestedEnd ? item.expiryDate : suggestedEnd;
-                    const daysLeft = Math.ceil((new Date(roomTempUntil).getTime() - Date.now()) / 86_400_000);
+                    // Fridge date = expiry - 7 days
+                    const fridgeDate = item.expiryDate
+                      ? addDays(item.expiryDate, -EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE)
+                      : null;
+                    const daysUntilFridge = fridgeDate
+                      ? Math.ceil((new Date(fridgeDate).getTime() - Date.now()) / 86_400_000)
+                      : null;
+                    const isOverdue  = daysUntilFridge !== null && daysUntilFridge < 0;
+                    const isUrgent   = daysUntilFridge !== null && daysUntilFridge <= 1;
 
                     return (
                       <div className="flex gap-2 mb-1">
@@ -1124,27 +1104,41 @@ export default function PantryPage() {
                         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium flex-shrink-0"
                           style={item.storage === "fridge"
                             ? { background: "rgba(96,165,250,0.12)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.3)" }
-                            : { background: "rgba(251,191,36,0.12)", color: "#b45309", border: "1px solid rgba(251,191,36,0.3)" }
+                            : isOverdue
+                              ? { background: "rgba(239,68,68,0.1)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.3)" }
+                              : { background: "rgba(251,191,36,0.12)", color: "#b45309", border: "1px solid rgba(251,191,36,0.3)" }
                           }
                         >
-                          {item.storage === "fridge" ? "❄️ In fridge" : "🌡️ Room temp"}
+                          {item.storage === "fridge" ? "❄️ In fridge" : isOverdue ? "⚠️ Room temp" : "🌡️ Room temp"}
                         </div>
 
-                        {/* Action button */}
-                        {item.storage === "room-temp" ? (
+                        {/* Move to Fridge — only when at room temp */}
+                        {item.storage === "room-temp" && (
                           <button type="button" onClick={moveToFridge}
                             className="flex-1 px-2 py-1.5 text-xs rounded-lg font-semibold transition"
-                            style={{ background: "rgba(96,165,250,0.15)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.4)" }}
+                            style={isOverdue
+                              ? { background: "rgba(239,68,68,0.12)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.4)" }
+                              : isUrgent
+                                ? { background: "rgba(251,191,36,0.15)", color: "#b45309", border: "1px solid rgba(251,191,36,0.4)" }
+                                : { background: "rgba(96,165,250,0.12)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.35)" }
+                            }
                           >
-                            ❄️ Move to Fridge{daysLeft <= 0 ? " — overdue!" : daysLeft === 1 ? " — do today!" : ` (${daysLeft}d left)`}
+                            {isOverdue
+                              ? `❄️ Move to Fridge NOW — overdue since ${fridgeDate ? fmtDate(fridgeDate) : "?"}`
+                              : daysUntilFridge === 0 ? "❄️ Move to Fridge — today!"
+                              : daysUntilFridge === 1 ? "❄️ Move to Fridge — tomorrow"
+                              : fridgeDate ? `❄️ Move to Fridge by ${fmtDate(fridgeDate)}`
+                              : "❄️ Move to Fridge"}
                           </button>
-                        ) : (
-                          <button type="button" onClick={moveToRoomTemp}
-                            className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition"
-                            style={{ background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }}
+                        )}
+
+                        {/* In fridge — show discard only */}
+                        {item.storage === "fridge" && (
+                          <span className="flex-1 px-2 py-1.5 text-xs rounded-lg text-center"
+                            style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
                           >
-                            🌡️ Back to room temp
-                          </button>
+                            🗑 Discard by {item.expiryDate ? fmtDate(item.expiryDate) : "expiry"}
+                          </span>
                         )}
                       </div>
                     );
@@ -1196,8 +1190,8 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Share — expiring-soon ONLY (not expired), not frozen */}
-                    {status === "expiring-soon" && !item.isFrozen && item.storage !== "freezer" && (
+                    {/* Share — expiring-soon ONLY, not frozen, not eggs in fridge */}
+                    {status === "expiring-soon" && !item.isFrozen && item.storage !== "freezer" && !(item.category === "eggs" && item.storage === "fridge") && (
                       <button type="button" onClick={() => setShareItem(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.3)" }}
