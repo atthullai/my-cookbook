@@ -26,6 +26,7 @@ import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DeerDivider from "@/components/DeerDivider";
 import BarcodeScanner from "@/components/BarcodeScanner";
+import { detectPfand, disposalEmoji } from "@/lib/pfand";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "produce":       "🥕",
@@ -482,7 +483,14 @@ export default function PantryPage() {
     try {
       const { error } = await supabase.from("pantry_items").delete().eq("id", item.id);
       if (error) throw error;
-      toast.success(`${item.name} discarded`);
+      // Show disposal tip
+      const pfand = detectPfand(item.name);
+      const emoji = disposalEmoji(pfand.disposal);
+      if (pfand.pfandType !== "none") {
+        toast.success(`${item.name} discarded — return container for ${emoji} €${pfand.deposit.toFixed(2)} Pfand`, { duration: 5000 });
+      } else {
+        toast.success(`${item.name} discarded — ${emoji} ${pfand.disposalLabel}`, { duration: 5000 });
+      }
     } catch {
       setItems((prev) => [...prev, item]);
       toast.error("Failed to discard item");

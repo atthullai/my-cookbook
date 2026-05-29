@@ -17,6 +17,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Clipboard, ClipboardCheck, Trash2, Plus, X, Check, CalendarDays } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { detectPfand, pfandBadgeLabel } from "@/lib/pfand";
 
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
@@ -642,6 +643,21 @@ export default function ShoppingListPage() {
                             >
                               {item.name}
                             </motion.span>
+
+                            {/* Pfand badge */}
+                            {(() => {
+                              const pfand = detectPfand(item.name);
+                              const badge = pfandBadgeLabel(pfand);
+                              return badge ? (
+                                <span
+                                  className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded-lg font-semibold"
+                                  style={{ background: "rgba(34,197,94,0.12)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.25)" }}
+                                  title={pfand.disposalLabel}
+                                >
+                                  {badge}
+                                </span>
+                              ) : null;
+                            })()}
 
                             {/* Notes toggle */}
                             <button
