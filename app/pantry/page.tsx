@@ -673,7 +673,12 @@ export default function PantryPage() {
       category:          item.category,
       // Eggs manage storage via their own button — don't carry over stale fridge value
       storage:           item.category === "eggs" ? "room-temp" : item.storage,
-      expiryDate:        item.expiryDate ?? "",
+      expiryDate:        item.expiryDate ?? (
+        // Auto-suggest expiry for items that never had one set
+        item.isHomemade
+          ? (lookupHomemadeItem(item.name) ? suggestExpiryDate("homemade", item.name) : "")
+          : (lookupItem(item.category, item.name) ? suggestExpiryDate(item.category, item.name) : "")
+      ),
       lowStockThreshold: item.lowStockThreshold != null ? String(item.lowStockThreshold) : "",
       brand:             item.brand ?? "",
       isHomemade:        item.isHomemade,
@@ -834,21 +839,23 @@ export default function PantryPage() {
                     list="pantry-item-suggestions"
                     onChange={(e) => {
                       const name = e.target.value;
-                      const itemDef = form.isHomemade
-                        ? lookupHomemadeItem(name)
-                        : lookupItem(form.category, name);
-                      setForm((f) => ({
-                        ...f,
-                        name,
+                      setForm((f) => {
+                        const itemDef = f.isHomemade
+                          ? lookupHomemadeItem(name)
+                          : lookupItem(f.category, name);
+                        return {
+                          ...f,
+                          name,
                           // Auto-fill expiry whenever a known item is selected
-                        expiryDate: itemDef
-                          ? suggestExpiryDate(form.isHomemade ? "homemade" : f.category, name)
-                          : f.expiryDate,
-                        // Auto-set storage for homemade items
-                        storage: (itemDef?.defaultStorage && f.isHomemade)
-                          ? (itemDef.defaultStorage as typeof f.storage)
-                          : f.storage,
-                      }));
+                          expiryDate: itemDef
+                            ? suggestExpiryDate(f.isHomemade ? "homemade" : f.category, name)
+                            : f.expiryDate,
+                          // Auto-set storage for homemade items
+                          storage: (itemDef?.defaultStorage && f.isHomemade)
+                            ? (itemDef.defaultStorage as typeof f.storage)
+                            : f.storage,
+                        };
+                      });
                     }}
                     className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
                     style={{ flex: 2, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
