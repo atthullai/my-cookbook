@@ -19,6 +19,7 @@ import { Plus, Trash2, Pencil, ChefHat, X, Check, ShoppingCart } from "lucide-re
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
+import { usePushSubscription } from "@/lib/usePushSubscription";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory, StorageLocation } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
@@ -153,6 +154,7 @@ export default function PantryPage() {
   const [barcodeLoading, setBarcodeLoading] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
+  usePushSubscription(); // registers SW + requests notification permission
 
   // ── Load pantry items ─────────────────────────────────────────────────────
   const loadItems = useCallback(async () => {
