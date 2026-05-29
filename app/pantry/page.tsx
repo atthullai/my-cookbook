@@ -137,7 +137,20 @@ const EMPTY_FORM = {
   brand: "", isHomemade: false, madeOn: today(),
 };
 
-const UNIT_OPTIONS = ["no.", "g", "kg", "L", "ml", "tsp", "tbsp", "cup", "packet", "canned", "spring", "jar", "bottle", "box", "block", "stick"];
+const UNIT_OPTIONS = ["no.", "g", "mL", "kg", "L"];
+const EGG_SIZES = ["S", "M", "L", "XL"] as const;
+const EGG_ROOM_TEMP_DAYS = 7;   // safe at room temp (unwashed, EU)
+const EGG_TOTAL_DAYS     = 28;  // total shelf life from purchase
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+function fmtDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 export default function PantryPage() {
   const [items, setItems]           = useState<PantryItem[]>([]);
@@ -674,7 +687,7 @@ export default function PantryPage() {
                   </button>
                 </div>
 
-                {/* Row 1: Name · Amount · Unit */}
+                {/* Row 1: Name · Amount · Unit (or Egg Size) */}
                 <div className="flex gap-2">
                   <input
                     type="text" placeholder="Name *" value={form.name}
@@ -688,15 +701,42 @@ export default function PantryPage() {
                     className="rounded-xl px-2 py-2.5 text-sm focus:outline-none text-center"
                     style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
-                  <select
-                    value={form.unit}
-                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                    className="rounded-xl px-2 py-2.5 text-sm focus:outline-none"
-                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                  >
-                    {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  {form.category === "eggs" ? (
+                    /* Egg size picker — S / M / L / XL */
+                    <div className="flex rounded-xl overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
+                      {EGG_SIZES.map((sz) => (
+                        <button key={sz} type="button"
+                          onClick={() => setForm((f) => ({ ...f, unit: sz }))}
+                          className="px-2 py-2.5 text-xs font-semibold transition"
+                          style={{
+                            background: form.unit === sz ? "var(--accent)" : "var(--surface)",
+                            color: form.unit === sz ? "#fff" : "var(--foreground)",
+                            borderRight: sz !== "XL" ? "1px solid var(--border)" : undefined,
+                          }}
+                        >{sz}</button>
+                      ))}
+                    </div>
+                  ) : (
+                    <select
+                      value={form.unit}
+                      onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                      className="rounded-xl px-2 py-2.5 text-sm focus:outline-none"
+                      style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    >
+                      {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  )}
                 </div>
+
+                {/* Egg lifecycle hint */}
+                {form.category === "eggs" && form.madeOn && (
+                  <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)" }}>
+                    <p className="font-semibold" style={{ color: "var(--accent)" }}>🥚 Egg lifecycle (from today)</p>
+                    <p style={{ color: "var(--muted)" }}>🌡️ Room temp until: <strong>{fmtDate(addDays(form.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
+                    <p style={{ color: "var(--muted)" }}>❄️ Move to fridge: <strong>{fmtDate(addDays(form.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
+                    <p style={{ color: "var(--muted)" }}>🗑 Discard by: <strong>{fmtDate(addDays(form.madeOn, EGG_TOTAL_DAYS))}</strong></p>
+                  </div>
+                )}
 
                 {/* Row 2: Category · Storage toggle */}
                 <div className="flex gap-2 items-center">
@@ -704,7 +744,25 @@ export default function PantryPage() {
                     value={form.category}
                     onChange={(e) => {
                       const cat = e.target.value as ShoppingCategory;
-                      setForm((f) => ({ ...f, category: cat, storage: DEFAULT_STORAGE[cat] }));
+                      if (cat === "eggs") {
+                        // Eggs: room temp → fridge lifecycle, auto-fill dates
+                        const bought = today();
+                        setForm((f) => ({
+                          ...f,
+                          category: cat,
+                          storage: "room-temp",
+                          unit: "M",
+                          madeOn: bought,
+                          expiryDate: addDays(bought, EGG_TOTAL_DAYS),
+                        }));
+                      } else {
+                        setForm((f) => ({
+                          ...f,
+                          category: cat,
+                          storage: f.isHomemade ? "fridge" : DEFAULT_STORAGE[cat],
+                          unit: f.unit === "M" || f.unit === "S" || f.unit === "L" || f.unit === "XL" ? "no." : f.unit,
+                        }));
+                      }
                     }}
                     className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
                     style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
@@ -713,25 +771,34 @@ export default function PantryPage() {
                       <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
                     ))}
                   </select>
-                  {/* Storage 3-way toggle */}
-                  <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-                    {STORAGE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        title={opt.label}
-                        onClick={() => setForm((f) => ({ ...f, storage: opt.value }))}
-                        className="px-3 py-2.5 text-base transition"
-                        style={{
-                          background: form.storage === opt.value ? "var(--accent)" : "var(--surface)",
-                          color: form.storage === opt.value ? "#fff" : "var(--foreground)",
-                          borderRight: opt.value !== "freezer" ? "1px solid var(--border)" : undefined,
-                        }}
-                      >
-                        {opt.icon}
-                      </button>
-                    ))}
-                  </div>
+
+                  {/* Storage toggle — locked for homemade (fridge only) */}
+                  {form.isHomemade ? (
+                    <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm"
+                      style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "var(--surface)", whiteSpace: "nowrap" }}
+                    >
+                      ❄️ Fridge only
+                    </div>
+                  ) : (
+                    <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                      {STORAGE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          title={opt.label}
+                          onClick={() => setForm((f) => ({ ...f, storage: opt.value }))}
+                          className="px-3 py-2.5 text-base transition"
+                          style={{
+                            background: form.storage === opt.value ? "var(--accent)" : "var(--surface)",
+                            color: form.storage === opt.value ? "#fff" : "var(--foreground)",
+                            borderRight: opt.value !== "freezer" ? "1px solid var(--border)" : undefined,
+                          }}
+                        >
+                          {opt.icon}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Row 3: Brand + Expiry (store-bought) / Made on + Expiry (homemade) */}
@@ -809,7 +876,11 @@ export default function PantryPage() {
                 <div className="flex items-center justify-between pt-1">
                   <button
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, isHomemade: !f.isHomemade }))}
+                    onClick={() => setForm((f) => ({
+                      ...f,
+                      isHomemade: !f.isHomemade,
+                      storage: !f.isHomemade ? "fridge" : DEFAULT_STORAGE[f.category],
+                    }))}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
                     style={{
                       border: "1px solid var(--border)",
@@ -879,11 +950,11 @@ export default function PantryPage() {
                 status === "low-stock"      ? "2px solid #f97316" :
                                               "1px solid var(--border)";
 
-              // Can this item be frozen?
+              // Can freeze only if currently in fridge (not room-temp, not already frozen)
               const freezableCategories: ShoppingCategory[] = [
                 "produce","meat","fish-seafood","dairy","bakery","grains-pulses","beverages",
               ];
-              const canFreeze = freezableCategories.includes(item.category) && item.storage !== "freezer";
+              const canFreeze = freezableCategories.includes(item.category) && item.storage === "fridge";
 
               return (
                 <motion.div
@@ -920,6 +991,16 @@ export default function PantryPage() {
                         : `Exp ${new Date(item.expiryDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
                       }
                     </p>
+                  )}
+
+                  {/* Egg lifecycle mini-timeline */}
+                  {item.category === "eggs" && item.madeOn && (
+                    <div className="text-[10px] space-y-0.5 -mt-1 pb-1" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+                      <p>🛒 Bought: <strong>{fmtDate(item.madeOn)}</strong></p>
+                      <p>🌡️ Room temp until: <strong>{fmtDate(addDays(item.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
+                      <p>❄️ Move to fridge: <strong>{fmtDate(addDays(item.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
+                      <p>🗑 Discard by: <strong>{item.expiryDate ? fmtDate(item.expiryDate) : fmtDate(addDays(item.madeOn, EGG_TOTAL_DAYS))}</strong></p>
+                    </div>
                   )}
 
                   {/* Quantity row with +/- */}
@@ -980,8 +1061,8 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Already frozen + expiring/expired — discard only */}
-                    {item.isFrozen && status !== "ok" && (
+                    {/* Already frozen + expiring → discard (can't refreeze) */}
+                    {item.isFrozen && status === "expiring-soon" && (
                       <button type="button" onClick={() => discardItem(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
@@ -1000,13 +1081,13 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Discard — expired only */}
+                    {/* Discard — all expired items regardless of storage */}
                     {status === "expired" && (
                       <button type="button" onClick={() => discardItem(item)}
-                        className="px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
                       >
-                        🗑
+                        🗑 Discard
                       </button>
                     )}
                   </div>

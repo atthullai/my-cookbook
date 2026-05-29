@@ -30,12 +30,16 @@ function initWebPush() {
   webpush.setVapidDetails("mailto:noreply@cookbook.app", pub, priv);
 }
 
+const EGG_ROOM_TEMP_DAYS = 7;
+
 interface PantryRow {
   name: string;
   quantity: number;
   unit: string | null;
   expiry_date: string | null;
   low_stock_threshold: number | null;
+  category: string | null;
+  made_on: string | null;
 }
 
 interface SubRow {
@@ -89,7 +93,7 @@ export async function POST(req: NextRequest) {
     // 1. Fetch all pantry items grouped by user
     const { data: items, error: itemsErr } = await db
       .from("pantry_items")
-      .select("user_id, name, quantity, unit, expiry_date, low_stock_threshold");
+      .select("user_id, name, quantity, unit, expiry_date, low_stock_threshold, category, made_on");
 
     if (itemsErr) throw itemsErr;
 
@@ -125,6 +129,7 @@ export async function POST(req: NextRequest) {
       const expired:  string[] = [];
       const expiring: { name: string; days: number }[] = [];
       const lowStock: string[] = [];
+      const eggAlerts: string[] = [];
 
       for (const item of userItems) {
         if (item.expiry_date) {
@@ -140,6 +145,30 @@ export async function POST(req: NextRequest) {
         ) {
           lowStock.push(`${item.name} (${item.quantity} ${item.unit ?? ""})`);
         }
+        // Egg-specific: notify on the day to move to fridge
+        if (item.category === "eggs" && item.made_on) {
+          const moveDate = new Date(item.made_on);
+          moveDate.setDate(moveDate.getDate() + EGG_ROOM_TEMP_DAYS);
+          const daysToMove = Math.ceil((moveDate.getTime() - now) / 86_400_000);
+          if (daysToMove === 0) eggAlerts.push(item.name);
+        }
+      }
+
+      // Egg move-to-fridge notification (sent separately so it's clear)
+      if (eggAlerts.length) {
+        const eggPayload = JSON.stringify({
+          title: "🥚 Move eggs to fridge",
+          body: `${eggAlerts.join(", ")} have been at room temp for ${EGG_ROOM_TEMP_DAYS} days — move to fridge now!`,
+          url: "/pantry",
+        });
+        await Promise.allSettled(
+          userSubs.map((sub) =>
+            webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              eggPayload
+            ).catch(() => null)
+          )
+        );
       }
 
       const msg = buildMessage(expired, expiring, lowStock);
