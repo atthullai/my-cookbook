@@ -329,21 +329,26 @@ export default function ShoppingListPage() {
       // Find matching pantry item by name (case-insensitive)
       const { data: pantryRows } = await supabase
         .from("pantry_items")
-        .select("id, quantity")
+        .select("id, quantity, expiry_date")
         .eq("user_id", user.id)
         .ilike("name", restockTarget.name)
         .limit(1);
 
-      if (pantryRows && pantryRows.length > 0) {
-        // Pantry item exists — add the purchased quantity
-        const current = Number(pantryRows[0].quantity) || 0;
+      const existing = pantryRows?.[0];
+      const isExpiredOrExpiring = existing?.expiry_date
+        ? Math.ceil((new Date(existing.expiry_date).getTime() - Date.now()) / 86_400_000) <= 3
+        : false;
+
+      if (existing && !isExpiredOrExpiring) {
+        // Pantry item exists and is still good — just add quantity
+        const current = Number(existing.quantity) || 0;
         await supabase
           .from("pantry_items")
           .update({ quantity: current + qty })
-          .eq("id", pantryRows[0].id);
+          .eq("id", existing.id);
         toast.success(`Pantry updated: +${qty} ${restockTarget.unit || ""} ${restockTarget.name}`);
       } else {
-        // Not in pantry yet — create it
+        // No pantry item, or existing is expired/expiring — create a fresh entry
         await supabase.from("pantry_items").insert({
           user_id:          user.id,
           name:             restockTarget.name,
@@ -352,8 +357,9 @@ export default function ShoppingListPage() {
           category:         restockTarget.category,
           storage_location: "room-temp",
           is_homemade:      false,
+          is_frozen:        false,
         });
-        toast.success(`Added ${restockTarget.name} to pantry`);
+        toast.success(`New pantry entry created for ${restockTarget.name} 🆕`);
       }
 
       // Mark checked on shopping list

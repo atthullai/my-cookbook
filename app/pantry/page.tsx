@@ -1106,8 +1106,8 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Add to shopping list — expiring soon only */}
-                    {status === "expiring-soon" && (
+                    {/* Buy more — expiring-soon or expired */}
+                    {(status === "expiring-soon" || status === "expired") && (
                       <button type="button" onClick={() => addItemToShoppingList(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(201,149,42,0.10)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.3)" }}
@@ -1116,8 +1116,8 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Share — expiring or expired, but NOT if frozen at all */}
-                    {(status === "expiring-soon" || status === "expired") && !item.isFrozen && item.storage !== "freezer" && (
+                    {/* Share — expiring-soon ONLY (not expired), not frozen */}
+                    {status === "expiring-soon" && !item.isFrozen && item.storage !== "freezer" && (
                       <button type="button" onClick={() => setShareItem(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.3)" }}
