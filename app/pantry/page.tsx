@@ -27,6 +27,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import DeerDivider from "@/components/DeerDivider";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
+import { addPfandEntry } from "@/lib/pfand-tracker";
 
 const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "produce":       "🥕",
@@ -483,13 +484,46 @@ export default function PantryPage() {
     try {
       const { error } = await supabase.from("pantry_items").delete().eq("id", item.id);
       if (error) throw error;
-      // Show disposal tip
+
       const pfand = detectPfand(item.name);
       const emoji = disposalEmoji(pfand.disposal);
+
       if (pfand.pfandType !== "none") {
-        toast.success(`${item.name} discarded — return container for ${emoji} €${pfand.deposit.toFixed(2)} Pfand`, { duration: 5000 });
+        // Offer to add to Pfand tracker
+        toast(
+          (t) => (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium">
+                ♻️ {item.name} has Pfand ({emoji} €{pfand.deposit.toFixed(2)})
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="flex-1 text-xs py-1.5 rounded-lg font-semibold"
+                  style={{ background: "#22c55e", color: "#fff" }}
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    void addPfandEntry(item.name, pfand).then((ok) => {
+                      if (ok) toast.success("Added to Pfand tracker →");
+                      else toast.error("Couldn't add to tracker");
+                    });
+                  }}
+                >
+                  Add to Pfand tracker
+                </button>
+                <button
+                  className="text-xs py-1.5 px-3 rounded-lg"
+                  style={{ background: "var(--surface-strong)", color: "var(--muted)" }}
+                  onClick={() => toast.dismiss(t.id)}
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+          ),
+          { duration: 8000 }
+        );
       } else {
-        toast.success(`${item.name} discarded — ${emoji} ${pfand.disposalLabel}`, { duration: 5000 });
+        toast.success(`${item.name} discarded — ${emoji} ${pfand.disposalLabel}`, { duration: 4000 });
       }
     } catch {
       setItems((prev) => [...prev, item]);
