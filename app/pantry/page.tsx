@@ -763,22 +763,27 @@ export default function PantryPage() {
                   )}
                 </div>
 
-                {/* Egg lifecycle hint — uses actual bought date + carton expiry if set */}
-                {form.category === "eggs" && form.madeOn && (
-                  <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)" }}>
-                    <p className="font-semibold" style={{ color: "var(--accent)" }}>🥚 Egg lifecycle</p>
-                    <p style={{ color: "var(--muted)" }}>🛒 Bought: <strong>{fmtDate(form.madeOn)}</strong></p>
-                    <p style={{ color: "var(--muted)" }}>🌡️ Room temp until: <strong>{fmtDate(addDays(form.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
-                    <p style={{ color: "var(--muted)" }}>❄️ Move to fridge: <strong>{fmtDate(addDays(form.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
-                    <p style={{ color: "var(--muted)" }}>
-                      🗑 Discard by:{" "}
-                      <strong>
-                        {form.expiryDate ? fmtDate(form.expiryDate) : `${fmtDate(addDays(form.madeOn, EGG_TOTAL_DAYS))} (suggested)`}
-                      </strong>
-                      {!form.expiryDate && <span className="ml-1 opacity-60">— set from carton below</span>}
-                    </p>
-                  </div>
-                )}
+                {/* Egg lifecycle hint — uses actual bought date + carton expiry */}
+                {form.category === "eggs" && form.madeOn && (() => {
+                  const suggestedRoomTempEnd = addDays(form.madeOn, EGG_ROOM_TEMP_DAYS);
+                  // Room temp can't go past expiry — cap it
+                  const roomTempUntil = form.expiryDate && form.expiryDate < suggestedRoomTempEnd
+                    ? form.expiryDate
+                    : suggestedRoomTempEnd;
+                  const discardBy = form.expiryDate || addDays(form.madeOn, EGG_TOTAL_DAYS);
+                  return (
+                    <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)" }}>
+                      <p className="font-semibold" style={{ color: "var(--accent)" }}>🥚 Egg lifecycle</p>
+                      <p style={{ color: "var(--muted)" }}>🛒 Bought: <strong>{fmtDate(form.madeOn)}</strong></p>
+                      <p style={{ color: "var(--muted)" }}>🌡️ Room temp until: <strong>{fmtDate(roomTempUntil)}</strong></p>
+                      <p style={{ color: "var(--muted)" }}>❄️ Move to fridge by: <strong>{fmtDate(roomTempUntil)}</strong></p>
+                      <p style={{ color: form.expiryDate ? "var(--muted)" : "var(--muted)" }}>
+                        🗑 Discard by: <strong>{fmtDate(discardBy)}</strong>
+                        {!form.expiryDate && <span className="ml-1 opacity-60">(suggested — set carton date below)</span>}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* Row 2: Category · Storage toggle */}
                 <div className="flex gap-2 items-center">
@@ -813,12 +818,12 @@ export default function PantryPage() {
                     ))}
                   </select>
 
-                  {/* Storage toggle — locked for homemade (fridge only) */}
-                  {form.isHomemade ? (
+                  {/* Storage toggle — locked for homemade/eggs */}
+                  {(form.isHomemade || form.category === "eggs") ? (
                     <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm"
                       style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "var(--surface)", whiteSpace: "nowrap" }}
                     >
-                      ❄️ Fridge only
+                      {form.category === "eggs" ? "🌡️→❄️ auto" : "❄️ Fridge only"}
                     </div>
                   ) : (
                     <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
@@ -1035,14 +1040,21 @@ export default function PantryPage() {
                   )}
 
                   {/* Egg lifecycle mini-timeline */}
-                  {item.category === "eggs" && item.madeOn && (
-                    <div className="text-[10px] space-y-0.5 -mt-1 pb-1" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
-                      <p>🛒 Bought: <strong>{fmtDate(item.madeOn)}</strong></p>
-                      <p>🌡️ Room temp until: <strong>{fmtDate(addDays(item.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
-                      <p>❄️ Move to fridge: <strong>{fmtDate(addDays(item.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
-                      <p>🗑 Discard by: <strong>{item.expiryDate ? fmtDate(item.expiryDate) : fmtDate(addDays(item.madeOn, EGG_TOTAL_DAYS))}</strong></p>
-                    </div>
-                  )}
+                  {item.category === "eggs" && item.madeOn && (() => {
+                    const suggestedRoomTempEnd = addDays(item.madeOn, EGG_ROOM_TEMP_DAYS);
+                    const roomTempUntil = item.expiryDate && item.expiryDate < suggestedRoomTempEnd
+                      ? item.expiryDate
+                      : suggestedRoomTempEnd;
+                    const discardBy = item.expiryDate || addDays(item.madeOn, EGG_TOTAL_DAYS);
+                    return (
+                      <div className="text-[10px] space-y-0.5 -mt-1 pb-1" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+                        <p>🛒 Bought: <strong>{fmtDate(item.madeOn)}</strong></p>
+                        <p>🌡️ Room temp until: <strong>{fmtDate(roomTempUntil)}</strong></p>
+                        <p>❄️ Move to fridge by: <strong>{fmtDate(roomTempUntil)}</strong></p>
+                        <p>🗑 Discard by: <strong>{fmtDate(discardBy)}</strong></p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Quantity row with +/- */}
                   <div className="flex items-center justify-between gap-2">
