@@ -66,10 +66,11 @@ function guessCategory(name: string): ShoppingCategory {
   return "other";
 }
 
+
 const EMPTY_ADD_FORM = {
   name: "",
   quantity: "1",
-  unit: "",
+  unit: "no.",
   category: "other" as ShoppingCategory,
 };
 
@@ -512,38 +513,18 @@ export default function ShoppingListPage() {
                   style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
                 />
 
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="number"
-                    placeholder="Qty"
-                    value={addForm.quantity}
-                    min="0"
-                    step="0.5"
-                    onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
-                    className="px-3 py-2 rounded-xl text-sm focus:outline-none"
-                    style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Unit (g, ml…)"
-                    value={addForm.unit}
-                    onChange={(e) => setAddForm((f) => ({ ...f, unit: e.target.value }))}
-                    className="px-3 py-2 rounded-xl text-sm focus:outline-none"
-                    style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
-                  />
-                  <select
-                    value={addForm.category}
-                    onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value as ShoppingCategory }))}
-                    className="px-3 py-2 rounded-xl text-sm focus:outline-none"
-                    style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
-                  >
-                    {CATEGORY_ORDER.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {CATEGORY_META[cat].icon} {CATEGORY_META[cat].label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  value={addForm.category}
+                  onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value as ShoppingCategory }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
+                >
+                  {CATEGORY_ORDER.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {CATEGORY_META[cat].icon} {CATEGORY_META[cat].label}
+                    </option>
+                  ))}
+                </select>
 
                 <div className="flex justify-end gap-2">
                   <button
@@ -652,13 +633,6 @@ export default function ShoppingListPage() {
                                 </svg>
                               )}
                             </div>
-
-                            {/* Quantity badge */}
-                            <span className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-lg flex-shrink-0"
-                              style={{ background: "rgba(201,149,42,0.12)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.2)" }}
-                            >
-                              {item.quantity} {item.unit || "×"}
-                            </span>
 
                             {/* Name */}
                             <motion.span
