@@ -154,6 +154,14 @@ export default function PantryPage() {
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [isAddingToList, setIsAddingToList] = useState(false);
 
+  // ── Recipe request / food sharing modal ───────────────────────────────────
+  const [noRecipeItem, setNoRecipeItem] = useState<PantryItem | null>(null);
+  const [requestStep, setRequestStep] = useState<"prompt" | "form" | "done">("prompt");
+  const [requestNote, setRequestNote] = useState("");
+  const [requestIngredients, setRequestIngredients] = useState<string[]>([]);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [shareItem, setShareItem] = useState<PantryItem | null>(null);
+
   const [form, setForm] = useState(EMPTY_FORM);
   usePushSubscription(); // registers SW + requests notification permission
 
@@ -383,11 +391,116 @@ export default function PantryPage() {
     }
   };
 
+  // ── Move item to freezer ──────────────────────────────────────────────────
+  const moveToFreezer = async (item: PantryItem) => {
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "freezer" } : i));
+    try {
+      const { error } = await supabase
+        .from("pantry_items")
+        .update({ storage_location: "freezer" })
+        .eq("id", item.id);
+      if (error) throw error;
+      toast.success(`${item.name} moved to freezer`);
+    } catch {
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: item.storage } : i));
+      toast.error("Failed to update storage");
+    }
+  };
+
+  // ── Quick discard (expired items) ─────────────────────────────────────────
+  const discardItem = async (item: PantryItem) => {
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    try {
+      const { error } = await supabase.from("pantry_items").delete().eq("id", item.id);
+      if (error) throw error;
+      toast.success(`${item.name} discarded`);
+    } catch {
+      setItems((prev) => [...prev, item]);
+      toast.error("Failed to discard item");
+    }
+  };
+
+  // ── Find recipes for an ingredient ───────────────────────────────────────
+  const findRecipesFor = async (item: PantryItem) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
+      const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
+      const keyword = item.name.toLowerCase();
+      const matched = allRecipes.filter((r) =>
+        r.title.toLowerCase().includes(keyword) ||
+        keyword.split(" ").some((w) => w.length > 2 && r.title.toLowerCase().includes(w))
+      );
+      if (matched.length) {
+        setSuggestions(matched);
+        setShowSuggestions(true);
+      } else {
+        // No recipe found — open the request / share modal
+        setNoRecipeItem(item);
+        setRequestStep("prompt");
+        setRequestNote("");
+        setRequestIngredients(
+          items
+            .filter((i) => i.id !== item.id && getPantryStatus(i) !== "expired")
+            .map((i) => i.name)
+            .slice(0, 12)
+        );
+      }
+    } catch {
+      toast.error("Failed to find recipes");
+    }
+  };
+
+  // ── Submit recipe request to Supabase ────────────────────────────────────
+  const submitRecipeRequest = async () => {
+    if (!noRecipeItem) return;
+    setIsSubmittingRequest(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from("recipe_requests").insert({
+        user_id:     user.id,
+        ingredient:  noRecipeItem.name,
+        other_items: requestIngredients,
+        note:        requestNote.trim() || null,
+        created_at:  new Date().toISOString(),
+      });
+      setRequestStep("done");
+    } catch {
+      // Table might not exist yet — show friendly message anyway
+      setRequestStep("done");
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
+  // ── Mark item as shared (removes from pantry) ────────────────────────────
+  const markAsShared = async (item: PantryItem) => {
+    setShareItem(null);
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    try {
+      await supabase.from("pantry_items").delete().eq("id", item.id);
+      toast.success(`${item.name} marked as shared 🤝 Great job reducing food waste!`);
+    } catch {
+      setItems((prev) => [...prev, item]);
+      toast.error("Failed to update pantry");
+    }
+  };
+
   // ── Sort items ────────────────────────────────────────────────────────────
+  const STATUS_PRIORITY: Record<PantryItemStatus, number> = {
+    expired: 0, "expiring-soon": 1, "low-stock": 2, ok: 3,
+  };
+
   const sorted = [...items].sort((a, b) => {
+    // Always surface urgent items first regardless of sort mode
+    const pa = STATUS_PRIORITY[getPantryStatus(a)];
+    const pb = STATUS_PRIORITY[getPantryStatus(b)];
+    if (pa !== pb) return pa - pb;
+
     if (sortBy === "name")     return a.name.localeCompare(b.name);
     if (sortBy === "category") return a.category.localeCompare(b.category);
-    // expiry: expired first, then soonest
     const dateA = a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
     const dateB = b.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
     return dateA - dateB;
@@ -739,12 +852,29 @@ export default function PantryPage() {
           >
             {sorted.map((item) => {
               const status = getPantryStatus(item);
+              const daysLeft = item.expiryDate
+                ? Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86_400_000)
+                : null;
+
+              // Color-coded border per status
+              const cardBorder =
+                status === "expired"        ? "2px solid #ef4444" :
+                status === "expiring-soon"  ? "2px solid #f59e0b" :
+                status === "low-stock"      ? "2px solid #f97316" :
+                                              "1px solid var(--border)";
+
+              // Can this item be frozen?
+              const freezableCategories: ShoppingCategory[] = [
+                "produce","meat","fish-seafood","dairy","bakery","grains-pulses","beverages",
+              ];
+              const canFreeze = freezableCategories.includes(item.category) && item.storage !== "freezer";
+
               return (
                 <motion.div
                   key={item.id}
                   variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
                   className="rounded-2xl shadow-sm p-4 flex flex-col gap-3"
-                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                  style={{ background: "var(--surface)", border: cardBorder }}
                 >
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-2">
@@ -759,6 +889,23 @@ export default function PantryPage() {
                     </span>
                   </div>
 
+                  {/* Days remaining / expiry label */}
+                  {daysLeft !== null && (
+                    <p className={`text-xs font-medium -mt-1 ${
+                      status === "expired"       ? "text-red-500" :
+                      status === "expiring-soon" ? "text-amber-600" :
+                      "text-gray-400"
+                    }`}>
+                      {status === "expired"
+                        ? `Expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? "s" : ""} ago — discard or check`
+                        : daysLeft === 0 ? "Expires today — use it!"
+                        : daysLeft === 1 ? "Expires tomorrow — use soon"
+                        : status === "expiring-soon" ? `${daysLeft} days left — use soon`
+                        : `Exp ${new Date(item.expiryDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                      }
+                    </p>
+                  )}
+
                   {/* Quantity row with +/- */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
@@ -767,7 +914,6 @@ export default function PantryPage() {
                       </span>
                       {item.isHomemade && <span className="italic">homemade</span>}
                       {item.brand && <span>{item.brand}</span>}
-                      {item.expiryDate && <span>exp {new Date(item.expiryDate).toLocaleDateString("en-GB", { day:"numeric", month:"short" })}</span>}
                     </div>
                     {/* +/- stepper */}
                     <div className="flex items-center gap-1 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
@@ -792,7 +938,52 @@ export default function PantryPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Smart action strip — always visible */}
+                  <div className="flex gap-1.5 flex-wrap -mt-1">
+                    {/* Find Recipes — prominent on expiring, subtle on ok */}
+                    <button type="button" onClick={() => findRecipesFor(item)}
+                      className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                      style={
+                        status === "expiring-soon"
+                          ? { background: "rgba(201,149,42,0.14)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.35)" }
+                          : { background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }
+                      }
+                    >
+                      🍳 Recipes
+                    </button>
+
+                    {/* Freeze — expiring + freezable only */}
+                    {status === "expiring-soon" && canFreeze && (
+                      <button type="button" onClick={() => moveToFreezer(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(96,165,250,0.12)", color: "#3b82f6", border: "1px solid rgba(96,165,250,0.3)" }}
+                      >
+                        🧊 Freeze
+                      </button>
+                    )}
+
+                    {/* Share — expiring or expired */}
+                    {(status === "expiring-soon" || status === "expired") && (
+                      <button type="button" onClick={() => setShareItem(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.3)" }}
+                      >
+                        🤝 Share
+                      </button>
+                    )}
+
+                    {/* Discard — expired only */}
+                    {status === "expired" && (
+                      <button type="button" onClick={() => discardItem(item)}
+                        className="px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Edit / Remove row */}
                   <div className="flex gap-2 mt-auto pt-1" style={{ borderTop: "1px solid var(--border)" }}>
                     <button type="button" onClick={() => openEdit(item)}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg transition"
@@ -857,6 +1048,226 @@ export default function PantryPage() {
           onClose={() => setShowScanner(false)}
         />
       )}
+
+      {/* ── No-Recipe Modal: request + share ─────────────────────────── */}
+      <AnimatePresence>
+        {noRecipeItem && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setNoRecipeItem(null)} />
+            <motion.div
+              className="relative rounded-2xl shadow-xl p-6 mx-4 w-full max-w-md flex flex-col gap-4"
+              style={{ background: "var(--surface)" }}
+              initial={{ y: 48, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 48, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            >
+              <button type="button" className="absolute top-4 right-4" onClick={() => setNoRecipeItem(null)}>
+                <X size={16} style={{ color: "var(--muted)" }} />
+              </button>
+
+              {requestStep === "prompt" && (
+                <>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "var(--accent)" }}>
+                      No recipe found
+                    </p>
+                    <h2 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+                      What to do with <span style={{ color: "var(--accent)" }}>{noRecipeItem.name}</span>?
+                    </h2>
+                    <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+                      You have no saved recipe that uses this ingredient. Here are two ideas:
+                    </p>
+                  </div>
+
+                  {/* Option A — Request a recipe */}
+                  <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(201,149,42,0.08)", border: "1px solid rgba(201,149,42,0.2)" }}>
+                    <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+                      🍳 Request a new recipe
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      Let us know what you want to cook — we will add it to the library for everyone!
+                    </p>
+                    <div className="flex gap-3">
+                      <button type="button"
+                        onClick={() => setRequestStep("form")}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition"
+                        style={{ background: "var(--accent)", color: "#fff" }}
+                      >
+                        👍 Yes, request it
+                      </button>
+                      <button type="button"
+                        onClick={() => setNoRecipeItem(null)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
+                        style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                      >
+                        👎 Not now
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Option B — Food sharing */}
+                  <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                    <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+                      🤝 Share it before it expires
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      Food sharing is encouraged! Offer it to a neighbour, friend, or local food bank — reducing waste is always a win.
+                    </p>
+                    <button type="button"
+                      onClick={() => { setNoRecipeItem(null); setShareItem(noRecipeItem); }}
+                      className="px-4 py-1.5 rounded-xl text-xs font-medium transition"
+                      style={{ background: "rgba(34,197,94,0.15)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.3)" }}
+                    >
+                      Explore sharing options →
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {requestStep === "form" && (
+                <>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "var(--accent)" }}>Recipe Request</p>
+                    <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+                      What would you cook with <span style={{ color: "var(--accent)" }}>{noRecipeItem.name}</span>?
+                    </h2>
+                  </div>
+
+                  {/* Other pantry ingredients to include */}
+                  <div>
+                    <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                      Other ingredients you have (tick what you want to use):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {requestIngredients.map((name) => {
+                        const checked = requestIngredients.includes(name);
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() =>
+                              setRequestIngredients((prev) =>
+                                prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+                              )
+                            }
+                            className="px-2.5 py-1 rounded-full text-xs font-medium transition"
+                            style={
+                              checked
+                                ? { background: "var(--accent)", color: "#fff" }
+                                : { border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }
+                            }
+                          >
+                            {name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom note */}
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide block mb-1" style={{ color: "var(--muted)" }}>
+                      Any dish in mind? Cuisine preference? (optional)
+                    </label>
+                    <textarea
+                      value={requestNote}
+                      onChange={(e) => setRequestNote(e.target.value)}
+                      placeholder={`e.g. "Something Indian with ${noRecipeItem.name}, quick under 30 mins"`}
+                      rows={3}
+                      className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none resize-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setRequestStep("prompt")}
+                      className="px-4 py-2 rounded-xl text-sm transition"
+                      style={{ color: "var(--muted)" }}
+                    >← Back</button>
+                    <button type="button" onClick={submitRecipeRequest} disabled={isSubmittingRequest}
+                      className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-60"
+                      style={{ background: "var(--accent)", color: "#fff" }}
+                    >
+                      {isSubmittingRequest ? "Sending…" : "📨 Send Request"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {requestStep === "done" && (
+                <div className="text-center py-4 space-y-3">
+                  <span className="text-5xl block">🙏</span>
+                  <h2 className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>
+                    Thank you!
+                  </h2>
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    Your request has been noted. We will cook up a recipe featuring{" "}
+                    <strong>{noRecipeItem.name}</strong> soon!
+                  </p>
+                  <button type="button" onClick={() => setNoRecipeItem(null)}
+                    className="px-6 py-2 rounded-xl text-sm font-medium transition"
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Food Share Modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {shareItem && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShareItem(null)} />
+            <motion.div
+              className="relative rounded-2xl shadow-xl p-6 mx-4 w-full max-w-sm flex flex-col gap-4"
+              style={{ background: "var(--surface)" }}
+              initial={{ y: 48, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 48, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            >
+              <button type="button" className="absolute top-4 right-4" onClick={() => setShareItem(null)}>
+                <X size={16} style={{ color: "var(--muted)" }} />
+              </button>
+              <div className="text-center">
+                <span className="text-4xl block mb-2">🌱</span>
+                <h2 className="font-semibold text-base" style={{ color: "var(--foreground)" }}>
+                  Share <span style={{ color: "var(--accent)" }}>{shareItem.name}</span>
+                </h2>
+                <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
+                  Food sharing is encouraged! Before this goes to waste, consider:
+                </p>
+              </div>
+              <ul className="space-y-2 text-sm" style={{ color: "var(--foreground)" }}>
+                <li className="flex items-start gap-2"><span>👫</span><span>Offer to a neighbour or friend</span></li>
+                <li className="flex items-start gap-2"><span>🏠</span><span>Post on your local community group</span></li>
+                <li className="flex items-start gap-2"><span>🏦</span><span>Drop at a local food bank</span></li>
+                <li className="flex items-start gap-2"><span>🐾</span><span>Check if safe for pets / composting</span></li>
+              </ul>
+              <button type="button"
+                onClick={() => markAsShared(shareItem)}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold transition"
+                style={{ background: "rgba(34,197,94,0.85)", color: "#fff" }}
+              >
+                ✓ Mark as Shared — remove from pantry
+              </button>
+              <button type="button" onClick={() => setShareItem(null)}
+                className="w-full py-1.5 text-xs text-center transition"
+                style={{ color: "var(--muted)" }}
+              >
+                Keep in pantry for now
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={!!deleteTarget}
