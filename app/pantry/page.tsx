@@ -152,6 +152,7 @@ export default function PantryPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [isAddingToList, setIsAddingToList] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
   usePushSubscription(); // registers SW + requests notification permission
@@ -307,21 +308,24 @@ export default function PantryPage() {
 
   // ── Add low-stock items to shopping list ─────────────────────────────────
   const addLowStockToShoppingList = async () => {
+    if (isAddingToList) return;
     const lowStock = items.filter((i) => getPantryStatus(i) === "low-stock");
     if (!lowStock.length) return;
+    setIsAddingToList(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = "/login"; return; }
 
-      // Fetch unchecked items already in shopping list to avoid duplicates
+      // Fetch ALL shopping list items (unchecked) to avoid duplicates
       const { data: existing } = await supabase
         .from("shopping_list")
-        .select("name")
-        .eq("user_id", user.id)
-        .eq("checked", false);
+        .select("name, checked")
+        .eq("user_id", user.id);
 
       const existingNames = new Set(
-        (existing ?? []).map((r: { name: string }) => r.name.toLowerCase())
+        (existing ?? [])
+          .filter((r: { name: string; checked: boolean | string }) => !r.checked)
+          .map((r: { name: string }) => r.name.toLowerCase())
       );
 
       const toAdd = lowStock.filter((i) => !existingNames.has(i.name.toLowerCase()));
@@ -350,6 +354,8 @@ export default function PantryPage() {
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add to shopping list");
+    } finally {
+      setIsAddingToList(false);
     }
   };
 
@@ -489,10 +495,11 @@ export default function PantryPage() {
                   <button
                     type="button"
                     onClick={addLowStockToShoppingList}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap"
+                    disabled={isAddingToList}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap disabled:opacity-60"
                     style={{ background: "var(--accent)", color: "#fff" }}
                   >
-                    + Add to shopping list
+                    {isAddingToList ? "Adding…" : "+ Add to shopping list"}
                   </button>
                 </div>
               )}
