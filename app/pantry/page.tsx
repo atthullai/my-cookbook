@@ -1089,33 +1089,64 @@ export default function PantryPage() {
                     </div>
                   </div>
 
-                  {/* Egg: Move to Fridge button when still at room temp */}
-                  {item.category === "eggs" && item.storage === "room-temp" && item.madeOn && (() => {
-                    const suggestedRoomTempEnd = addDays(item.madeOn, EGG_ROOM_TEMP_DAYS);
-                    const roomTempUntil = item.expiryDate && item.expiryDate < suggestedRoomTempEnd
-                      ? item.expiryDate : suggestedRoomTempEnd;
+                  {/* Egg: storage state + move button */}
+                  {item.category === "eggs" && (() => {
+                    const moveToFridge = async () => {
+                      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "fridge" } : i));
+                      const { error } = await supabase.from("pantry_items").update({ storage_location: "fridge" }).eq("id", item.id);
+                      if (error) {
+                        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "room-temp" } : i));
+                        toast.error("Failed to update storage");
+                      } else {
+                        toast.success("Eggs moved to fridge ❄️");
+                      }
+                    };
+                    const moveToRoomTemp = async () => {
+                      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "room-temp" } : i));
+                      const { error } = await supabase.from("pantry_items").update({ storage_location: "room-temp" }).eq("id", item.id);
+                      if (error) {
+                        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "fridge" } : i));
+                        toast.error("Failed to update storage");
+                      } else {
+                        toast.success("Eggs moved back to room temp 🌡️");
+                      }
+                    };
+
+                    // Days left at room temp (based on madeOn or "now")
+                    const base = item.madeOn ?? new Date().toISOString().split("T")[0];
+                    const suggestedEnd = addDays(base, EGG_ROOM_TEMP_DAYS);
+                    const roomTempUntil = item.expiryDate && item.expiryDate < suggestedEnd ? item.expiryDate : suggestedEnd;
                     const daysLeft = Math.ceil((new Date(roomTempUntil).getTime() - Date.now()) / 86_400_000);
+
                     return (
-                      <button type="button"
-                        onClick={async () => {
-                          setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "fridge" } : i));
-                          const { error } = await supabase.from("pantry_items").update({ storage_location: "fridge" }).eq("id", item.id);
-                          if (error) {
-                            setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, storage: "room-temp" } : i));
-                            toast.error("Failed to update storage");
-                          } else {
-                            toast.success(`Eggs moved to fridge ❄️`);
+                      <div className="flex gap-2 mb-1">
+                        {/* Current state chip */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium flex-shrink-0"
+                          style={item.storage === "fridge"
+                            ? { background: "rgba(96,165,250,0.12)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.3)" }
+                            : { background: "rgba(251,191,36,0.12)", color: "#b45309", border: "1px solid rgba(251,191,36,0.3)" }
                           }
-                        }}
-                        className="w-full px-3 py-2 text-xs rounded-xl font-semibold transition mb-1"
-                        style={{ background: "rgba(96,165,250,0.15)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.4)" }}
-                      >
-                        ❄️ Move to Fridge
-                        {daysLeft <= 0
-                          ? " — overdue!"
-                          : daysLeft === 0 ? " — do it today!"
-                          : ` — ${daysLeft} day${daysLeft !== 1 ? "s" : ""} left at room temp`}
-                      </button>
+                        >
+                          {item.storage === "fridge" ? "❄️ In fridge" : "🌡️ Room temp"}
+                        </div>
+
+                        {/* Action button */}
+                        {item.storage === "room-temp" ? (
+                          <button type="button" onClick={moveToFridge}
+                            className="flex-1 px-2 py-1.5 text-xs rounded-lg font-semibold transition"
+                            style={{ background: "rgba(96,165,250,0.15)", color: "#2563eb", border: "1px solid rgba(96,165,250,0.4)" }}
+                          >
+                            ❄️ Move to Fridge{daysLeft <= 0 ? " — overdue!" : daysLeft === 1 ? " — do today!" : ` (${daysLeft}d left)`}
+                          </button>
+                        ) : (
+                          <button type="button" onClick={moveToRoomTemp}
+                            className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition"
+                            style={{ background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }}
+                          >
+                            🌡️ Back to room temp
+                          </button>
+                        )}
+                      </div>
                     );
                   })()}
 
