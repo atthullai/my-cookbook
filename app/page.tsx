@@ -250,11 +250,12 @@ export default function Home() {
             </div>
 
             {/* ── Peacock animation ──────────────────────────────────── */}
-            <div className="flex-shrink-0 flex items-center justify-center lg:justify-end" aria-hidden="true">
+            <div className="flex-1 w-full flex items-center justify-center lg:justify-end peacock-wrap" aria-hidden="true">
+              <style>{`.peacock-wrap svg { width: 100% !important; height: auto !important; display: block; }`}</style>
               <LottieAnimation
                 src="/animations/peacock.json"
                 loop
-                style={{ width: 420, height: 420 }}
+                style={{ width: "100%", maxWidth: 640 }}
               />
             </div>
           </div>
