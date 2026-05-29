@@ -202,7 +202,7 @@ export default function PlannerPage() {
     setLoadingMeals(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { window.location.href = "/login"; return; }
 
       const weekStart = toISO(monday);
       const weekEnd   = toISO(addDays(monday, 6));
@@ -270,7 +270,7 @@ export default function PlannerPage() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { window.location.href = "/login"; return; }
 
       const { data, error } = await supabase.from("planned_meals").insert({
         user_id:   user.id,
@@ -349,7 +349,7 @@ export default function PlannerPage() {
     if (plannedMeals.length === 0) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { window.location.href = "/login"; return; }
       const ids = plannedMeals.map((m) => m.id);
       const { error } = await supabase.from("planned_meals").delete().in("id", ids);
       if (error) throw error;

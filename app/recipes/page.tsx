@@ -59,7 +59,7 @@ export default function RecipesPage() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setRecipes([]); return; }
+      if (!user) { window.location.href = "/login"; return; }
 
       const { data, error } = await supabase
         .from("recipes")

@@ -89,7 +89,7 @@ export default function ShoppingListPage() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setItems([]); setLoading(false); return; }
+      if (!user) { window.location.href = "/login"; return; }
 
       const { data, error } = await supabase
         .from("shopping_list")
