@@ -33,6 +33,10 @@ import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
 import { CATEGORY_MAP } from "@/lib/pantry-items";
 import { convertToBase } from "@/lib/conversion";
 import { markMealCooked } from "@/app/actions/planner";
+import {
+  checkMeal, buildReservations,
+  type MealCheckResult, type PantryStockItem, type RecipeIngredientRow,
+} from "@/lib/pantryCheck";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DAYS    = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -96,16 +100,19 @@ function DraggableRecipeChip({ recipe }: { recipe: RecipeSummary }) {
 
 // ── Droppable slot cell ───────────────────────────────────────────────────────
 interface SlotCellProps {
-  date:       Date;
-  slot:       MealSlot;
-  meal?:      PlannedMeal;
-  recipe?:    RecipeSummary;
-  onRemove:   () => void;
-  onServings: (delta: number) => void;
-  onCooked:   () => void;
+  date:        Date;
+  slot:        MealSlot;
+  meal?:       PlannedMeal;
+  recipe?:     RecipeSummary;
+  onRemove:    () => void;
+  onServings:  (delta: number) => void;
+  onCooked:    () => void;
+  mealStatus?: MealCheckResult;
+  expanded?:   boolean;
+  onExpand?:   () => void;
 }
 
-function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: SlotCellProps) {
+function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, mealStatus, expanded, onExpand }: SlotCellProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `${toISO(date)}-${slot}`,
     data: { date: toISO(date), slot },
@@ -127,9 +134,10 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: 
       {meal && recipe && theme ? (
         <motion.div
           layout
-          className={`relative h-full rounded-lg overflow-hidden ${theme.cardGradient} p-2 min-h-[64px] flex flex-col justify-between`}
+          className={`relative h-full rounded-lg overflow-hidden ${theme.cardGradient} p-2 min-h-[64px] flex flex-col justify-between cursor-pointer`}
+          onClick={onExpand}
         >
-          {/* Recipe title + remove */}
+          {/* Recipe title + remove + sufficiency badge */}
           <div className="flex items-start justify-between gap-1">
             <Link
               href={`/recipes/${recipe.id}`}
@@ -138,14 +146,34 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: 
             >
               {recipe.title}
             </Link>
-            <button
-              type="button"
-              onClick={onRemove}
-              className="p-0.5 rounded-full bg-black/20 hover:bg-black/40 transition text-white flex-shrink-0 mt-0.5"
-              aria-label="Remove"
-            >
-              <X size={8} />
-            </button>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {/* Sufficiency badge */}
+              {mealStatus && (
+                <span
+                  className="text-[9px] px-1 py-0.5 rounded font-bold"
+                  style={{
+                    background: mealStatus.overall === "sufficient" ? "rgba(34,197,94,0.25)" :
+                                mealStatus.overall === "partial"    ? "rgba(245,158,11,0.25)" :
+                                                                      "rgba(239,68,68,0.25)",
+                    color: mealStatus.overall === "sufficient" ? "#15803d" :
+                           mealStatus.overall === "partial"    ? "#b45309" :
+                                                                 "#b91c1c",
+                  }}
+                  title={`Pantry: ${mealStatus.overall}`}
+                >
+                  {mealStatus.overall === "sufficient" ? "✓" :
+                   mealStatus.overall === "partial"    ? "⚠" : "✗"}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                className="p-0.5 rounded-full bg-black/20 hover:bg-black/40 transition text-white"
+                aria-label="Remove"
+              >
+                <X size={8} />
+              </button>
+            </div>
           </div>
 
           {/* Servings adjuster + cooked button */}
@@ -153,7 +181,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: 
             <span className="text-[9px] opacity-60 mr-0.5">{theme.emoji}</span>
             <button
               type="button"
-              onClick={() => onServings(-1)}
+              onClick={(e) => { e.stopPropagation(); onServings(-1); }}
               className="w-4 h-4 rounded-full bg-black/15 hover:bg-black/30 flex items-center justify-center text-white transition"
               aria-label="Decrease servings"
             >
@@ -164,7 +192,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: 
             </span>
             <button
               type="button"
-              onClick={() => onServings(1)}
+              onClick={(e) => { e.stopPropagation(); onServings(1); }}
               className="w-4 h-4 rounded-full bg-black/15 hover:bg-black/30 flex items-center justify-center text-white transition"
               aria-label="Increase servings"
             >
@@ -182,6 +210,44 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked }: 
               <UtensilsCrossed size={8} />
             </button>
           </div>
+
+          {/* Expanded ingredient list */}
+          <AnimatePresence>
+            {expanded && mealStatus && (
+              <motion.div
+                key="ing-list"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden mt-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="rounded-lg p-1.5 mt-1" style={{ background: "rgba(0,0,0,0.18)" }}>
+                  <ul className="space-y-0.5">
+                    {mealStatus.ingredients
+                      .filter((i) => i.status !== "skipped")
+                      .slice(0, 8)
+                      .map((ing, idx) => (
+                        <li key={idx} className="flex items-center gap-1 text-[9px]" style={{ color: "rgba(255,255,255,0.9)" }}>
+                          <span className="flex-shrink-0">
+                            {ing.status === "sufficient"  ? "✓" :
+                             ing.status === "partial"     ? "⚠" : "✗"}
+                          </span>
+                          <span className="flex-1 truncate">{ing.name}</span>
+                          <span className="flex-shrink-0 opacity-70">
+                            {ing.needed_base >= 1000
+                              ? `${(ing.needed_base / 1000).toFixed(1)}${ing.base_unit === "g" ? "kg" : "L"}`
+                              : `${ing.needed_base}${ing.base_unit}`}
+                          </span>
+                        </li>
+                      ))
+                    }
+                  </ul>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       ) : (
         <div className="h-full flex items-center justify-center min-h-[64px]">
@@ -205,6 +271,12 @@ export default function PlannerPage() {
   const [removeTarget,  setRemoveTarget]  = useState<PlannedMeal | null>(null);
   const [isRemoving,    setIsRemoving]    = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
+
+  // ── Pantry sufficiency ────────────────────────────────────────────────────
+  const [, setPantryStock]   = useState<PantryStockItem[]>([]);
+  const [, setRecipeIngMap]  = useState<Record<string, RecipeIngredientRow[]>>({});
+  const [mealStatuses,  setMealStatuses]  = useState<Record<string, MealCheckResult>>({});
+  const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
 
   // ── Mark as Cooked modal ──────────────────────────────────────────────────
   const [cookedTarget,    setCookedTarget]    = useState<PlannedMeal | null>(null);
@@ -315,7 +387,61 @@ export default function PlannerPage() {
       }));
 
       setPlannedMeals(mealRows);
-      setRecipes(toRecipeSummaries(mapRecipeRows(recipesRes.data ?? [])));
+      const recipeSummaries = toRecipeSummaries(mapRecipeRows(recipesRes.data ?? []));
+      setRecipes(recipeSummaries);
+
+      // ── HP2: Fetch pantry stock + recipe_ingredients for sufficiency check ──
+      const recipeIds = [...new Set(mealRows.map((m) => parseInt(m.recipeId)).filter(Boolean))];
+
+      const [pantryRes, ingRes] = await Promise.all([
+        supabase.from("pantry_items")
+          .select("name, quantity_base, base_unit, expiry_date, depleted")
+          .eq("user_id", user.id)
+          .eq("depleted", false),
+        recipeIds.length > 0
+          ? supabase.from("recipe_ingredients")
+              .select("recipe_id, name, quantity, unit, pantry_ref")
+              .in("recipe_id", recipeIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      const stock: PantryStockItem[] = (pantryRes.data ?? []).map((r) => ({
+        name:          r.name as string,
+        quantity_base: parseFloat(String(r.quantity_base ?? 0)),
+        base_unit:     (r.base_unit as string) ?? "g",
+        expiry_date:   (r.expiry_date as string | null),
+        depleted:      Boolean(r.depleted),
+      }));
+      setPantryStock(stock);
+
+      // Build map: recipe_id → ingredients[]
+      const ingMap: Record<string, RecipeIngredientRow[]> = {};
+      for (const row of (ingRes.data ?? [])) {
+        const key = String(row.recipe_id);
+        if (!ingMap[key]) ingMap[key] = [];
+        ingMap[key].push({
+          name:       row.name as string,
+          quantity:   row.quantity != null ? parseFloat(String(row.quantity)) : null,
+          unit:       (row.unit as string | null),
+          pantry_ref: (row.pantry_ref as string | null),
+        });
+      }
+      setRecipeIngMap(ingMap);
+
+      // Compute check results with virtual reservations (sequential so reservations accumulate)
+      const statuses: Record<string, MealCheckResult> = {};
+      const reservations: ReturnType<typeof buildReservations> = [];
+      for (const meal of mealRows) {
+        const ings = ingMap[meal.recipeId] ?? [];
+        if (ings.length === 0) continue;
+        const rawRecipe = recipesRes.data?.find((r) => String(r.id) === meal.recipeId);
+        const baseServings = (rawRecipe?.servings as number) ?? 1;
+        const result = checkMeal(ings, meal.servings, baseServings, stock, reservations, meal.id);
+        statuses[meal.id] = result;
+        reservations.push(...buildReservations([{ id: meal.id, checkResult: result }]));
+      }
+      setMealStatuses(statuses);
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load planner");
     } finally {
@@ -802,6 +928,9 @@ export default function PlannerPage() {
                               onRemove={() => meal && setRemoveTarget(meal)}
                               onServings={(delta) => meal && void handleServings(meal.id, delta)}
                               onCooked={() => meal && void openCookedModal(meal)}
+                              mealStatus={meal ? mealStatuses[meal.id] : undefined}
+                              expanded={meal ? expandedMealId === meal.id : false}
+                              onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
                             />
                           );
                         })}
