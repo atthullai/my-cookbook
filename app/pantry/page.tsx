@@ -1072,8 +1072,8 @@ export default function PantryPage() {
 
                   {/* Smart action strip — always visible */}
                   <div className="flex gap-1.5 flex-wrap -mt-1">
-                    {/* Find Recipes — hidden for frozen items */}
-                    {item.storage !== "freezer" && (
+                    {/* Find Recipes — hidden for frozen and expired items */}
+                    {item.storage !== "freezer" && status !== "expired" && (
                       <button type="button" onClick={() => findRecipesFor(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={
