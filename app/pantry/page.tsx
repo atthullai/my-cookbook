@@ -577,7 +577,8 @@ export default function PantryPage() {
       quantity:          String(item.quantity),
       unit:              item.unit,
       category:          item.category,
-      storage:           item.storage,
+      // Eggs manage storage via their own button — don't carry over stale fridge value
+      storage:           item.category === "eggs" ? "room-temp" : item.storage,
       expiryDate:        item.expiryDate ?? "",
       lowStockThreshold: item.lowStockThreshold != null ? String(item.lowStockThreshold) : "",
       brand:             item.brand ?? "",
