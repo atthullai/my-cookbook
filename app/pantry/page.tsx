@@ -34,6 +34,9 @@ import {
   suggestExpiryDate,
   suggestOpenedExpiryDate,
   lookupPfandAmount,
+  lookupHomemadeItem,
+  homemadeItemNames,
+  suggestFreezerExpiryDate,
   CATEGORY_MAP,
 } from "@/lib/pantry-items";
 
@@ -473,18 +476,25 @@ export default function PantryPage() {
     }
   };
 
-  // ── Move item to freezer (only once — extends expiry by 14 days) ──────────
+  // ── Move item to freezer (only once) ─────────────────────────────────────
   const moveToFreezer = async (item: PantryItem) => {
     if (item.isFrozen) {
       toast.error(`${item.name} has already been frozen once — refreezing is bad for health. Please discard.`, { duration: 4000 });
       return;
     }
-    // Extend expiry by 14 days from today (or from existing expiry if still in future)
-    const baseDate = item.expiryDate && new Date(item.expiryDate) > new Date()
-      ? new Date(item.expiryDate)
-      : new Date();
-    baseDate.setDate(baseDate.getDate() + 14);
-    const newExpiry = baseDate.toISOString().split("T")[0];
+    // Use freezerExpiryDays from lookup if available, else +14 days
+    const itemDef = lookupHomemadeItem(item.name) ?? lookupItem(item.category, item.name);
+    const freezerDays = itemDef?.freezerExpiryDays;
+    let newExpiry: string;
+    if (freezerDays) {
+      newExpiry = suggestFreezerExpiryDate(itemDef!)!;
+    } else {
+      const baseDate = item.expiryDate && new Date(item.expiryDate) > new Date()
+        ? new Date(item.expiryDate)
+        : new Date();
+      baseDate.setDate(baseDate.getDate() + 14);
+      newExpiry = baseDate.toISOString().split("T")[0];
+    }
 
     setItems((prev) => prev.map((i) =>
       i.id === item.id ? { ...i, storage: "freezer", expiryDate: newExpiry, isFrozen: true } : i
@@ -827,9 +837,12 @@ export default function PantryPage() {
                 </div>
 
                 {/* Row 1: Name · Amount · Unit (or Egg Size) */}
-                {/* Datalist for item name suggestions from lookup table */}
+                {/* Datalist: homemade suggestions when isHomemade, else category suggestions */}
                 <datalist id="pantry-item-suggestions">
-                  {itemNamesForCategory(form.category).map((n) => (
+                  {(form.isHomemade
+                    ? homemadeItemNames()
+                    : itemNamesForCategory(form.category)
+                  ).map((n) => (
                     <option key={n} value={n} />
                   ))}
                 </datalist>
@@ -839,14 +852,20 @@ export default function PantryPage() {
                     list="pantry-item-suggestions"
                     onChange={(e) => {
                       const name = e.target.value;
-                      const itemDef = lookupItem(form.category, name);
+                      const itemDef = form.isHomemade
+                        ? lookupHomemadeItem(name)
+                        : lookupItem(form.category, name);
                       setForm((f) => ({
                         ...f,
                         name,
                         // Auto-fill expiry if item is recognised and expiry not yet set
                         expiryDate: (itemDef && !f.expiryDate)
-                          ? suggestExpiryDate(f.category, name)
+                          ? suggestExpiryDate(form.isHomemade ? "homemade" : f.category, name)
                           : f.expiryDate,
+                        // Auto-set storage for homemade items
+                        storage: (itemDef?.defaultStorage && f.isHomemade)
+                          ? (itemDef.defaultStorage as typeof f.storage)
+                          : f.storage,
                       }));
                     }}
                     className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
@@ -892,6 +911,19 @@ export default function PantryPage() {
                     </select>
                   )}
                 </div>
+
+                {/* Storage tip for known homemade items */}
+                {form.isHomemade && (() => {
+                  const def = lookupHomemadeItem(form.name);
+                  if (!def?.tip) return null;
+                  return (
+                    <div className="rounded-xl px-3 py-2 text-xs flex gap-2 items-start"
+                      style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)", color: "var(--muted)" }}>
+                      <span className="mt-0.5 flex-shrink-0">💡</span>
+                      <span>{def.tip}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* Egg lifecycle hint — fridge date = expiry - 7 days */}
                 {form.category === "eggs" && (() => {
@@ -1191,6 +1223,18 @@ export default function PantryPage() {
                       }
                     </p>
                   )}
+
+                  {/* Homemade storage tip */}
+                  {item.isHomemade && (() => {
+                    const def = lookupHomemadeItem(item.name);
+                    if (!def?.tip) return null;
+                    return (
+                      <p className="text-[10px] px-2 py-1 rounded-lg -mt-1"
+                        style={{ background: "rgba(201,149,42,0.07)", color: "var(--muted)", border: "1px solid rgba(201,149,42,0.15)" }}>
+                        💡 {def.tip}
+                      </p>
+                    );
+                  })()}
 
                   {/* Egg lifecycle mini-timeline — fridge date = expiry - 7 days */}
                   {item.category === "eggs" && (
