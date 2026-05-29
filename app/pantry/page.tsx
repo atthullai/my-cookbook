@@ -956,17 +956,19 @@ export default function PantryPage() {
 
                   {/* Smart action strip — always visible */}
                   <div className="flex gap-1.5 flex-wrap -mt-1">
-                    {/* Find Recipes — prominent on expiring, subtle on ok */}
-                    <button type="button" onClick={() => findRecipesFor(item)}
-                      className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
-                      style={
-                        status === "expiring-soon"
-                          ? { background: "rgba(201,149,42,0.14)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.35)" }
-                          : { background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }
-                      }
-                    >
-                      🍳 Recipes
-                    </button>
+                    {/* Find Recipes — hidden for frozen items */}
+                    {item.storage !== "freezer" && (
+                      <button type="button" onClick={() => findRecipesFor(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={
+                          status === "expiring-soon"
+                            ? { background: "rgba(201,149,42,0.14)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.35)" }
+                            : { background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--border)" }
+                        }
+                      >
+                        🍳 Recipes
+                      </button>
+                    )}
 
                     {/* Freeze — expiring + freezable + not yet frozen */}
                     {status === "expiring-soon" && canFreeze && !item.isFrozen && (
@@ -988,8 +990,8 @@ export default function PantryPage() {
                       </span>
                     )}
 
-                    {/* Share — expiring or expired, but NOT if already frozen */}
-                    {(status === "expiring-soon" || status === "expired") && !item.isFrozen && (
+                    {/* Share — expiring or expired, but NOT if frozen at all */}
+                    {(status === "expiring-soon" || status === "expired") && !item.isFrozen && item.storage !== "freezer" && (
                       <button type="button" onClick={() => setShareItem(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.3)" }}
