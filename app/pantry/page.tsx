@@ -1337,7 +1337,7 @@ export default function PantryPage() {
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(234,179,8,0.08)", color: "#b45309", border: "1px solid rgba(234,179,8,0.25)" }}
                       >
-                        📂 Opened
+                        📂 Click here if opened
                       </button>
                     )}
 
