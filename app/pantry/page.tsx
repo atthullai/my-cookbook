@@ -1126,8 +1126,8 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Discard — all expired items regardless of storage */}
-                    {status === "expired" && (
+                    {/* Discard — expired or expiring-soon, any storage */}
+                    {(status === "expired" || status === "expiring-soon") && (
                       <button type="button" onClick={() => discardItem(item)}
                         className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
                         style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
