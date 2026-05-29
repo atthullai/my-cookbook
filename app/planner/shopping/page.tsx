@@ -629,6 +629,13 @@ export default function ShoppingListPage() {
                             )}
                           </div>
 
+                          {/* Quantity badge */}
+                          <span className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-lg flex-shrink-0"
+                            style={{ background: "rgba(201,149,42,0.12)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.2)" }}
+                          >
+                            {item.quantity} {item.unit || "×"}
+                          </span>
+
                           {/* Name */}
                           <motion.span
                             animate={{ opacity: item.checked ? 0.45 : 1 }}
@@ -637,11 +644,6 @@ export default function ShoppingListPage() {
                           >
                             {item.name}
                           </motion.span>
-
-                          {/* Quantity */}
-                          <span className="text-sm tabular-nums" style={{ color: "var(--muted)" }}>
-                            {item.quantity > 0 ? item.quantity : ""}{item.unit ? ` ${item.unit}` : ""}
-                          </span>
                         </motion.li>
                       ))}
                     </AnimatePresence>
