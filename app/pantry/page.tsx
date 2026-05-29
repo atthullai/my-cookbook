@@ -13,8 +13,9 @@
  * - Data persisted in Supabase pantry_items table
  */
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Pencil, ChefHat, X, Check } from "lucide-react";
+import { Plus, Trash2, Pencil, ChefHat, X, Check, ShoppingCart } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -378,6 +379,12 @@ export default function PantryPage() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Link href="/planner/shopping"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
+              style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+            >
+              <ShoppingCart size={16} /> Shopping List
+            </Link>
             <button type="button" onClick={suggestRecipes}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
               style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
