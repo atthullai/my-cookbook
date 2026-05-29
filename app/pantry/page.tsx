@@ -329,7 +329,42 @@ export default function PantryPage() {
     }
   };
 
-  // ── Add low-stock items to shopping list ─────────────────────────────────
+  // ── Add a single item to shopping list (from card) ───────────────────────
+  const addItemToShoppingList = async (item: PantryItem) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+
+      const { data: existing } = await supabase
+        .from("shopping_list")
+        .select("name, checked")
+        .eq("user_id", user.id);
+
+      const alreadyIn = (existing ?? [])
+        .filter((r: { checked: boolean }) => !r.checked)
+        .some((r: { name: string }) => r.name.toLowerCase() === item.name.toLowerCase());
+
+      if (alreadyIn) {
+        toast("Already in your shopping list", { icon: "ℹ️" });
+        return;
+      }
+
+      const { error } = await supabase.from("shopping_list").insert({
+        user_id:  user.id,
+        name:     item.name,
+        quantity: item.lowStockThreshold ?? 1,
+        unit:     item.unit ?? "",
+        category: item.category,
+        checked:  false,
+      });
+      if (error) throw error;
+      toast.success(`${item.name} added to shopping list`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add to shopping list");
+    }
+  };
+
+  // ── Add low-stock items to shopping list (bulk, from alert banner) ────────
   const addLowStockToShoppingList = async () => {
     if (isAddingToList) return;
     const lowStock = items.filter((i) => getPantryStatus(i) === "low-stock");
@@ -1068,6 +1103,16 @@ export default function PantryPage() {
                         style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
                       >
                         🗑 Discard
+                      </button>
+                    )}
+
+                    {/* Add to shopping list — expiring soon only */}
+                    {status === "expiring-soon" && (
+                      <button type="button" onClick={() => addItemToShoppingList(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(201,149,42,0.10)", color: "var(--accent)", border: "1px solid rgba(201,149,42,0.3)" }}
+                      >
+                        🛒 Buy more
                       </button>
                     )}
 
