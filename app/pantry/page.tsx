@@ -980,14 +980,14 @@ export default function PantryPage() {
                       </button>
                     )}
 
-                    {/* Already frozen — show warning chip instead */}
+                    {/* Already frozen + expiring/expired — discard only */}
                     {item.isFrozen && status !== "ok" && (
-                      <span
-                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium text-center whitespace-nowrap"
-                        style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
+                      <button type="button" onClick={() => discardItem(item)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium transition whitespace-nowrap"
+                        style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
                       >
-                        ⚠ Frozen once — discard
-                      </span>
+                        🗑 Discard
+                      </button>
                     )}
 
                     {/* Share — expiring or expired, but NOT if frozen at all */}
