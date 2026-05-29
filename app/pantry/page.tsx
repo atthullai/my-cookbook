@@ -1188,22 +1188,32 @@ export default function PantryPage() {
                     </span>
                   </div>
 
-                  {/* Days remaining / expiry label */}
-                  {daysLeft !== null && (
-                    <p className={`text-xs font-medium -mt-1 ${
-                      status === "expired"       ? "text-red-500" :
-                      status === "expiring-soon" ? "text-amber-600" :
-                      "text-gray-400"
-                    }`}>
-                      {status === "expired"
-                        ? `Expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? "s" : ""} ago — discard or check`
-                        : daysLeft === 0 ? "Expires today — use it!"
-                        : daysLeft === 1 ? "Expires tomorrow — use soon"
-                        : status === "expiring-soon" ? `${daysLeft} days left — use soon`
-                        : `Exp ${new Date(item.expiryDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
-                      }
-                    </p>
-                  )}
+                  {/* Category + expiry info row */}
+                  <div className="flex items-center gap-2 -mt-1 flex-wrap">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium capitalize"
+                      style={{ background: "var(--surface-strong)", color: "var(--muted)" }}>
+                      {CATEGORY_ICONS[item.category]} {item.category.replace(/-/g, " ")}
+                    </span>
+                    {daysLeft !== null ? (
+                      <p className={`text-xs font-medium ${
+                        status === "expired"       ? "text-red-500" :
+                        status === "expiring-soon" ? "text-amber-600" :
+                        "text-gray-400"
+                      }`}>
+                        {status === "expired"
+                          ? `Expired ${Math.abs(daysLeft)}d ago`
+                          : daysLeft === 0 ? "Expires today!"
+                          : daysLeft === 1 ? "Expires tomorrow"
+                          : status === "expiring-soon" ? `${daysLeft}d left`
+                          : `Exp ${new Date(item.expiryDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                        }
+                      </p>
+                    ) : (
+                      <p className="text-[10px]" style={{ color: "var(--muted)", opacity: 0.6 }}>
+                        No expiry set
+                      </p>
+                    )}
+                  </div>
 
                   {/* Homemade storage tip */}
                   {item.isHomemade && (() => {
