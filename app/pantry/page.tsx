@@ -763,13 +763,20 @@ export default function PantryPage() {
                   )}
                 </div>
 
-                {/* Egg lifecycle hint */}
+                {/* Egg lifecycle hint — uses actual bought date + carton expiry if set */}
                 {form.category === "eggs" && form.madeOn && (
                   <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "rgba(201,149,42,0.07)", border: "1px solid rgba(201,149,42,0.2)" }}>
-                    <p className="font-semibold" style={{ color: "var(--accent)" }}>🥚 Egg lifecycle (from today)</p>
+                    <p className="font-semibold" style={{ color: "var(--accent)" }}>🥚 Egg lifecycle</p>
+                    <p style={{ color: "var(--muted)" }}>🛒 Bought: <strong>{fmtDate(form.madeOn)}</strong></p>
                     <p style={{ color: "var(--muted)" }}>🌡️ Room temp until: <strong>{fmtDate(addDays(form.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
                     <p style={{ color: "var(--muted)" }}>❄️ Move to fridge: <strong>{fmtDate(addDays(form.madeOn, EGG_ROOM_TEMP_DAYS))}</strong></p>
-                    <p style={{ color: "var(--muted)" }}>🗑 Discard by: <strong>{fmtDate(addDays(form.madeOn, EGG_TOTAL_DAYS))}</strong></p>
+                    <p style={{ color: "var(--muted)" }}>
+                      🗑 Discard by:{" "}
+                      <strong>
+                        {form.expiryDate ? fmtDate(form.expiryDate) : `${fmtDate(addDays(form.madeOn, EGG_TOTAL_DAYS))} (suggested)`}
+                      </strong>
+                      {!form.expiryDate && <span className="ml-1 opacity-60">— set from carton below</span>}
+                    </p>
                   </div>
                 )}
 
@@ -780,15 +787,14 @@ export default function PantryPage() {
                     onChange={(e) => {
                       const cat = e.target.value as ShoppingCategory;
                       if (cat === "eggs") {
-                        // Eggs: room temp → fridge lifecycle, auto-fill dates
-                        const bought = today();
+                        // Eggs: room temp → fridge lifecycle; expiry left blank for user to fill from carton
                         setForm((f) => ({
                           ...f,
                           category: cat,
                           storage: "room-temp",
-                          unit: "M",
-                          madeOn: bought,
-                          expiryDate: addDays(bought, EGG_TOTAL_DAYS),
+                          unit: f.unit && EGG_SIZES.includes(f.unit as typeof EGG_SIZES[number]) ? f.unit : "M",
+                          madeOn: f.madeOn || today(),
+                          expiryDate: f.expiryDate || "",   // keep existing or leave blank
                         }));
                       } else {
                         setForm((f) => ({

@@ -349,17 +349,26 @@ export default function ShoppingListPage() {
         toast.success(`Pantry updated: +${qty} ${restockTarget.unit || ""} ${restockTarget.name}`);
       } else {
         // No pantry item, or existing is expired/expiring — create a fresh entry
+        const isEggs = restockTarget.category === "eggs";
+        const boughtToday = new Date().toISOString().split("T")[0];
         await supabase.from("pantry_items").insert({
           user_id:          user.id,
           name:             restockTarget.name,
           quantity:         qty,
-          unit:             restockTarget.unit || "",
+          unit:             restockTarget.unit || (isEggs ? "M" : ""),
           category:         restockTarget.category,
           storage_location: "room-temp",
           is_homemade:      false,
           is_frozen:        false,
+          made_on:          boughtToday,
+          // Eggs: leave expiry blank so user sets from carton; others keep blank too
+          expiry_date:      null,
         });
-        toast.success(`New pantry entry created for ${restockTarget.name} 🆕`);
+        toast.success(
+          isEggs
+            ? `Eggs added to pantry 🥚 — open pantry to set the carton expiry date`
+            : `New pantry entry created for ${restockTarget.name} 🆕`
+        );
       }
 
       // Mark checked on shopping list
