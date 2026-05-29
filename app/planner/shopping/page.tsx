@@ -84,6 +84,11 @@ export default function ShoppingListPage() {
   const [isAdding, setIsAdding]       = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // ── Restock popup (shown when checking off an item) ───────────────────────
+  const [restockTarget, setRestockTarget] = useState<ShoppingItem | null>(null);
+  const [restockQty, setRestockQty]       = useState("1");
+  const [isRestocking, setIsRestocking]   = useState(false);
+
   // ── Load shopping list from Supabase ─────────────────────────────────────
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -286,21 +291,78 @@ export default function ShoppingListPage() {
   };
 
   // ── Toggle checked ────────────────────────────────────────────────────────
-  const toggleItem = async (item: ShoppingItem) => {
-    setItems((prev) =>
-      prev.map((i) => i.id === item.id ? { ...i, checked: !i.checked } : i)
-    );
+  const toggleItem = (item: ShoppingItem) => {
+    if (!item.checked) {
+      // Checking ON → show restock popup pre-filled with shopping list qty
+      setRestockTarget(item);
+      setRestockQty(String(item.quantity));
+    } else {
+      // Unchecking — just uncheck, no pantry update
+      void markChecked(item, false);
+    }
+  };
+
+  const markChecked = async (item: ShoppingItem, checked: boolean) => {
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, checked } : i));
     try {
       const { error } = await supabase
         .from("shopping_list")
-        .update({ checked: !item.checked })
+        .update({ checked })
         .eq("id", item.id);
       if (error) throw error;
     } catch {
-      setItems((prev) =>
-        prev.map((i) => i.id === item.id ? { ...i, checked: item.checked } : i)
-      );
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, checked: !checked } : i));
       toast.error("Failed to update item");
+    }
+  };
+
+  // ── Confirm restock: add qty to pantry + mark checked ────────────────────
+  const confirmRestock = async () => {
+    if (!restockTarget) return;
+    setIsRestocking(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const qty = parseFloat(restockQty) || 0;
+
+      // Find matching pantry item by name (case-insensitive)
+      const { data: pantryRows } = await supabase
+        .from("pantry_items")
+        .select("id, quantity")
+        .eq("user_id", user.id)
+        .ilike("name", restockTarget.name)
+        .limit(1);
+
+      if (pantryRows && pantryRows.length > 0) {
+        // Pantry item exists — add the purchased quantity
+        const current = Number(pantryRows[0].quantity) || 0;
+        await supabase
+          .from("pantry_items")
+          .update({ quantity: current + qty })
+          .eq("id", pantryRows[0].id);
+        toast.success(`Pantry updated: +${qty} ${restockTarget.unit || ""} ${restockTarget.name}`);
+      } else {
+        // Not in pantry yet — create it
+        await supabase.from("pantry_items").insert({
+          user_id:          user.id,
+          name:             restockTarget.name,
+          quantity:         qty,
+          unit:             restockTarget.unit || "",
+          category:         restockTarget.category,
+          storage_location: "room-temp",
+          is_homemade:      false,
+        });
+        toast.success(`Added ${restockTarget.name} to pantry`);
+      }
+
+      // Mark checked on shopping list
+      await markChecked(restockTarget, true);
+      setRestockTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to restock");
+    } finally {
+      setIsRestocking(false);
     }
   };
 
@@ -599,6 +661,63 @@ export default function ShoppingListPage() {
           </div>
         )}
       </main>
+
+      {/* ── Restock popup ──────────────────────────────────────────────── */}
+      {restockTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setRestockTarget(null)}
+        >
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="font-semibold text-base" style={{ color: "var(--foreground)" }}>
+                How much did you buy?
+              </p>
+              <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                This will be added to your pantry for <span className="font-medium" style={{ color: "var(--foreground)" }}>{restockTarget.name}</span>.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={restockQty}
+                onChange={(e) => setRestockQty(e.target.value)}
+                className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
+                style={{ flex: 1, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}
+                autoFocus
+              />
+              <span className="text-sm font-medium" style={{ color: "var(--muted)" }}>
+                {restockTarget.unit || "units"}
+              </span>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setRestockTarget(null)}
+                className="px-4 py-2 rounded-xl text-sm"
+                style={{ color: "var(--muted)" }}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                onClick={confirmRestock}
+                disabled={isRestocking}
+                className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-60"
+                style={{ background: "var(--accent)", color: "#fff" }}
+              >
+                {isRestocking ? "Saving…" : "✓ Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
