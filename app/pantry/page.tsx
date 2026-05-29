@@ -673,8 +673,8 @@ export default function PantryPage() {
       category:          item.category,
       // Eggs manage storage via their own button — don't carry over stale fridge value
       storage:           item.category === "eggs" ? "room-temp" : item.storage,
-      expiryDate:        item.expiryDate ?? (
-        // Auto-suggest expiry for items that never had one set
+      expiryDate:        item.expiryDate || (
+        // Auto-suggest expiry for items that never had one set (catches null, undefined, "")
         item.isHomemade
           ? (lookupHomemadeItem(item.name) ? suggestExpiryDate("homemade", item.name) : "")
           : (lookupItem(item.category, item.name) ? suggestExpiryDate(item.category, item.name) : "")
@@ -1034,12 +1034,33 @@ export default function PantryPage() {
                           return `Use by · ${itemDef.expiryDays}d from ${form.isHomemade ? "prep" : "purchase"}`;
                         })()}
                     </label>
-                    <input
-                      type="date" value={form.expiryDate}
-                      onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                      className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
-                      style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                    />
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="date" value={form.expiryDate}
+                        onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer flex-1"
+                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                      />
+                      {/* Quick-fill button when a known item is selected */}
+                      {(() => {
+                        const itemDef = form.isHomemade
+                          ? lookupHomemadeItem(form.name)
+                          : lookupItem(form.category, form.name);
+                        if (!itemDef) return null;
+                        const suggested = suggestExpiryDate(form.isHomemade ? "homemade" : form.category, form.name);
+                        if (form.expiryDate === suggested) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, expiryDate: suggested }))}
+                            className="flex-shrink-0 text-xs px-2 py-1.5 rounded-lg font-medium whitespace-nowrap"
+                            style={{ background: "var(--accent)", color: "#fff" }}
+                          >
+                            Set {itemDef.expiryDays}d
+                          </button>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
 
