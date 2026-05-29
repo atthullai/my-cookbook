@@ -313,7 +313,26 @@ export default function PantryPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = "/login"; return; }
 
-      const rows = lowStock.map((i) => ({
+      // Fetch unchecked items already in shopping list to avoid duplicates
+      const { data: existing } = await supabase
+        .from("shopping_list")
+        .select("name")
+        .eq("user_id", user.id)
+        .eq("checked", false);
+
+      const existingNames = new Set(
+        (existing ?? []).map((r: { name: string }) => r.name.toLowerCase())
+      );
+
+      const toAdd = lowStock.filter((i) => !existingNames.has(i.name.toLowerCase()));
+      const skipped = lowStock.length - toAdd.length;
+
+      if (!toAdd.length) {
+        toast("Already in your shopping list", { icon: "ℹ️" });
+        return;
+      }
+
+      const rows = toAdd.map((i) => ({
         user_id:  user.id,
         name:     i.name,
         quantity: i.lowStockThreshold ?? 1,
@@ -323,7 +342,12 @@ export default function PantryPage() {
       }));
       const { error } = await supabase.from("shopping_list").insert(rows);
       if (error) throw error;
-      toast.success(`${lowStock.length} item${lowStock.length > 1 ? "s" : ""} added to shopping list`);
+
+      toast.success(
+        skipped > 0
+          ? `${toAdd.length} added · ${skipped} already in list`
+          : `${toAdd.length} item${toAdd.length > 1 ? "s" : ""} added to shopping list`
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add to shopping list");
     }
