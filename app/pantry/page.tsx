@@ -287,6 +287,24 @@ export default function PantryPage() {
     }
   };
 
+  // ── Quick quantity adjust (+/-) ───────────────────────────────────────────
+  const adjustQuantity = async (item: PantryItem, delta: number) => {
+    const newQty = Math.max(0, parseFloat((item.quantity + delta).toFixed(3)));
+    // Optimistic update
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, quantity: newQty } : i));
+    try {
+      const { error } = await supabase
+        .from("pantry_items")
+        .update({ quantity: newQty })
+        .eq("id", item.id);
+      if (error) throw error;
+    } catch (err) {
+      // Revert on failure
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, quantity: item.quantity } : i));
+      toast.error(err instanceof Error ? err.message : "Failed to update quantity");
+    }
+  };
+
   // ── Add low-stock items to shopping list ─────────────────────────────────
   const addLowStockToShoppingList = async () => {
     const lowStock = items.filter((i) => getPantryStatus(i) === "low-stock");
@@ -710,15 +728,37 @@ export default function PantryPage() {
                     </span>
                   </div>
 
-                  {/* Quantity, storage & expiry */}
-                  <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
-                    <span className="font-medium" style={{ color: "var(--foreground)" }}>{item.quantity} {item.unit}</span>
-                    <span title={STORAGE_OPTIONS.find((s) => s.value === item.storage)?.label}>
-                      {STORAGE_OPTIONS.find((s) => s.value === item.storage)?.icon}
-                    </span>
-                    {item.isHomemade && <span className="italic">homemade</span>}
-                    {item.brand && <span>· {item.brand}</span>}
-                    {item.expiryDate && <span>· exp {new Date(item.expiryDate).toLocaleDateString("en-GB", { day:"numeric", month:"short" })}</span>}
+                  {/* Quantity row with +/- */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
+                      <span title={STORAGE_OPTIONS.find((s) => s.value === item.storage)?.label}>
+                        {STORAGE_OPTIONS.find((s) => s.value === item.storage)?.icon}
+                      </span>
+                      {item.isHomemade && <span className="italic">homemade</span>}
+                      {item.brand && <span>{item.brand}</span>}
+                      {item.expiryDate && <span>exp {new Date(item.expiryDate).toLocaleDateString("en-GB", { day:"numeric", month:"short" })}</span>}
+                    </div>
+                    {/* +/- stepper */}
+                    <div className="flex items-center gap-1 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
+                      <button
+                        type="button"
+                        onClick={() => adjustQuantity(item, -1)}
+                        disabled={item.quantity <= 0}
+                        className="px-2 py-1 text-sm font-bold disabled:opacity-30 transition"
+                        style={{ background: "var(--surface)", color: "var(--foreground)" }}
+                        aria-label="Decrease quantity"
+                      >−</button>
+                      <span className="px-2 text-xs font-semibold tabular-nums" style={{ color: "var(--foreground)", minWidth: 48, textAlign: "center" }}>
+                        {item.quantity} {item.unit}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => adjustQuantity(item, 1)}
+                        className="px-2 py-1 text-sm font-bold transition"
+                        style={{ background: "var(--surface)", color: "var(--foreground)" }}
+                        aria-label="Increase quantity"
+                      >+</button>
+                    </div>
                   </div>
 
                   {/* Actions */}
