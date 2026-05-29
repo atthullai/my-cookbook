@@ -86,24 +86,6 @@ const DEFAULT_STORAGE: Record<ShoppingCategory, StorageLocation> = {
 };
 
 // Typical homemade shelf life in days per category
-const HOMEMADE_SHELF_DAYS: Partial<Record<ShoppingCategory, number>> = {
-  "produce":       5,
-  "fresh-herbs":   3,
-  "dairy":         5,
-  "eggs":          21,
-  "meat":          3,
-  "fish-seafood":  2,
-  "bakery":        4,
-  "sauces-pastes": 14,
-  "frozen":        90,
-  "beverages":     7,
-  "grains-pulses": 180,
-  "canned-dried":  365,
-  "nuts-seeds":    30,
-  "oils":          60,
-  "spices":        365,
-  "other":         7,
-};
 
 const STORAGE_OPTIONS: { value: StorageLocation; icon: string; label: string }[] = [
   { value: "room-temp", icon: "🌡️", label: "Room temp" },
@@ -858,8 +840,8 @@ export default function PantryPage() {
                       setForm((f) => ({
                         ...f,
                         name,
-                        // Auto-fill expiry if item is recognised and expiry not yet set
-                        expiryDate: (itemDef && !f.expiryDate)
+                          // Auto-fill expiry whenever a known item is selected
+                        expiryDate: itemDef
                           ? suggestExpiryDate(form.isHomemade ? "homemade" : f.category, name)
                           : f.expiryDate,
                         // Auto-set storage for homemade items
@@ -873,6 +855,7 @@ export default function PantryPage() {
                   />
                   <input
                     type="number" value={form.quantity}
+                    min="0" step="0.1" placeholder="Qty"
                     onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
                     className="rounded-xl px-2 py-2.5 text-sm focus:outline-none text-center"
                     style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
@@ -1036,14 +1019,13 @@ export default function PantryPage() {
                   <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
                     <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
                       {form.category === "eggs" ? "Expiry (from carton)" :
-                       form.isHomemade ? (() => {
-                          const days = HOMEMADE_SHELF_DAYS[form.category];
-                          if (!days || !form.madeOn) return "Use by";
-                          const d = new Date(form.madeOn);
-                          d.setDate(d.getDate() + days);
-                          return `Use by · hint: ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
-                        })()
-                       : "Expiry (from package)"}
+                       (() => {
+                          const itemDef = form.isHomemade
+                            ? lookupHomemadeItem(form.name)
+                            : lookupItem(form.category, form.name);
+                          if (!itemDef) return form.isHomemade ? "Use by (from prep date)" : "Expiry (from package)";
+                          return `Use by · ${itemDef.expiryDays}d from ${form.isHomemade ? "prep" : "purchase"}`;
+                        })()}
                     </label>
                     <input
                       type="date" value={form.expiryDate}
