@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
 import { BookOpen, CalendarDays, ShoppingCart, Leaf } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
-import { ALL_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
+import { supabase } from "@/lib/supabase";
+import { ALL_CUISINE_ORIGINS, getCuisineTheme, normalizeCuisineToKey } from "@/lib/cuisine-themes";
 import type { CuisineOrigin } from "@/types";
 import LottieAnimation from "@/components/LottieAnimation";
 import ProfileTab from "./ProfileTab";
@@ -73,10 +74,7 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
             : { background: theme.cardGradient }
         }
       >
-        {/* Dark overlay for text legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-        {/* Recipe count badge — always shown */}
         <span
           className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm"
           style={{
@@ -86,8 +84,6 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
         >
           {count} {count === 1 ? "recipe" : "recipes"}
         </span>
-
-        {/* Text at bottom */}
         <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
           <p className="text-xs font-bold text-white leading-tight">{theme.label}</p>
           <p className="text-[10px] text-white/70 mt-0.5 leading-snug line-clamp-1">{theme.descriptor}</p>
@@ -145,20 +141,12 @@ function CookbookTab({ recipeCount }: { recipeCount: number }) {
       transition={{ duration: 0.45, ease: EASE_WARM }}
       className="space-y-10"
     >
-      {/* Manifesto */}
       <div
         className="relative rounded-2xl p-8 overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, var(--surface), var(--surface-strong))",
-          border: "1px solid var(--border)",
-        }}
+        style={{ background: "linear-gradient(135deg, var(--surface), var(--surface-strong))", border: "1px solid var(--border)" }}
       >
-        <div
-          className="absolute top-[-10px] left-4 font-serif leading-none pointer-events-none select-none"
-          style={{ fontSize: 160, color: "var(--saffron)", opacity: 0.06 }}
-        >
-          &ldquo;
-        </div>
+        <div className="absolute top-[-10px] left-4 font-serif leading-none pointer-events-none select-none"
+          style={{ fontSize: 160, color: "var(--saffron)", opacity: 0.06 }}>&ldquo;</div>
         <p className="relative z-10 text-lg leading-relaxed" style={{ color: "var(--foreground)", fontStyle: "italic" }}>
           Not just a recipe manager —{" "}
           <em style={{ color: "var(--accent)", fontStyle: "italic" }}>a living record of the meals that matter most.</em>
@@ -166,8 +154,6 @@ function CookbookTab({ recipeCount }: { recipeCount: number }) {
           The Amma&apos;s rasam. The recipes that deserve more than a dog-eared notebook page.
         </p>
       </div>
-
-      {/* Feature cards */}
       <div>
         <h2 className="text-lg font-bold mb-1" style={{ color: "var(--foreground)" }}>Everything you need</h2>
         <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Built for real home cooks — not food bloggers.</p>
@@ -186,18 +172,13 @@ function CookbookTab({ recipeCount }: { recipeCount: number }) {
             href="/pantry" badge="FIFO · Pfand" badgeColor="var(--saffron)" />
         </div>
       </div>
-
-      {/* Why private */}
       <div>
         <h2 className="text-lg font-bold mb-2" style={{ color: "var(--foreground)" }}>Why private?</h2>
         <p className="text-sm leading-relaxed italic" style={{ color: "var(--muted)" }}>
           Family recipes are personal. They carry memory, imprecision, love, and context that doesn&apos;t belong on the open internet.
-          This cookbook is for the family table — not for food bloggers or SEO.
-          Private by design. No ads. No sharing unless you choose to.
+          This cookbook is for the family table — not for food bloggers or SEO. Private by design. No ads. No sharing unless you choose to.
         </p>
       </div>
-
-      {/* What makes it different */}
       <div>
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--foreground)" }}>What makes it different</h2>
         <div className="flex flex-col gap-2">
@@ -208,11 +189,8 @@ function CookbookTab({ recipeCount }: { recipeCount: number }) {
             { bold: "Unit conversion built-in",   detail: "recipe uses \"2 onions\"? Pantry stores in g. The bridge is automatic." },
             { bold: "Homemade category",          detail: "ginger-garlic paste, coconut milk, tamarind water — tracked like any pantry item" },
           ].map(({ bold, detail }) => (
-            <div
-              key={bold}
-              className="flex gap-3 items-start px-4 py-3 rounded-xl"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-            >
+            <div key={bold} className="flex gap-3 items-start px-4 py-3 rounded-xl"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
               <span className="text-base flex-shrink-0 mt-0.5" style={{ color: "var(--saffron)" }}>✦</span>
               <div className="text-sm" style={{ color: "var(--muted)" }}>
                 <span className="font-semibold" style={{ color: "var(--foreground)" }}>{bold}</span>
@@ -222,8 +200,6 @@ function CookbookTab({ recipeCount }: { recipeCount: number }) {
           ))}
         </div>
       </div>
-
-      {/* CTA */}
       <div className="rounded-2xl px-8 py-10 text-center" style={{ background: "var(--accent)", color: "#fff" }}>
         <h2 className="text-xl font-bold mb-2">Your family&apos;s culinary heritage</h2>
         <p className="text-sm mb-6 max-w-sm mx-auto leading-relaxed" style={{ opacity: 0.85 }}>
@@ -242,11 +218,7 @@ function CookbookTab({ recipeCount }: { recipeCount: number }) {
 function CuisinesTab({ cuisineBreakdown }: { cuisineBreakdown: CuisineBreakdown[] }) {
   const countMap = new Map(cuisineBreakdown.map((c) => [c.origin, c.count]));
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: EASE_WARM }}
-    >
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE_WARM }}>
       <h2 className="text-lg font-bold mb-1" style={{ color: "var(--foreground)" }}>20 Cuisines, One Kitchen</h2>
       <p className="text-sm mb-2 italic" style={{ color: "var(--muted)" }}>
         Each cuisine gets its own colour palette, personality, and card design.
@@ -270,34 +242,88 @@ interface UserProfile {
   avatar_url: string;
 }
 
-interface Props {
-  initialProfile: UserProfile;
-  userId: string | null;
-  stats: { recipes: number; cuisines: number };
-  cuisineBreakdown: CuisineBreakdown[];
-  tagBreakdown: TagBreakdown;
-  pantryCount: number;
-  joinedYear: number | null;
-}
+const EMPTY_PROFILE: UserProfile = { display_name: "", bio: "", location: "", cook_style: "", avatar_url: "" };
+const EMPTY_TAGS: TagBreakdown   = { vegetarian: 0, spicy: 0, quick: 0, highProtein: 0, totalTags: 0 };
 
-export default function AboutPageClient({ initialProfile, userId, stats, cuisineBreakdown, tagBreakdown, pantryCount, joinedYear }: Props) {
+export default function AboutPageClient() {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
+  const [loading,   setLoading]   = useState(true);
 
-  const displayName = initialProfile.display_name || "My Cookbook";
-  const subtitle    = initialProfile.bio
-    ? initialProfile.bio.slice(0, 100) + (initialProfile.bio.length > 100 ? "…" : "")
+  const [userId,           setUserId]           = useState<string | null>(null);
+  const [profile,          setProfile]          = useState<UserProfile>(EMPTY_PROFILE);
+  const [stats,            setStats]            = useState({ recipes: 0, cuisines: 0 });
+  const [cuisineBreakdown, setCuisineBreakdown] = useState<CuisineBreakdown[]>([]);
+  const [tagBreakdown,     setTagBreakdown]     = useState<TagBreakdown>(EMPTY_TAGS);
+  const [pantryCount,      setPantryCount]      = useState(0);
+  const [joinedYear,       setJoinedYear]       = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
+      setUserId(user.id);
+      setJoinedYear(new Date(user.created_at).getFullYear());
+
+      const [profileRes, recipesRes, pantryRes] = await Promise.all([
+        supabase.from("user_profiles").select("display_name, bio, location, cook_style, avatar_url").eq("id", user.id).single(),
+        supabase.from("recipes").select("origin, cuisine, tags").eq("user_id", user.id),
+        supabase.from("pantry_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      ]);
+
+      if (profileRes.data) {
+        setProfile({
+          display_name: (profileRes.data.display_name as string) ?? "",
+          bio:          (profileRes.data.bio as string) ?? "",
+          location:     (profileRes.data.location as string) ?? "",
+          cook_style:   (profileRes.data.cook_style as string) ?? "",
+          avatar_url:   (profileRes.data.avatar_url as string) ?? "",
+        });
+      }
+
+      const recipes = recipesRes.data ?? [];
+      const cuisineMap = new Map<string, number>();
+      let vegetarian = 0, spicy = 0, quick = 0, highProtein = 0;
+      const allTagSet = new Set<string>();
+
+      for (const r of recipes) {
+        const raw = ((r.origin !== "other" ? r.origin : null) ?? r.cuisine ?? "") as string;
+        const key = raw ? normalizeCuisineToKey(raw) : "other";
+        if (key && key !== "other") cuisineMap.set(key, (cuisineMap.get(key) ?? 0) + 1);
+
+        const tags: string[] = Array.isArray(r.tags) ? r.tags : [];
+        tags.forEach((t: string) => allTagSet.add(t.toLowerCase().trim()));
+        const joined = tags.join(" ").toLowerCase();
+        if (joined.includes("vegetarian") || joined.includes("vegan")) vegetarian++;
+        if (joined.includes("spic")) spicy++;
+        if (joined.includes("quick") || joined.includes("fast") || joined.includes("30 min")) quick++;
+        if (joined.includes("high protein") || joined.includes("protein")) highProtein++;
+      }
+
+      setStats({ recipes: recipes.length, cuisines: cuisineMap.size });
+      setCuisineBreakdown(
+        Array.from(cuisineMap.entries()).map(([origin, count]) => ({ origin, count })).sort((a, b) => b.count - a.count)
+      );
+      setTagBreakdown({ vegetarian, spicy, quick, highProtein, totalTags: allTagSet.size });
+      setPantryCount(pantryRes.count ?? 0);
+      setLoading(false);
+    };
+    void load();
+  }, []);
+
+  const displayName = profile.display_name || "My Cookbook";
+  const subtitle    = profile.bio
+    ? profile.bio.slice(0, 100) + (profile.bio.length > 100 ? "…" : "")
     : "Recipes handed down, stories kept warm — a private heirloom for the family table.";
-
-  // Split display name: all but last word on line 1, last word italic on line 2
-  const nameParts  = displayName.split(" ");
-  const nameFirst  = nameParts.slice(0, -1).join(" ");
-  const nameLast   = nameParts[nameParts.length - 1];
+  const nameParts = displayName.split(" ");
+  const nameFirst = nameParts.slice(0, -1).join(" ");
+  const nameLast  = nameParts[nameParts.length - 1];
 
   const heroStats = [
-    { num: stats.recipes,           label: "recipes" },
-    { num: stats.cuisines,          label: "cuisines" },
+    { num: stats.recipes,  label: "recipes" },
+    { num: stats.cuisines, label: "cuisines" },
     ...(tagBreakdown.totalTags > 0 ? [{ num: tagBreakdown.totalTags, label: "tags" }] : []),
-    { num: 20,                      label: "origins" },
+    { num: 20,             label: "origins" },
   ];
 
   return (
@@ -319,36 +345,20 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
         >
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end justify-between gap-8">
-              {/* Left: text content */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, ease: EASE_WARM }}
-                className="flex-1 min-w-0"
-              >
-                {/* Eyebrow */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: EASE_WARM }} className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="h-px w-6" style={{ background: "var(--saffron)" }} />
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
                     About the cook
                   </span>
                 </div>
-
-                {/* Title — two lines */}
-                <h1
-                  className="font-bold leading-tight mb-2"
-                  style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", color: "var(--foreground)" }}
-                >
+                <h1 className="font-bold leading-tight mb-2"
+                  style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", color: "var(--foreground)" }}>
                   {nameFirst && <>{nameFirst}<br /></>}
                   <em style={{ color: "var(--accent)", fontStyle: "italic" }}>{nameLast}</em>
                 </h1>
-
-                {/* Subtitle */}
-                <p className="text-sm mb-5 italic max-w-lg" style={{ color: "var(--muted)" }}>
-                  {subtitle}
-                </p>
-
-                {/* Stats */}
+                <p className="text-sm mb-5 italic max-w-lg" style={{ color: "var(--muted)" }}>{subtitle}</p>
                 {stats.recipes > 0 && (
                   <div className="flex gap-7 mb-0">
                     {heroStats.map(({ num, label }) => (
@@ -360,49 +370,27 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
                   </div>
                 )}
               </motion.div>
-
-              {/* Right: peacock Lottie */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.7, delay: 0.15, ease: EASE_WARM }}
-                className="hidden sm:block flex-shrink-0"
-              >
-                <LottieAnimation
-                  src="/animations/peacock.json"
-                  loop
-                  style={{ width: 280, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }}
-                />
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.7, delay: 0.15, ease: EASE_WARM }} className="hidden sm:block flex-shrink-0">
+                <LottieAnimation src="/animations/peacock.json" loop
+                  style={{ width: 280, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }} />
               </motion.div>
             </div>
-
-            {/* Divider */}
             <div className="mt-8 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--border), transparent)" }} />
           </div>
         </section>
 
         {/* ── Tab bar ── */}
-        <div
-          className="sticky top-0 z-20 px-6 border-b"
-          style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-        >
+        <div className="sticky top-0 z-20 px-6 border-b" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
           <div className="max-w-3xl mx-auto flex gap-0 overflow-x-auto">
             {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
+              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 className="relative px-4 py-3.5 text-sm font-medium whitespace-nowrap transition-colors"
-                style={{ color: activeTab === tab.id ? "var(--saffron)" : "var(--muted)" }}
-              >
+                style={{ color: activeTab === tab.id ? "var(--saffron)" : "var(--muted)" }}>
                 {tab.label}
                 {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="tab-underline"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                    style={{ background: "var(--saffron)" }}
-                    transition={{ type: "spring", stiffness: 400, damping: 35 }}
-                  />
+                  <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                    style={{ background: "var(--saffron)" }} transition={{ type: "spring", stiffness: 400, damping: 35 }} />
                 )}
               </button>
             ))}
@@ -411,20 +399,22 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
 
         {/* ── Tab content ── */}
         <div className="max-w-3xl mx-auto px-6 py-10">
-          {activeTab === "profile"  && (
-            <ProfileTab
-              initialProfile={initialProfile}
-              userId={userId}
-              stats={stats}
-              cuisineBreakdown={cuisineBreakdown}
-              tagBreakdown={tagBreakdown}
-              pantryCount={pantryCount}
-              joinedYear={joinedYear}
-            />
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "var(--border)", borderTopColor: "var(--saffron)" }} />
+            </div>
+          ) : (
+            <>
+              {activeTab === "profile"  && (
+                <ProfileTab initialProfile={profile} userId={userId} stats={stats}
+                  cuisineBreakdown={cuisineBreakdown} tagBreakdown={tagBreakdown}
+                  pantryCount={pantryCount} joinedYear={joinedYear} />
+              )}
+              {activeTab === "cookbook" && <CookbookTab recipeCount={stats.recipes} />}
+              {activeTab === "cuisines" && <CuisinesTab cuisineBreakdown={cuisineBreakdown} />}
+              {activeTab === "privacy"  && <PrivacyTab />}
+            </>
           )}
-          {activeTab === "cookbook" && <CookbookTab recipeCount={stats.recipes} />}
-          {activeTab === "cuisines" && <CuisinesTab cuisineBreakdown={cuisineBreakdown} />}
-          {activeTab === "privacy"  && <PrivacyTab />}
         </div>
       </main>
     </>
