@@ -15,7 +15,7 @@ const navItems = [
   { href: "/pantry",  label: "Pantry",     icon: "onepot" as const, emoji: "🛒" },
   { href: "/pfand",   label: "Pfand",      icon: "about"  as const, emoji: "♻️" },
   { href: "/about",   label: "About Me",   icon: "about"  as const, emoji: "👤" },
-  { href: "/add",     label: "Add Recipe", icon: "add"    as const, emoji: ""   },
+  { href: "/add",     label: "Add Recipe", icon: "add"    as const, emoji: "+"  },
 ];
 
 export default function SiteHeader() {

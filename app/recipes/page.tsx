@@ -13,6 +13,7 @@
  * - react-hot-toast for success/error feedback
  */
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
@@ -21,7 +22,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
-import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
+import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme, normalizeCuisineToKey } from "@/lib/cuisine-themes";
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -41,11 +42,17 @@ const GLOBAL_ORIGINS = ALL_CUISINE_ORIGINS.filter(
 );
 
 export default function RecipesPage() {
+  const searchParams = useSearchParams();
   const [recipes, setRecipes]           = useState<RecipeSummary[]>([]);
   const [loading, setLoading]           = useState(true);
   const [loadError, setLoadError]       = useState("");
   const [search, setSearch]             = useState("");
-  const [cuisines, setCuisines]         = useState<CuisineOrigin[]>([]);
+  const [cuisines, setCuisines]         = useState<CuisineOrigin[]>(() => {
+    const raw = searchParams.get("cuisine");
+    if (!raw) return [];
+    const key = normalizeCuisineToKey(raw);
+    return key ? [key] : [];
+  });
   const [tags, setTags]                 = useState<RecipeTag[]>([]);
   const [maxTime, setMaxTime]           = useState<number>(120);
   const [sortBy, setSortBy]             = useState<"newest" | "oldest" | "name-az" | "time-quick">("newest");

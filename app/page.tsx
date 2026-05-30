@@ -9,8 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  BookOpen, CalendarDays, ShoppingCart, Leaf,
-  Plus, LogOut, LogIn, Search, X,
+  BookOpen, Plus, LogOut, LogIn, Search, X,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -24,29 +23,26 @@ import LottieAnimation from "@/components/LottieAnimation";
 
 // ── Quick-nav card ────────────────────────────────────────────────────────────
 function NavCard({
-  icon, label, desc, href, bg, iconBg,
+  emoji, label, desc, href,
 }: {
-  icon: React.ReactNode;
+  emoji: string;
   label: string;
   desc?: string;
   href: string;
-  bg: string;
-  iconBg: string;
 }) {
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center gap-2 py-5 px-3 rounded-2xl ${bg} border border-white/60 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 text-center group`}
+      className="flex flex-col gap-3 py-6 px-5 rounded-2xl border transition-all duration-200 hover:-translate-y-1 hover:shadow-lg group"
+      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
     >
-      <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-200`}>
-        {icon}
+      <span className="text-4xl">{emoji}</span>
+      <div>
+        <p className="text-sm font-bold mb-1" style={{ color: "var(--foreground)" }}>{label}</p>
+        {desc && (
+          <p className="text-xs leading-relaxed" style={{ color: "var(--muted)" }}>{desc}</p>
+        )}
       </div>
-      <span className="text-xs font-semibold text-stone-600 tracking-wide">{label}</span>
-      {desc && (
-        <span className="text-[11px] leading-snug hidden sm:block" style={{ color: "var(--muted)" }}>
-          {desc}
-        </span>
-      )}
     </Link>
   );
 }
@@ -283,36 +279,28 @@ export default function Home() {
         <section className="max-w-5xl mx-auto px-4 py-6">
           <div className="grid grid-cols-4 gap-3 sm:gap-4">
             <NavCard
-              icon={<BookOpen size={19} style={{ color: "var(--accent-strong)" }} />}
-              label="Recipes"
+              emoji="📖"
+              label="Recipe Library"
               desc="Save, search, and filter your collection. Full ingredients, steps, nutrition."
               href="/recipes"
-              bg="bg-orange-50"
-              iconBg="bg-orange-100/80"
             />
             <NavCard
-              icon={<CalendarDays size={19} style={{ color: "var(--olive)" }} />}
-              label="Planner"
+              emoji="📅"
+              label="Meal Planner"
               desc="Drag recipes onto a weekly calendar. Auto-generate shopping lists."
               href="/planner"
-              bg="bg-lime-50"
-              iconBg="bg-lime-100/80"
             />
             <NavCard
-              icon={<ShoppingCart size={19} style={{ color: "var(--teal)" }} />}
-              label="Shopping"
+              emoji="🛒"
+              label="Smart Shopping"
               desc="Check off as you go. Grouped by category. Pantry handoff on check."
               href="/planner/shopping"
-              bg="bg-teal-50"
-              iconBg="bg-teal-100/80"
             />
             <NavCard
-              icon={<Leaf size={19} style={{ color: "var(--olive)" }} />}
-              label="Pantry"
+              emoji="🏠"
+              label="Pantry Tracker"
               desc="Know what's running low or expiring. Suggest recipes from what's on hand."
               href="/pantry"
-              bg="bg-green-50"
-              iconBg="bg-green-100/80"
             />
           </div>
         </section>

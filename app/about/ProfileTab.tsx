@@ -199,6 +199,20 @@ export default function ProfileTab({ initialProfile, userId, stats, cuisineBreak
               </span>
             </div>
 
+            {/* Edit button */}
+            {userId && (
+              <div className="px-4 pt-3 pb-1">
+                <button
+                  type="button"
+                  onClick={() => { setDraft({ ...profile }); setEditing(true); }}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium transition"
+                  style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "transparent" }}
+                >
+                  <Pencil size={13} /> Edit Profile
+                </button>
+              </div>
+            )}
+
             {/* Meta rows */}
             <div className="px-4 py-1">
               {[
@@ -220,19 +234,6 @@ export default function ProfileTab({ initialProfile, userId, stats, cuisineBreak
               ))}
             </div>
 
-            {/* Edit button */}
-            {userId && (
-              <div className="px-4 pb-4">
-                <button
-                  type="button"
-                  onClick={() => { setDraft({ ...profile }); setEditing(true); }}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium transition"
-                  style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "transparent" }}
-                >
-                  <Pencil size={13} /> Edit Profile
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Recipe breakdown */}

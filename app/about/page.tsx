@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { normalizeCuisineToKey } from "@/lib/cuisine-themes";
 import AboutPageClient from "./AboutPageClient";
 
 export interface CuisineBreakdown {
@@ -61,7 +62,8 @@ export default async function AboutPage() {
       // Stats
       const cuisineMap = new Map<string, number>();
       for (const r of recipes) {
-        const origin = (r.cuisine_origin as string) || "";
+        const raw = (r.cuisine_origin as string) || "";
+        const origin = raw ? normalizeCuisineToKey(raw) : "";
         if (origin) cuisineMap.set(origin, (cuisineMap.get(origin) ?? 0) + 1);
       }
       stats = { recipes: recipes.length, cuisines: cuisineMap.size };

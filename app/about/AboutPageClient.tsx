@@ -24,12 +24,37 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "privacy",  label: "🔒 Privacy" },
 ];
 
+// ── Cuisine image map ──────────────────────────────────────────────────────────
+const CUISINE_IMAGES: Partial<Record<CuisineOrigin, string>> = {
+  "indian-tamil-nadu":  "/cuisines/tamilnadu.jpg",
+  "indian-andhra":      "/cuisines/andhra-telangana.jpg",
+  "indian-karnataka":   "/cuisines/Karnataka.jpg",
+  "indian-kerala":      "/cuisines/Kerala.jpg",
+  "indian-north":       "/cuisines/north-india.jpg",
+  "indian-rajasthan":   "/cuisines/rajasthan.webp",
+  "indian-bengal":      "/cuisines/bengal.jpeg",
+  "indian-goa":         "/cuisines/goa.jpg",
+  "indian-maharashtra": "/cuisines/maharashtra.jpeg",
+  "indian-gujarat":     "/cuisines/gujarat.jpg",
+  "german":             "/cuisines/germany.jpg",
+  "austrian":           "/cuisines/austria.jpg",
+  "french":             "/cuisines/french.jpg",
+  "italian":            "/cuisines/italy.jpg",
+  "chinese":            "/cuisines/chinese.jpg",
+  "japanese":           "/cuisines/japan.jpg",
+  "thai":               "/cuisines/thai.webp",
+  "mexican":            "/cuisines/mexico.avif",
+  "american":           "/cuisines/american.avif",
+  "other":              "/cuisines/world.jpg",
+};
+
 // ── Cuisine card ──────────────────────────────────────────────────────────────
 function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; index: number; recipeCount?: number }) {
   const theme  = getCuisineTheme(origin);
   const ref    = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
-  const hasRecipes = recipeCount != null && recipeCount > 0;
+  const count  = recipeCount ?? 0;
+  const photo  = CUISINE_IMAGES[origin];
   return (
     <motion.div
       ref={ref}
@@ -40,18 +65,33 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
       className="relative"
     >
       <Link
-        href={hasRecipes ? `/recipes?cuisine=${encodeURIComponent(origin)}` : "#"}
-        className={`block rounded-2xl p-4 ${theme.cardGradient} border border-white/30 shadow-sm select-none relative overflow-hidden ${hasRecipes ? "cursor-pointer" : "cursor-default"}`}
-        onClick={hasRecipes ? undefined : (e) => e.preventDefault()}
+        href={`/recipes?cuisine=${encodeURIComponent(origin)}`}
+        className="block rounded-2xl select-none relative overflow-hidden aspect-[4/3] cursor-pointer"
+        style={
+          photo
+            ? { backgroundImage: `url(${photo})`, backgroundSize: "cover", backgroundPosition: "center" }
+            : { background: theme.cardGradient }
+        }
       >
-        {hasRecipes && (
-          <span className={`absolute top-2 right-2 text-[9px] font-semibold opacity-70 ${theme.textColor}`}>
-            {recipeCount} recipe{recipeCount !== 1 ? "s" : ""}
-          </span>
-        )}
-        <span className="text-2xl block mb-2">{theme.emoji}</span>
-        <p className={`text-xs font-semibold uppercase tracking-wide ${theme.headingColor}`}>{theme.label}</p>
-        <p className={`text-xs mt-0.5 ${theme.textColor} opacity-75 leading-snug`}>{theme.descriptor}</p>
+        {/* Dark overlay for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+        {/* Recipe count badge — always shown */}
+        <span
+          className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm"
+          style={{
+            background: count > 0 ? "rgba(212,168,83,0.85)" : "rgba(0,0,0,0.45)",
+            color: count > 0 ? "#1a0e00" : "rgba(255,255,255,0.7)",
+          }}
+        >
+          {count} {count === 1 ? "recipe" : "recipes"}
+        </span>
+
+        {/* Text at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
+          <p className="text-xs font-bold text-white leading-tight">{theme.label}</p>
+          <p className="text-[10px] text-white/70 mt-0.5 leading-snug line-clamp-1">{theme.descriptor}</p>
+        </div>
       </Link>
     </motion.div>
   );
@@ -331,7 +371,7 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
                 <LottieAnimation
                   src="/animations/peacock.json"
                   loop
-                  style={{ width: 130, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }}
+                  style={{ width: 200, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }}
                 />
               </motion.div>
             </div>
