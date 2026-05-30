@@ -24,7 +24,6 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory, StorageLocation } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import DeerDivider from "@/components/DeerDivider";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
 import { addPfandEntry } from "@/lib/pfand-tracker";
@@ -677,50 +676,63 @@ export default function PantryPage() {
   return (
     <>
       <Toaster position="top-right" />
-      <main className="max-w-5xl mx-auto px-4 py-8 min-h-screen" style={{ background: "var(--parchment, #fdf8f0)" }}>
+      <main className="min-h-screen" style={{ background: "var(--background)" }}>
 
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5"
-              style={{ color: "var(--accent)", opacity: 0.8 }}>
-              Your Kitchen Store
-            </p>
-            <h1 className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>Pantry</h1>
-            <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-              {items.length} item{items.length !== 1 ? "s" : ""} tracked
-            </p>
+        {/* ── Page hero ── */}
+        <section
+          className="relative overflow-hidden px-5 pt-10 pb-8 border-b"
+          style={{
+            background: "radial-gradient(ellipse 70% 60% at 80% 0%, rgba(212,168,83,.07) 0%, transparent 60%), radial-gradient(ellipse 50% 80% at 5% 100%, rgba(232,132,74,.05) 0%, transparent 60%), var(--linen)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <div className="max-w-5xl mx-auto flex items-end justify-between gap-5 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-px w-5" style={{ background: "var(--saffron)" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
+                  Your kitchen store
+                </span>
+              </div>
+              <h1 className="font-bold leading-tight mb-1" style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--foreground)" }}>
+                <em style={{ fontStyle: "italic", color: "var(--accent)" }}>Pantry</em>
+              </h1>
+              <p className="text-sm italic" style={{ color: "var(--muted)" }}>
+                {loading ? "Loading…" : `${items.length} item${items.length !== 1 ? "s" : ""} tracked`}
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Link href="/planner/shopping"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+              >
+                <ShoppingCart size={15} /> Shopping list
+              </Link>
+              <button type="button" onClick={suggestRecipes}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+              >
+                <ChefHat size={15} /> Suggest Recipes
+              </button>
+              <button type="button" onClick={() => setShowScanner(true)} disabled={barcodeLoading}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition disabled:opacity-60"
+                style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+              >
+                {barcodeLoading ? "Looking up…" : "📷 Scan"}
+              </button>
+              <button type="button"
+                onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setShowForm((s) => !s); }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                style={{ background: "var(--accent)", color: "#fff" }}
+              >
+                <Plus size={15} /> Add item
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <Link href="/planner/shopping"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
-              style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
-            >
-              <ShoppingCart size={16} /> Shopping List
-            </Link>
-            <button type="button" onClick={suggestRecipes}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition"
-              style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
-            >
-              <ChefHat size={16} /> Suggest Recipes
-            </button>
-            <button type="button" onClick={() => setShowScanner(true)} disabled={barcodeLoading}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-60"
-              style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
-              title="Scan barcode"
-            >
-              {barcodeLoading ? "Looking up…" : "📷 Scan"}
-            </button>
-            <button type="button" onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setShowForm((s) => !s); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
-              style={{ background: "var(--accent)", color: "#fff" }}
-            >
-              <Plus size={16} /> Add Item
-            </button>
-          </div>
-        </div>
+        </section>
 
-        <DeerDivider className="mb-5" />
+        {/* ── Page content ── */}
+        <div className="max-w-5xl mx-auto px-5 py-6">
 
         {/* ── Three-tier alert banner ───────────────────────────────────── */}
         {!loading && (() => {
@@ -1240,6 +1252,17 @@ export default function PantryPage() {
           )}
         </AnimatePresence>
 
+        {/* ── Section label ── */}
+        {!loading && sorted.length > 0 && (
+          <div className="flex items-center gap-3 mb-4 mt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] whitespace-nowrap" style={{ color: "var(--muted)" }}>
+              Pantry items
+            </span>
+            <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--border), transparent)" }} />
+            <span className="text-[10px]" style={{ color: "var(--muted)" }}>{sorted.length} item{sorted.length !== 1 ? "s" : ""}</span>
+          </div>
+        )}
+
         {/* Loading */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 animate-pulse">
@@ -1319,8 +1342,8 @@ export default function PantryPage() {
                     </button>
                     {/* Expanded individual entries */}
                     {isExpanded && (
-                      <div className="border-t grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-3"
-                        style={{ borderColor: "var(--border)" }}>
+                      <div className="border-t grid gap-3 p-3"
+                        style={{ borderColor: "var(--border)", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
                         {groupItems.map((item) => {
               const status = getPantryStatus(item);
               const daysLeft = item.expiryDate
@@ -1329,9 +1352,9 @@ export default function PantryPage() {
 
               // Color-coded border per status
               const cardBorder =
-                status === "expired"        ? "2px solid #ef4444" :
-                status === "expiring-soon"  ? "2px solid #f59e0b" :
-                status === "low-stock"      ? "2px solid #f97316" :
+                status === "expired"        ? "1px solid rgba(196,92,74,.45)" :
+                status === "expiring-soon"  ? "1px solid rgba(201,143,58,.4)" :
+                status === "low-stock"      ? "1px solid rgba(232,132,74,.35)" :
                                               "1px solid var(--border)";
 
               // Can freeze only if currently in fridge (not room-temp, not already frozen)
@@ -1631,7 +1654,8 @@ export default function PantryPage() {
             initial="hidden"
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+            className="grid gap-3"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}
           >
             {sorted.map((item) => {
               const status = getPantryStatus(item);
@@ -1639,9 +1663,9 @@ export default function PantryPage() {
                 ? Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86_400_000)
                 : null;
               const cardBorder =
-                status === "expired"        ? "2px solid #ef4444" :
-                status === "expiring-soon"  ? "2px solid #f59e0b" :
-                status === "low-stock"      ? "2px solid #f97316" :
+                status === "expired"        ? "1px solid rgba(196,92,74,.45)" :
+                status === "expiring-soon"  ? "1px solid rgba(201,143,58,.4)" :
+                status === "low-stock"      ? "1px solid rgba(232,132,74,.35)" :
                                               "1px solid var(--border)";
               const freezableCategories: ShoppingCategory[] = [
                 "produce","meat","fish-seafood","dairy","bakery","grains-pulses","beverages",
@@ -1753,6 +1777,8 @@ export default function PantryPage() {
             })}
           </motion.div>
         )}
+
+        </div>{/* end page content */}
 
         {/* Recipe suggestions modal */}
         <AnimatePresence>
