@@ -68,20 +68,20 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
     >
       <Link
         href={`/recipes?cuisine=${encodeURIComponent(origin)}`}
-        className="block rounded-2xl select-none relative overflow-hidden cursor-pointer"
+        className="flex flex-col justify-end rounded-2xl select-none relative overflow-hidden cursor-pointer"
         style={{
-          minHeight: 160,
+          minHeight: 180,
           ...(photo
             ? { backgroundImage: `url(${photo})`, backgroundSize: "cover", backgroundPosition: "center" }
             : { background: theme.cardGradient }),
         }}
       >
-        {/* Full dark overlay so text always readable */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+        {/* Dark gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/10" />
 
         {/* Recipe count — top right */}
         <span
-          className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10"
+          className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full z-10"
           style={{
             background: count > 0 ? "rgba(212,168,83,0.9)" : "rgba(0,0,0,0.5)",
             color: count > 0 ? "#1a0e00" : "rgba(255,255,255,0.75)",
@@ -90,10 +90,10 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
           {count} {count === 1 ? "recipe" : "recipes"}
         </span>
 
-        {/* Label + descriptor */}
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 z-10">
+        {/* Label + full descriptor — flows naturally, card grows to fit */}
+        <div className="relative z-10 px-3 pb-3 pt-10">
           <p className="text-[11px] font-bold text-white leading-tight mb-1">{theme.label}</p>
-          <p className="text-[10px] leading-snug line-clamp-2" style={{ color: "rgba(255,255,255,0.75)" }}>
+          <p className="text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.8)" }}>
             {theme.descriptor}
           </p>
         </div>
