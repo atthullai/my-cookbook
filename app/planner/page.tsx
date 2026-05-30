@@ -157,51 +157,64 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
       {meal && recipe && theme ? (
         <motion.div
           layout
-          className={`relative h-full rounded-lg overflow-hidden ${theme.cardGradient} p-2 min-h-[64px] flex flex-col justify-between cursor-pointer`}
+          className="relative h-full rounded-lg overflow-hidden min-h-[72px] flex flex-col justify-between cursor-pointer"
+          style={{ background: "rgba(30,20,10,0.85)" }}
           onClick={onExpand}
         >
-          {/* Recipe title + remove + sufficiency badge */}
-          <div className="flex items-start justify-between gap-1">
-            <Link
-              href={`/recipes/${recipe.id}`}
-              className={`text-[11px] font-semibold leading-tight line-clamp-2 flex-1 hover:underline ${theme.textColor}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {recipe.title}
-            </Link>
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              {/* Sufficiency badge */}
-              {mealStatus && (
-                <span
-                  className="text-[9px] px-1 py-0.5 rounded font-bold"
-                  style={{
-                    background: mealStatus.overall === "sufficient" ? "rgba(34,197,94,0.25)" :
-                                mealStatus.overall === "partial"    ? "rgba(245,158,11,0.25)" :
-                                                                      "rgba(239,68,68,0.25)",
-                    color: mealStatus.overall === "sufficient" ? "#15803d" :
-                           mealStatus.overall === "partial"    ? "#b45309" :
-                                                                 "#b91c1c",
-                  }}
-                  title={`Pantry: ${mealStatus.overall}`}
-                >
-                  {mealStatus.overall === "sufficient" ? "✓" :
-                   mealStatus.overall === "partial"    ? "⚠" : "✗"}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onRemove(); }}
-                className="p-0.5 rounded-full bg-black/20 hover:bg-black/40 transition text-white"
-                aria-label="Remove"
+          {/* Background image */}
+          {recipe.imageUrl && (
+            <Image
+              src={recipe.imageUrl}
+              alt=""
+              fill
+              className="object-cover opacity-40"
+              sizes="160px"
+            />
+          )}
+          {!recipe.imageUrl && (
+            <div className={`absolute inset-0 ${theme.cardGradient} opacity-90`} />
+          )}
+
+          {/* Content overlay */}
+          <div className="relative z-10 flex flex-col justify-between h-full p-2">
+            {/* Recipe title + remove + sufficiency badge */}
+            <div className="flex items-start justify-between gap-1">
+              <Link
+                href={`/recipes/${recipe.id}`}
+                className="text-[11px] font-semibold leading-tight line-clamp-2 flex-1 hover:underline text-white drop-shadow"
+                onClick={(e) => e.stopPropagation()}
               >
-                <X size={8} />
-              </button>
+                {recipe.title}
+              </Link>
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {mealStatus && (
+                  <span
+                    className="text-[9px] px-1 py-0.5 rounded font-bold"
+                    style={{
+                      background: mealStatus.overall === "sufficient" ? "rgba(34,197,94,0.35)" :
+                                  mealStatus.overall === "partial"    ? "rgba(245,158,11,0.35)" :
+                                                                        "rgba(239,68,68,0.35)",
+                      color: "#fff",
+                    }}
+                    title={`Pantry: ${mealStatus.overall}`}
+                  >
+                    {mealStatus.overall === "sufficient" ? "✓" :
+                     mealStatus.overall === "partial"    ? "⚠" : "✗"}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                  className="p-0.5 rounded-full bg-black/30 hover:bg-black/60 transition text-white"
+                  aria-label="Remove"
+                >
+                  <X size={8} />
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* Servings adjuster + cooked button */}
           <div className="flex items-center gap-1 mt-1">
-            <span className="text-[9px] opacity-60 mr-0.5">{theme.emoji}</span>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onServings(-1); }}
@@ -210,7 +223,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
             >
               <Minus size={7} />
             </button>
-            <span className={`text-[10px] font-semibold tabular-nums ${theme.textColor}`}>
+            <span className="text-[10px] font-semibold tabular-nums text-white">
               {meal.servings}
             </span>
             <button
@@ -221,7 +234,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
             >
               <Plus size={7} />
             </button>
-            <span className={`text-[9px] opacity-60 ${theme.textColor}`}>srv</span>
+            <span className="text-[9px] opacity-60 text-white">srv</span>
             {/* Mark as cooked */}
             <button
               type="button"
@@ -233,6 +246,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
               <UtensilsCrossed size={8} />
             </button>
           </div>
+          </div>{/* end content overlay */}
 
           {/* Expanded ingredient list */}
           <AnimatePresence>
@@ -243,10 +257,10 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="overflow-hidden mt-1"
+                className="relative z-10 overflow-hidden mt-1 px-2 pb-2"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="rounded-lg p-1.5 mt-1" style={{ background: "rgba(0,0,0,0.18)" }}>
+                <div className="rounded-lg p-1.5" style={{ background: "rgba(0,0,0,0.45)" }}>
                   <ul className="space-y-0.5">
                     {mealStatus.ingredients
                       .filter((i) => i.status !== "skipped")
