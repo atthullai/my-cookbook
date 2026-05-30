@@ -108,7 +108,7 @@ export const CUISINE_THEMES: Record<CuisineOrigin, CuisineTheme> = {
     descriptor: "Temple spices, kolam floors & Chettinad fire", patternKey: "kolam",
   },
   "indian-andhra": {
-    label: "Andhra / Telangana", emoji: "🌶️",
+    label: "Andhra Pradesh / Telangana", emoji: "🌶️",
     cardGradient: "bg-gradient-to-br from-red-900 via-orange-800 to-yellow-600",
     heroGradient: "bg-gradient-to-r from-red-950 via-red-800 to-orange-700",
     headingColor: "text-yellow-200", textColor: "text-orange-100",

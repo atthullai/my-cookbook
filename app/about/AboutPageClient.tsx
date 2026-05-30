@@ -7,7 +7,8 @@ import { BookOpen, CalendarDays, ShoppingCart, Leaf } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
-import { ALL_CUISINE_ORIGINS, getCuisineTheme, normalizeCuisineToKey } from "@/lib/cuisine-themes";
+import { ALL_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
+import { toCuisineOrigin } from "@/lib/recipe-adapter";
 import type { CuisineOrigin } from "@/types";
 import LottieAnimation from "@/components/LottieAnimation";
 import ProfileTab from "./ProfileTab";
@@ -287,9 +288,8 @@ export default function AboutPageClient() {
       const allTagSet = new Set<string>();
 
       for (const r of recipes) {
-        const raw = ((r.origin !== "other" ? r.origin : null) ?? r.cuisine ?? "") as string;
-        const key = raw ? normalizeCuisineToKey(raw) : "other";
-        if (key && key !== "other") cuisineMap.set(key, (cuisineMap.get(key) ?? 0) + 1);
+        const key = toCuisineOrigin({ origin: r.origin, cuisine: r.cuisine } as Parameters<typeof toCuisineOrigin>[0]);
+        cuisineMap.set(key, (cuisineMap.get(key) ?? 0) + 1);
 
         const tags: string[] = Array.isArray(r.tags) ? r.tags : [];
         tags.forEach((t: string) => allTagSet.add(t.toLowerCase().trim()));
