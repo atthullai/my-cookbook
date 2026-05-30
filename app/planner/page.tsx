@@ -924,10 +924,10 @@ export default function PlannerPage() {
 
           {/* ── DnD context ────────────────────────────────────────────────── */}
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={(e) => void handleDragEnd(e)}>
-            <div className="flex gap-5">
+            <div className="flex flex-col gap-5">
 
-              {/* ── Weekly grid (LEFT) ─────────────────────────────────────── */}
-              <div className="flex-1 overflow-x-auto order-first">
+              {/* ── Weekly grid ────────────────────────────────────────────── */}
+              <div className="flex-1 overflow-x-auto">
                 {loadingMeals ? (
                   <div className="animate-pulse space-y-2">
                     {[...Array(5)].map((_, i) => (
@@ -1019,9 +1019,9 @@ export default function PlannerPage() {
                 )}
               </div>
 
-              {/* ── Recipe sidebar (RIGHT) ─────────────────────────────────── */}
-              <div className="w-52 flex-shrink-0">
-                <div className="rounded-2xl p-4 shadow-sm sticky top-6"
+              {/* ── Recipe panel (BELOW) ───────────────────────────────────── */}
+              <div>
+                <div className="rounded-2xl p-4 shadow-sm"
                   style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <p className="text-xs font-bold uppercase tracking-widest mb-3"
                     style={{ color: "var(--muted)" }}>
@@ -1050,7 +1050,7 @@ export default function PlannerPage() {
                       : "Click a recipe then click an empty slot to plan it. Or drag."}
                   </p>
 
-                  <div className="space-y-1.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-0.5">
+                  <div className="flex flex-wrap gap-1.5">
                     {filteredRecipes.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-xs" style={{ color: "var(--muted)" }}>
