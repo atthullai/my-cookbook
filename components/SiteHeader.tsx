@@ -46,7 +46,6 @@ export default function SiteHeader() {
 
             return (
               <Link key={item.href} href={item.href} className={isActive ? "site-nav-link active" : "site-nav-link"}>
-                <AppIcon name={item.icon} size={16} />
                 <span>{item.emoji ? `${item.emoji} ${item.label}` : item.label}</span>
               </Link>
             );
