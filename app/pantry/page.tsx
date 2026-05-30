@@ -1328,8 +1328,33 @@ export default function PantryPage() {
                               </span>
                             )}
                           </p>
-                          <p className="text-xs" style={{ color: "var(--muted)" }}>
+                          <p className="text-xs flex items-center gap-1.5 flex-wrap" style={{ color: "var(--muted)" }}>
                             {totalQty} {unit} total
+                            {(() => {
+                              const storages = [...new Set(groupItems.map((i) => i.storage))];
+                              const label = storages.length === 1
+                                ? STORAGE_OPTIONS.find((s) => s.value === storages[0])
+                                : null;
+                              return label ? (
+                                <span className="flex items-center gap-0.5">{label.icon} {label.label.toLowerCase()}</span>
+                              ) : storages.length > 1 ? (
+                                <span>{storages.map((s) => STORAGE_OPTIONS.find((o) => o.value === s)?.icon ?? "").join(" ")}</span>
+                              ) : null;
+                            })()}
+                            {(() => {
+                              const pfandItem = groupItems.find((i) => {
+                                if (i.pfandAmount != null && i.pfandAmount > 0) return true;
+                                return detectPfand(i.name).pfandType !== "none";
+                              });
+                              if (!pfandItem) return null;
+                              const amount = pfandItem.pfandAmount ?? detectPfand(pfandItem.name).deposit;
+                              return (
+                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                                  style={{ background: "rgba(34,197,94,0.1)", color: "#15803d", border: "1px solid rgba(34,197,94,0.25)" }}>
+                                  ♻️ €{amount.toFixed(2)}
+                                </span>
+                              );
+                            })()}
                           </p>
                         </div>
                       </div>
