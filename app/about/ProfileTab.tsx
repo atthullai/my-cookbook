@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Pencil, Check, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -82,8 +83,9 @@ function CuisinePill({ origin, count }: { origin: string; count: number }) {
   const color = CUISINE_PILL_COLORS[origin] ?? "var(--accent)";
 
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"
+    <Link
+      href={`/recipes?cuisine=${encodeURIComponent(origin)}`}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-opacity hover:opacity-80"
       style={{
         background: `${color}18`,
         color,
@@ -92,7 +94,7 @@ function CuisinePill({ origin, count }: { origin: string; count: number }) {
     >
       {theme?.emoji ?? "🍽"} {theme?.label ?? origin}
       <span className="opacity-60">· {count}</span>
-    </span>
+    </Link>
   );
 }
 

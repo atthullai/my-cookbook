@@ -1435,9 +1435,15 @@ export default function PantryPage() {
                   {/* Quantity row with +/- */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
-                      <span title={STORAGE_OPTIONS.find((s) => s.value === item.storage)?.label}>
-                        {STORAGE_OPTIONS.find((s) => s.value === item.storage)?.icon}
-                      </span>
+                      {(() => {
+                        const opt = STORAGE_OPTIONS.find((s) => s.value === item.storage);
+                        return opt ? (
+                          <span className="flex items-center gap-1">
+                            {opt.icon}
+                            <span>{opt.label.toLowerCase()}</span>
+                          </span>
+                        ) : null;
+                      })()}
                       {item.isHomemade && <span className="italic">homemade</span>}
                       {item.brand && <span>{item.brand}</span>}
                       {item.isOpened && (
@@ -1702,9 +1708,15 @@ export default function PantryPage() {
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-xs flex-wrap" style={{ color: "var(--muted)" }}>
-                      <span title={STORAGE_OPTIONS.find((s) => s.value === item.storage)?.label}>
-                        {STORAGE_OPTIONS.find((s) => s.value === item.storage)?.icon}
-                      </span>
+                      {(() => {
+                        const opt = STORAGE_OPTIONS.find((s) => s.value === item.storage);
+                        return opt ? (
+                          <span className="flex items-center gap-1">
+                            {opt.icon}
+                            <span>{opt.label.toLowerCase()}</span>
+                          </span>
+                        ) : null;
+                      })()}
                       {item.isOpened && (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
                           style={{ background: "rgba(234,179,8,0.12)", color: "#b45309", border: "1px solid rgba(234,179,8,0.3)" }}>

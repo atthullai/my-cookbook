@@ -29,6 +29,7 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
   const theme  = getCuisineTheme(origin);
   const ref    = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
+  const hasRecipes = recipeCount != null && recipeCount > 0;
   return (
     <motion.div
       ref={ref}
@@ -36,16 +37,22 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
       animate={inView ? { opacity: 1, scale: 1 } : {}}
       transition={{ duration: 0.38, delay: (index % 5) * 0.055, ease: "easeOut" }}
       whileHover={{ scale: 1.04 }}
-      className={`rounded-2xl p-4 ${theme.cardGradient} border border-white/30 shadow-sm cursor-default select-none relative overflow-hidden`}
+      className="relative"
     >
-      {recipeCount != null && recipeCount > 0 && (
-        <span className={`absolute top-2 right-2 text-[9px] font-semibold opacity-60 ${theme.textColor}`}>
-          {recipeCount} recipe{recipeCount !== 1 ? "s" : ""}
-        </span>
-      )}
-      <span className="text-2xl block mb-2">{theme.emoji}</span>
-      <p className={`text-xs font-semibold uppercase tracking-wide ${theme.headingColor}`}>{theme.label}</p>
-      <p className={`text-xs mt-0.5 ${theme.textColor} opacity-75 leading-snug`}>{theme.descriptor}</p>
+      <Link
+        href={hasRecipes ? `/recipes?cuisine=${encodeURIComponent(origin)}` : "#"}
+        className={`block rounded-2xl p-4 ${theme.cardGradient} border border-white/30 shadow-sm select-none relative overflow-hidden ${hasRecipes ? "cursor-pointer" : "cursor-default"}`}
+        onClick={hasRecipes ? undefined : (e) => e.preventDefault()}
+      >
+        {hasRecipes && (
+          <span className={`absolute top-2 right-2 text-[9px] font-semibold opacity-70 ${theme.textColor}`}>
+            {recipeCount} recipe{recipeCount !== 1 ? "s" : ""}
+          </span>
+        )}
+        <span className="text-2xl block mb-2">{theme.emoji}</span>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${theme.headingColor}`}>{theme.label}</p>
+        <p className={`text-xs mt-0.5 ${theme.textColor} opacity-75 leading-snug`}>{theme.descriptor}</p>
+      </Link>
     </motion.div>
   );
 }
