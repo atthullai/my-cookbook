@@ -47,12 +47,15 @@ export default function RecipesPage() {
   const [loading, setLoading]           = useState(true);
   const [loadError, setLoadError]       = useState("");
   const [search, setSearch]             = useState("");
-  const [cuisines, setCuisines]         = useState<CuisineOrigin[]>(() => {
+  const [cuisines, setCuisines]         = useState<CuisineOrigin[]>([]);
+
+  // Apply ?cuisine= param once on mount
+  useEffect(() => {
     const raw = searchParams.get("cuisine");
-    if (!raw) return [];
+    if (!raw) return;
     const key = normalizeCuisineToKey(raw);
-    return key ? [key] : [];
-  });
+    if (key) setCuisines([key]);
+  }, [searchParams]);
   const [tags, setTags]                 = useState<RecipeTag[]>([]);
   const [maxTime, setMaxTime]           = useState<number>(120);
   const [sortBy, setSortBy]             = useState<"newest" | "oldest" | "name-az" | "time-quick">("newest");

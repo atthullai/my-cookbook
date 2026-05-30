@@ -55,16 +55,17 @@ export default async function AboutPage() {
 
     const { data: recipes } = await supabase
       .from("recipes")
-      .select("cuisine_origin, tags")
+      .select("origin, cuisine, tags")
       .eq("user_id", user.id);
 
     if (recipes) {
       // Stats
       const cuisineMap = new Map<string, number>();
       for (const r of recipes) {
-        const raw = (r.cuisine_origin as string) || "";
-        const origin = raw ? normalizeCuisineToKey(raw) : "";
-        if (origin) cuisineMap.set(origin, (cuisineMap.get(origin) ?? 0) + 1);
+        // `origin` is the canonical key (may be "other"); `cuisine` is free-text fallback
+        const raw = ((r.origin !== "other" ? r.origin : null) ?? r.cuisine ?? "") as string;
+        const key = raw ? normalizeCuisineToKey(raw) : "other";
+        if (key && key !== "other") cuisineMap.set(key, (cuisineMap.get(key) ?? 0) + 1);
       }
       stats = { recipes: recipes.length, cuisines: cuisineMap.size };
 
