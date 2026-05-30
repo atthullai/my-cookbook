@@ -13,6 +13,7 @@ import { X, Plus, Check } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import type { PfandResult } from "@/lib/pfand";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export default function PfandPage() {
   const [addContainer, setAddContainer] = useState(MANUAL_CONTAINER_TYPES[0]);
   const [addSize, setAddSize] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const load = useCallback(() => {
@@ -211,210 +213,264 @@ export default function PfandPage() {
   const total    = pending.reduce((s, e) => s + e.deposit, 0);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  const fmtEuro = (n: number) =>
+    n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
-    <main className="min-h-screen px-4 py-8 max-w-lg mx-auto" style={{ color: "var(--foreground)" }}>
-      <Toaster position="bottom-center" />
+    <>
+      <Toaster position="top-right" />
+      <main className="min-h-screen" style={{ background: "var(--background)", color: "var(--foreground)" }}>
 
-      <h1 className="text-2xl font-bold mb-6">Pfand ♻️</h1>
+        {/* ── Page hero ── */}
+        <section
+          className="relative overflow-hidden px-5 pt-10 pb-8 border-b"
+          style={{
+            background: "radial-gradient(ellipse 70% 60% at 80% 0%, rgba(212,168,83,.07) 0%, transparent 60%), radial-gradient(ellipse 50% 80% at 5% 100%, rgba(232,132,74,.05) 0%, transparent 60%), var(--linen)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <div className="max-w-lg mx-auto flex items-end justify-between gap-5 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-px w-5" style={{ background: "var(--saffron)" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
+                  German deposit tracker
+                </span>
+              </div>
+              <h1 className="font-bold leading-tight mb-1" style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--foreground)" }}>
+                Pfand <em style={{ color: "var(--accent)", fontStyle: "italic" }}>♻</em>
+              </h1>
+              <p className="text-sm italic" style={{ color: "var(--muted)" }}>Returnable deposits</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {pending.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowMarkAllConfirm(true)}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                  style={{ background: "var(--accent)", color: "#fff" }}
+                >
+                  <Check size={14} /> Mark all returned
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowAddForm((s) => !s)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+              >
+                <Plus size={14} /> Add manually
+              </button>
+            </div>
+          </div>
+        </section>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--muted)" }}>To return</p>
-          <p className="text-2xl font-bold" style={{ color: "#22c55e" }}>
-            {total.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-          </p>
-        </div>
-        <div className="rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--muted)" }}>Items</p>
-          <p className="text-2xl font-bold">{pending.length}</p>
-        </div>
-      </div>
+        {/* ── Page content ── */}
+        <div className="max-w-lg mx-auto px-5 py-6 space-y-6">
 
-      {/* Pending section */}
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--muted)" }}>
-          Pending return
-        </p>
-        {pending.length > 1 && (
-          <button
-            onClick={() => void markAllReturned()}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition hover:bg-green-500 hover:text-white"
-            style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
-          >
-            <Check size={12} /> Mark all returned
-          </button>
-        )}
-      </div>
+          {/* Summary metric cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1" style={{ color: "var(--muted)" }}>To return</p>
+              <p className="text-[1.5rem] font-bold leading-none" style={{ color: "var(--olive)" }}>
+                {fmtEuro(total)} €
+              </p>
+            </div>
+            <div className="rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1" style={{ color: "var(--muted)" }}>Items</p>
+              <p className="text-[1.5rem] font-bold leading-none" style={{ color: "var(--muted)" }}>{pending.length}</p>
+            </div>
+          </div>
 
-      {loading ? (
-        <p className="text-sm text-center py-8" style={{ color: "var(--muted)" }}>Loading…</p>
-      ) : pending.length === 0 ? (
-        <div className="rounded-2xl py-10 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <p className="text-3xl mb-2">🎉</p>
-          <p className="text-sm font-medium">All returned!</p>
-          <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Nothing waiting to go back.</p>
-        </div>
-      ) : (
-        <ul className="rounded-2xl overflow-hidden shadow-sm mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          {/* Add form (inline) */}
           <AnimatePresence>
-            {pending.map((entry) => (
-              <motion.li
-                key={entry.id}
-                layout
+            {showAddForm && (
+              <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0"
-                style={{ borderColor: "var(--border)" }}
+                className="rounded-2xl p-4 overflow-hidden"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
               >
-                {/* Icon */}
-                <span className="text-2xl flex-shrink-0">{pfandIcon(entry.pfandType)}</span>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{entry.name}</p>
-                  <p className="text-xs" style={{ color: "var(--muted)" }}>
-                    {entry.containerType}
-                    {entry.sizeMl ? ` · ${fmtSize(entry.sizeMl)}` : ""}
-                    {" · added "}{fmtDate(entry.createdAt)}
-                  </p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold">Add manually</p>
+                  <button type="button" onClick={() => setShowAddForm(false)} style={{ color: "var(--muted)" }}><X size={16} /></button>
                 </div>
-
-                {/* Deposit + button */}
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="text-sm font-bold" style={{ color: "#22c55e" }}>
-                    {entry.deposit.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €
-                  </span>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    placeholder="Item name (e.g. Gerolsteiner 1.5L)"
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={addContainer}
+                      onChange={(e) => setAddContainer(e.target.value)}
+                      className="px-3 py-2 rounded-xl text-sm focus:outline-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
+                    >
+                      {MANUAL_CONTAINER_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Size (e.g. 500ml)"
+                      value={addSize}
+                      onChange={(e) => setAddSize(e.target.value)}
+                      className="px-3 py-2 rounded-xl text-sm focus:outline-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
+                    />
+                  </div>
+                  <p className="text-xs" style={{ color: "var(--muted)" }}>
+                    Deposit: <strong style={{ color: "var(--olive)" }}>€{(DEPOSIT_BY_TYPE[addContainer] ?? 0.25).toFixed(2)}</strong>
+                  </p>
                   <button
-                    onClick={() => void markReturned(entry)}
-                    className="text-xs px-3 py-1 rounded-xl border font-medium transition hover:bg-green-500 hover:text-white hover:border-green-500"
-                    style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}
+                    type="button"
+                    onClick={() => void addManually()}
+                    disabled={!addName.trim() || saving}
+                    className="flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+                    style={{ background: "var(--accent)", color: "#fff" }}
                   >
-                    Mark returned
+                    <Plus size={14} /> Add to tracker
                   </button>
                 </div>
-              </motion.li>
-            ))}
+              </motion.div>
+            )}
           </AnimatePresence>
-        </ul>
-      )}
 
-      {/* Add manually */}
-      <AnimatePresence>
-        {showAddForm ? (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="rounded-2xl p-4 mb-4 overflow-hidden"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold">Add manually</p>
-              <button onClick={() => setShowAddForm(false)} style={{ color: "var(--muted)" }}><X size={16} /></button>
+          {/* ── Section label: Pending return ── */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] whitespace-nowrap" style={{ color: "var(--muted)" }}>
+                Pending return
+              </span>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--border), transparent)" }} />
+              {pending.length > 0 && (
+                <span className="text-[10px] font-semibold" style={{ color: "var(--muted)" }}>{pending.length}</span>
+              )}
             </div>
-            <div className="flex flex-col gap-2">
-              <input
-                type="text"
-                placeholder="Item name (e.g. Gerolsteiner 1.5L)"
-                value={addName}
-                onChange={(e) => setAddName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none"
-                style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={addContainer}
-                  onChange={(e) => setAddContainer(e.target.value)}
-                  className="px-3 py-2 rounded-xl text-sm focus:outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
-                >
-                  {MANUAL_CONTAINER_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input
-                  type="text"
-                  placeholder="Size (e.g. 500ml)"
-                  value={addSize}
-                  onChange={(e) => setAddSize(e.target.value)}
-                  className="px-3 py-2 rounded-xl text-sm focus:outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)" }}
-                />
+
+            {loading ? (
+              <p className="text-sm text-center py-8" style={{ color: "var(--muted)" }}>Loading…</p>
+            ) : pending.length === 0 ? (
+              <div className="rounded-2xl py-10 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <p className="text-3xl mb-2">🎉</p>
+                <p className="text-sm font-medium">All returned!</p>
+                <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Nothing waiting to go back.</p>
               </div>
-              <p className="text-xs" style={{ color: "var(--muted)" }}>
-                Deposit: <strong style={{ color: "#22c55e" }}>€{(DEPOSIT_BY_TYPE[addContainer] ?? 0.25).toFixed(2)}</strong>
-              </p>
-              <button
-                onClick={() => void addManually()}
-                disabled={!addName.trim() || saving}
-                className="flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 transition"
-                style={{ background: "var(--accent)", color: "#fff" }}
-              >
-                <Plus size={14} /> Add to tracker
-              </button>
-            </div>
-          </motion.div>
-        ) : (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm border transition mb-6"
-            style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "var(--surface)" }}
-          >
-            <Plus size={14} /> Add manually ↗
-          </button>
-        )}
-      </AnimatePresence>
-
-      {/* Returned section */}
-      {returned.length > 0 && (
-        <>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--muted)" }}>
-              Returned ({returned.length})
-            </p>
-            <button
-              onClick={() => void clearReturned()}
-              className="text-xs px-3 py-1 rounded-xl border transition hover:border-red-400 hover:text-red-400"
-              style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
-            >
-              Clear all
-            </button>
+            ) : (
+              <ul className="rounded-2xl overflow-hidden shadow-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <AnimatePresence>
+                  {pending.map((entry) => (
+                    <motion.li
+                      key={entry.id}
+                      layout
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <span className="text-2xl flex-shrink-0">{pfandIcon(entry.pfandType)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{entry.name}</p>
+                        <p className="text-xs" style={{ color: "var(--muted)" }}>
+                          {entry.containerType}
+                          {entry.sizeMl ? ` · ${fmtSize(entry.sizeMl)}` : ""}
+                          {" · added "}{fmtDate(entry.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className="text-sm font-bold" style={{ color: "var(--olive)" }}>
+                          {entry.deposit.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void markReturned(entry)}
+                          className="text-xs px-3 py-1 rounded-xl font-medium transition"
+                          style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface-strong)" }}
+                        >
+                          Returned
+                        </button>
+                      </div>
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ul>
+            )}
           </div>
-          <ul className="rounded-2xl overflow-hidden shadow-sm mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)", opacity: 0.5 }}>
-            {returned.map((entry) => (
-              <li key={entry.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
-                <Check size={16} className="flex-shrink-0 text-green-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm line-through truncate">{entry.name}</p>
-                  <p className="text-xs" style={{ color: "var(--muted)" }}>
-                    {entry.containerType}{entry.sizeMl ? ` · ${fmtSize(entry.sizeMl)}` : ""}
-                  </p>
-                </div>
-                <span className="text-xs line-through" style={{ color: "var(--muted)" }}>
-                  €{entry.deposit.toFixed(2)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
 
-      {/* Disposal guide */}
-      <div className="rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        <h2 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--muted)" }}>Disposal guide (no Pfand)</h2>
-        <ul className="grid grid-cols-1 gap-1 text-xs" style={{ color: "var(--muted)" }}>
-          <li>🟩 <strong>Altglas grün</strong> — wine, oil, sauce jars (remove lid first)</li>
-          <li>⬜ <strong>Altglas weiss</strong> — clear glass (sekt, white wine)</li>
-          <li>🟫 <strong>Altglas braun</strong> — brown glass (red wine)</li>
-          <li>🟡 <strong>Gelbe Tonne</strong> — Tetra Pak, cartons, oat/soy milk</li>
-          <li>🔵 <strong>Blaue Tonne</strong> — clean cardboard &amp; paper</li>
-          <li>⬛ <strong>Restmüll</strong> — ceramics, crystal, mirrors</li>
-        </ul>
-        <p className="mt-2 text-xs italic" style={{ color: "var(--muted)", opacity: 0.7 }}>
-          No Altglas before 8 AM (noise rules). Metal lids → Gelbe Tonne.
-        </p>
-      </div>
-    </main>
+          {/* ── Returned section ── */}
+          {returned.length > 0 && (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] whitespace-nowrap" style={{ color: "var(--muted)" }}>
+                  Returned ({returned.length})
+                </span>
+                <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--border), transparent)" }} />
+                <button
+                  type="button"
+                  onClick={() => void clearReturned()}
+                  className="text-[10px] px-2.5 py-1 rounded-lg transition"
+                  style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                >
+                  Clear all
+                </button>
+              </div>
+              <ul className="rounded-2xl overflow-hidden shadow-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", opacity: 0.5 }}>
+                {returned.map((entry) => (
+                  <li key={entry.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
+                    <Check size={16} className="flex-shrink-0 text-green-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm line-through truncate">{entry.name}</p>
+                      <p className="text-xs" style={{ color: "var(--muted)" }}>
+                        {entry.containerType}{entry.sizeMl ? ` · ${fmtSize(entry.sizeMl)}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs line-through" style={{ color: "var(--muted)" }}>
+                      €{entry.deposit.toFixed(2)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* ── Disposal guide ── */}
+          <div className="rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--muted)" }}>
+                Disposal guide (no Pfand)
+              </span>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--border), transparent)" }} />
+            </div>
+            <ul className="grid grid-cols-1 gap-1 text-xs" style={{ color: "var(--muted)" }}>
+              <li>🟩 <strong>Altglas grün</strong> — wine, oil, sauce jars (remove lid first)</li>
+              <li>⬜ <strong>Altglas weiss</strong> — clear glass (sekt, white wine)</li>
+              <li>🟫 <strong>Altglas braun</strong> — brown glass (red wine)</li>
+              <li>🟡 <strong>Gelbe Tonne</strong> — Tetra Pak, cartons, oat/soy milk</li>
+              <li>🔵 <strong>Blaue Tonne</strong> — clean cardboard &amp; paper</li>
+              <li>⬛ <strong>Restmüll</strong> — ceramics, crystal, mirrors</li>
+            </ul>
+            <p className="mt-2 text-xs italic" style={{ color: "var(--muted)", opacity: 0.7 }}>
+              No Altglas before 8 AM (noise rules). Metal lids → Gelbe Tonne.
+            </p>
+          </div>
+
+        </div>
+      </main>
+
+      <ConfirmDialog
+        open={showMarkAllConfirm}
+        title={`Mark all ${pending.length} item${pending.length !== 1 ? "s" : ""} as returned?`}
+        message={`Total: €${fmtEuro(total)} — this will mark everything in your pending list as returned.`}
+        confirmLabel="✓ Mark all returned"
+        onConfirm={() => { setShowMarkAllConfirm(false); void markAllReturned(); }}
+        onCancel={() => setShowMarkAllConfirm(false)}
+      />
+    </>
   );
 }
 
