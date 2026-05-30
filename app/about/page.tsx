@@ -11,6 +11,7 @@ export interface TagBreakdown {
   spicy: number;
   quick: number;
   highProtein: number;
+  totalTags: number;
 }
 
 export default async function AboutPage() {
@@ -30,7 +31,9 @@ export default async function AboutPage() {
 
   let stats = { recipes: 0, cuisines: 0 };
   let cuisineBreakdown: CuisineBreakdown[] = [];
-  let tagBreakdown: TagBreakdown = { vegetarian: 0, spicy: 0, quick: 0, highProtein: 0 };
+  let tagBreakdown: TagBreakdown = { vegetarian: 0, spicy: 0, quick: 0, highProtein: 0, totalTags: 0 };
+  let pantryCount = 0;
+  const joinedYear = user?.created_at ? new Date(user.created_at).getFullYear() : null;
 
   if (user) {
     const { data: profileData } = await supabase
@@ -68,18 +71,27 @@ export default async function AboutPage() {
         .map(([origin, count]) => ({ origin, count }))
         .sort((a, b) => b.count - a.count);
 
-      // Tag breakdown
+      // Tag breakdown + unique tag count
       let vegetarian = 0, spicy = 0, quick = 0, highProtein = 0;
+      const allTagSet = new Set<string>();
       for (const r of recipes) {
         const tags: string[] = Array.isArray(r.tags) ? r.tags : [];
+        tags.forEach((t: string) => allTagSet.add(t.toLowerCase().trim()));
         const joined = tags.join(" ").toLowerCase();
         if (joined.includes("vegetarian") || joined.includes("vegan")) vegetarian++;
         if (joined.includes("spic")) spicy++;
         if (joined.includes("quick") || joined.includes("fast") || joined.includes("30 min")) quick++;
         if (joined.includes("high protein") || joined.includes("protein")) highProtein++;
       }
-      tagBreakdown = { vegetarian, spicy, quick, highProtein };
+      tagBreakdown = { vegetarian, spicy, quick, highProtein, totalTags: allTagSet.size };
     }
+
+    // Pantry item count
+    const { count } = await supabase
+      .from("pantry_items")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    pantryCount = count ?? 0;
   }
 
   return (
@@ -89,6 +101,8 @@ export default async function AboutPage() {
       stats={stats}
       cuisineBreakdown={cuisineBreakdown}
       tagBreakdown={tagBreakdown}
+      pantryCount={pantryCount}
+      joinedYear={joinedYear}
     />
   );
 }

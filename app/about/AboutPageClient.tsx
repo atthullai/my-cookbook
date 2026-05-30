@@ -8,6 +8,7 @@ import { Toaster } from "react-hot-toast";
 
 import { ALL_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import type { CuisineOrigin } from "@/types";
+import LottieAnimation from "@/components/LottieAnimation";
 import ProfileTab from "./ProfileTab";
 import PrivacyTab from "./PrivacyTab";
 import type { CuisineBreakdown, TagBreakdown } from "./page";
@@ -24,7 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 // ── Cuisine card ──────────────────────────────────────────────────────────────
-function CuisineCard({ origin, index }: { origin: CuisineOrigin; index: number }) {
+function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; index: number; recipeCount?: number }) {
   const theme  = getCuisineTheme(origin);
   const ref    = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
@@ -37,6 +38,11 @@ function CuisineCard({ origin, index }: { origin: CuisineOrigin; index: number }
       whileHover={{ scale: 1.04 }}
       className={`rounded-2xl p-4 ${theme.cardGradient} border border-white/30 shadow-sm cursor-default select-none relative overflow-hidden`}
     >
+      {recipeCount != null && recipeCount > 0 && (
+        <span className={`absolute top-2 right-2 text-[9px] font-semibold opacity-60 ${theme.textColor}`}>
+          {recipeCount} recipe{recipeCount !== 1 ? "s" : ""}
+        </span>
+      )}
       <span className="text-2xl block mb-2">{theme.emoji}</span>
       <p className={`text-xs font-semibold uppercase tracking-wide ${theme.headingColor}`}>{theme.label}</p>
       <p className={`text-xs mt-0.5 ${theme.textColor} opacity-75 leading-snug`}>{theme.descriptor}</p>
@@ -84,7 +90,7 @@ function FeatureCard({
 }
 
 // ── My Cookbook tab ───────────────────────────────────────────────────────────
-function CookbookTab() {
+function CookbookTab({ recipeCount }: { recipeCount: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -120,17 +126,17 @@ function CookbookTab() {
         <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Built for real home cooks — not food bloggers.</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <FeatureCard icon={<BookOpen size={20} />} title="Recipe Library"
-            body="Save, search, and filter your collection. Full ingredients, step-by-step instructions, nutrition data, and chef's notes."
-            href="/recipes" badge="Your collection" badgeColor="var(--saffron)" />
+            body="Save, search, and filter your collection. Full ingredients, step-by-step instructions, nutrition data, and chef's notes. Bilingual EN &amp; DE."
+            href="/recipes" badge={recipeCount > 0 ? `${recipeCount} recipes` : "Your collection"} badgeColor="var(--saffron)" />
           <FeatureCard icon={<CalendarDays size={20} />} title="Meal Planner"
             body="Plan a week of meals. Breakfast, lunch, dinner rows. Pantry sufficiency check shows what's missing before you shop."
             href="/planner" badge="Pantry-linked" badgeColor="var(--olive)" />
           <FeatureCard icon={<ShoppingCart size={20} />} title="Smart Shopping"
-            body="Shopping list generated from planner gaps — grouped by category, ready to check off in the shop."
-            href="/planner/shopping" badge="Gap-based" badgeColor="var(--accent)" />
+            body="Gap-based list from planner. Item + category only. Gap hint in note. Grouped by aisle for the shop."
+            href="/planner/shopping" badge="Gap-based" badgeColor="var(--teal)" />
           <FeatureCard icon={<Leaf size={20} />} title="Pantry Tracker"
-            body="Track store-bought and homemade items. Expiry alerts, opened state, FIFO deduction on cooking."
-            href="/pantry" badge="FIFO · Expiry" badgeColor="var(--teal)" />
+            body="Store-bought and homemade items. Expiry alerts, opened state, FIFO deduction on cooking. Pfand auto-tracking."
+            href="/pantry" badge="FIFO · Pfand" badgeColor="var(--saffron)" />
         </div>
       </div>
 
@@ -151,6 +157,7 @@ function CookbookTab() {
           {[
             { bold: "20 cuisine origins",        detail: "each with its own colour palette, personality, and card design" },
             { bold: "Mindful nutrition",          detail: "calories, macros, vitamins available when you want them, never dominant" },
+            { bold: "Germany-aware",              detail: "Pfand tracking, disposal guide, Mehrweg/Einweg/carton detection built in" },
             { bold: "Unit conversion built-in",   detail: "recipe uses \"2 onions\"? Pantry stores in g. The bridge is automatic." },
             { bold: "Homemade category",          detail: "ginger-garlic paste, coconut milk, tamarind water — tracked like any pantry item" },
           ].map(({ bold, detail }) => (
@@ -185,7 +192,8 @@ function CookbookTab() {
 }
 
 // ── 20 Cuisines tab ───────────────────────────────────────────────────────────
-function CuisinesTab() {
+function CuisinesTab({ cuisineBreakdown }: { cuisineBreakdown: CuisineBreakdown[] }) {
+  const countMap = new Map(cuisineBreakdown.map((c) => [c.origin, c.count]));
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -199,7 +207,7 @@ function CuisinesTab() {
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-6">
         {ALL_CUISINE_ORIGINS.map((origin, i) => (
-          <CuisineCard key={origin} origin={origin} index={i} />
+          <CuisineCard key={origin} origin={origin} index={i} recipeCount={countMap.get(origin)} />
         ))}
       </div>
     </motion.div>
@@ -221,15 +229,29 @@ interface Props {
   stats: { recipes: number; cuisines: number };
   cuisineBreakdown: CuisineBreakdown[];
   tagBreakdown: TagBreakdown;
+  pantryCount: number;
+  joinedYear: number | null;
 }
 
-export default function AboutPageClient({ initialProfile, userId, stats, cuisineBreakdown, tagBreakdown }: Props) {
+export default function AboutPageClient({ initialProfile, userId, stats, cuisineBreakdown, tagBreakdown, pantryCount, joinedYear }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   const displayName = initialProfile.display_name || "My Cookbook";
   const subtitle    = initialProfile.bio
-    ? initialProfile.bio.slice(0, 90) + (initialProfile.bio.length > 90 ? "…" : "")
+    ? initialProfile.bio.slice(0, 100) + (initialProfile.bio.length > 100 ? "…" : "")
     : "Recipes handed down, stories kept warm — a private heirloom for the family table.";
+
+  // Split display name: all but last word on line 1, last word italic on line 2
+  const nameParts  = displayName.split(" ");
+  const nameFirst  = nameParts.slice(0, -1).join(" ");
+  const nameLast   = nameParts[nameParts.length - 1];
+
+  const heroStats = [
+    { num: stats.recipes,           label: "recipes" },
+    { num: stats.cuisines,          label: "cuisines" },
+    ...(tagBreakdown.totalTags > 0 ? [{ num: tagBreakdown.totalTags, label: "tags" }] : []),
+    { num: 20,                      label: "origins" },
+  ];
 
   return (
     <>
@@ -238,62 +260,74 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
 
         {/* ── Hero ── */}
         <section
-          className="relative overflow-hidden px-6 pt-14 pb-0"
+          className="relative overflow-hidden px-6 pt-14 pb-0 border-b"
           style={{
             background: `
-              radial-gradient(ellipse 80% 60% at 70% 0%, rgba(192,138,45,0.08) 0%, transparent 60%),
-              radial-gradient(ellipse 60% 80% at 10% 100%, rgba(184,92,53,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse 80% 60% at 70% 0%, rgba(212,168,83,.08) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 80% at 10% 100%, rgba(232,132,74,.06) 0%, transparent 60%),
               var(--linen)
             `,
+            borderColor: "var(--border)",
           }}
         >
           <div className="max-w-3xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: EASE_WARM }}
-            >
-              {/* Eyebrow */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-px w-6" style={{ background: "var(--saffron)" }} />
-                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--saffron)" }}>
-                  About the cook
-                </span>
-              </div>
-
-              {/* Title */}
-              <h1
-                className="font-bold leading-tight mb-2"
-                style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", color: "var(--foreground)" }}
+            <div className="flex items-end justify-between gap-8">
+              {/* Left: text content */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: EASE_WARM }}
+                className="flex-1 min-w-0"
               >
-                {displayName.split(" ").map((word, i, arr) =>
-                  i === arr.length - 1
-                    ? <em key={i} style={{ color: "var(--accent)", fontStyle: "italic" }}>{word}</em>
-                    : <span key={i}>{word} </span>
-                )}
-              </h1>
-
-              {/* Subtitle */}
-              <p className="text-base mb-6 italic max-w-lg" style={{ color: "var(--muted)" }}>
-                {subtitle}
-              </p>
-
-              {/* Stats */}
-              {stats.recipes > 0 && (
-                <div className="flex gap-8 mb-0">
-                  {[
-                    { num: stats.recipes,  label: "recipes" },
-                    { num: stats.cuisines, label: "cuisines" },
-                    { num: 20,             label: "origins" },
-                  ].map(({ num, label }) => (
-                    <div key={label}>
-                      <p className="text-3xl font-bold leading-none" style={{ color: "var(--saffron)" }}>{num}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{label}</p>
-                    </div>
-                  ))}
+                {/* Eyebrow */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-px w-6" style={{ background: "var(--saffron)" }} />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
+                    About the cook
+                  </span>
                 </div>
-              )}
-            </motion.div>
+
+                {/* Title — two lines */}
+                <h1
+                  className="font-bold leading-tight mb-2"
+                  style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", color: "var(--foreground)" }}
+                >
+                  {nameFirst && <>{nameFirst}<br /></>}
+                  <em style={{ color: "var(--accent)", fontStyle: "italic" }}>{nameLast}</em>
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-sm mb-5 italic max-w-lg" style={{ color: "var(--muted)" }}>
+                  {subtitle}
+                </p>
+
+                {/* Stats */}
+                {stats.recipes > 0 && (
+                  <div className="flex gap-7 mb-0">
+                    {heroStats.map(({ num, label }) => (
+                      <div key={label}>
+                        <p className="text-[1.7rem] font-bold leading-none" style={{ color: "var(--saffron)" }}>{num}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Right: peacock Lottie */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.7, delay: 0.15, ease: EASE_WARM }}
+                className="hidden sm:block flex-shrink-0"
+              >
+                <LottieAnimation
+                  src="/animations/peacock.json"
+                  loop
+                  style={{ width: 130, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }}
+                />
+              </motion.div>
+            </div>
 
             {/* Divider */}
             <div className="mt-8 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--border), transparent)" }} />
@@ -337,10 +371,12 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
               stats={stats}
               cuisineBreakdown={cuisineBreakdown}
               tagBreakdown={tagBreakdown}
+              pantryCount={pantryCount}
+              joinedYear={joinedYear}
             />
           )}
-          {activeTab === "cookbook" && <CookbookTab />}
-          {activeTab === "cuisines" && <CuisinesTab />}
+          {activeTab === "cookbook" && <CookbookTab recipeCount={stats.recipes} />}
+          {activeTab === "cuisines" && <CuisinesTab cuisineBreakdown={cuisineBreakdown} />}
           {activeTab === "privacy"  && <PrivacyTab />}
         </div>
       </main>

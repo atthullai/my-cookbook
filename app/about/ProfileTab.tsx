@@ -3,13 +3,37 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ChefHat, MapPin, Sparkles, Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import type { CuisineOrigin } from "@/types";
 import type { CuisineBreakdown, TagBreakdown } from "./page";
+
+// Exact hex colors per cuisine origin from the design reference
+const CUISINE_PILL_COLORS: Record<string, string> = {
+  "Andhra / Telangana": "#ef5350",
+  "Karnataka":          "#66bb6a",
+  "Tamil Nadu":         "#ffa726",
+  "Kerala":             "#26a69a",
+  "North Indian":       "#ab47bc",
+  "French":             "#ffd54f",
+  "World Kitchen":      "#b0bec5",
+  "German":             "#8d6e63",
+  "Rajasthani":         "#ffa726",
+  "Bengali":            "#42a5f5",
+  "Goan":               "#26c6da",
+  "Maharashtrian":      "#ef5350",
+  "Gujarati":           "#ffca28",
+  "Austrian":           "#b0bec5",
+  "Italian":            "#ef5350",
+  "Chinese":            "#ef9a9a",
+  "Japanese":           "#f48fb1",
+  "Thai":               "#a5d6a7",
+  "Mexican":            "#ff8a65",
+  "American":           "#90caf9",
+};
 
 interface UserProfile {
   display_name: string;
@@ -25,6 +49,8 @@ interface Props {
   stats: { recipes: number; cuisines: number };
   cuisineBreakdown: CuisineBreakdown[];
   tagBreakdown: TagBreakdown;
+  pantryCount: number;
+  joinedYear: number | null;
 }
 
 const EASE_WARM: [number, number, number, number] = [0.25, 0.1, 0.4, 1.0];
@@ -53,13 +79,16 @@ function CuisinePill({ origin, count }: { origin: string; count: number }) {
   let theme: ReturnType<typeof getCuisineTheme> | null = null;
   try { theme = getCuisineTheme(origin as CuisineOrigin); } catch { /* unmapped */ }
 
-  const color = theme ? `var(--accent)` : "var(--accent)";
-  const bg    = theme ? "var(--accent-soft)" : "var(--accent-soft)";
+  const color = CUISINE_PILL_COLORS[origin] ?? "var(--accent)";
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border"
-      style={{ background: bg, color, borderColor: "transparent" }}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"
+      style={{
+        background: `${color}18`,
+        color,
+        borderColor: `${color}44`,
+      }}
     >
       {theme?.emoji ?? "🍽"} {theme?.label ?? origin}
       <span className="opacity-60">· {count}</span>
@@ -67,7 +96,7 @@ function CuisinePill({ origin, count }: { origin: string; count: number }) {
   );
 }
 
-export default function ProfileTab({ initialProfile, userId, stats, cuisineBreakdown, tagBreakdown }: Props) {
+export default function ProfileTab({ initialProfile, userId, stats, cuisineBreakdown, tagBreakdown, pantryCount, joinedYear }: Props) {
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [draft,   setDraft]   = useState<UserProfile>(initialProfile);
   const [editing, setEditing] = useState(false);
@@ -121,7 +150,7 @@ export default function ProfileTab({ initialProfile, userId, stats, cuisineBreak
           >
             {/* Card header */}
             <div
-              className="px-6 pt-6 pb-5 text-center"
+              className="px-5 pt-5 pb-4 text-center"
               style={{
                 background: "linear-gradient(135deg, var(--parchment), var(--surface-strong))",
                 borderBottom: "1px solid var(--border)",
@@ -129,47 +158,62 @@ export default function ProfileTab({ initialProfile, userId, stats, cuisineBreak
             >
               {/* Avatar */}
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 overflow-hidden"
+                className="w-[60px] h-[60px] rounded-full flex items-center justify-center mx-auto mb-2.5 overflow-hidden text-2xl"
                 style={{
                   background: "linear-gradient(135deg, var(--accent), var(--saffron))",
                   boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-                  border: "2px solid rgba(184,93,54,0.3)",
+                  border: "2px solid rgba(212,168,83,0.3)",
                 }}
               >
                 {profile.avatar_url ? (
-                  <Image unoptimized src={profile.avatar_url} alt="avatar" width={64} height={64} className="w-full h-full object-cover" />
+                  <Image unoptimized src={profile.avatar_url} alt="avatar" width={60} height={60} className="w-full h-full object-cover" />
                 ) : (
-                  <ChefHat size={28} color="#fff" />
+                  "👩‍🍳"
                 )}
               </div>
+
+              {/* Name */}
               <p className="font-bold text-base leading-tight" style={{ color: "var(--foreground)" }}>
                 {profile.display_name || (userId ? "Your Cookbook" : "My Cookbook")}
               </p>
-              {profile.location && (
-                <p className="flex items-center justify-center gap-1 text-xs mt-1" style={{ color: "var(--muted)" }}>
-                  <MapPin size={11} /> {profile.location}
-                </p>
-              )}
-              {profile.cook_style && (
-                <span
-                  className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
-                >
-                  <Sparkles size={10} /> {profile.cook_style}
-                </span>
-              )}
+
+              {/* Handle · location */}
+              <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
+                {profile.display_name
+                  ? `@${profile.display_name.toLowerCase().replace(/\s+/g, "")}${profile.location ? ` · ${profile.location}` : ""}`
+                  : profile.location || "@cookbook"}
+              </p>
+
+              {/* Role badge */}
+              <span
+                className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium border"
+                style={{
+                  background: "rgba(212,168,83,.1)",
+                  borderColor: "rgba(212,168,83,.2)",
+                  color: "var(--saffron)",
+                }}
+              >
+                {profile.cook_style || "🏡 Home cook · Heirloom keeper"}
+              </span>
             </div>
 
             {/* Meta rows */}
-            <div className="px-4 py-2 text-sm divide-y" style={{ "--tw-divide-opacity": 1 } as React.CSSProperties}>
+            <div className="px-4 py-1">
               {[
-                { label: "Recipes",  value: stats.recipes > 0 ? String(stats.recipes) : "—" },
-                { label: "Cuisines", value: stats.cuisines > 0 ? `${stats.cuisines} active · 20 supported` : "—" },
-                { label: "Cookbook", value: "Private 🔒" },
+                { label: "Joined",        value: joinedYear ? String(joinedYear) : "—" },
+                { label: "Recipes",       value: stats.recipes > 0 ? String(stats.recipes) : "—" },
+                { label: "Cuisines",      value: stats.cuisines > 0 ? `${stats.cuisines} active · 20 supported` : "—" },
+                { label: "Language",      value: "EN · DE" },
+                { label: "Cookbook",      value: "Private 🔒" },
+                { label: "Pantry items",  value: pantryCount > 0 ? `${pantryCount} tracked` : "—" },
               ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-center py-2.5" style={{ borderColor: "var(--border)" }}>
-                  <span className="text-xs" style={{ color: "var(--muted)" }}>{label}</span>
-                  <span className="text-xs font-medium text-right" style={{ color: "var(--foreground)" }}>{value}</span>
+                <div
+                  key={label}
+                  className="flex justify-between items-center py-[5px]"
+                  style={{ borderBottom: "1px solid var(--border)", fontSize: 12 }}
+                >
+                  <span style={{ color: "var(--muted)" }}>{label}</span>
+                  <span className="font-medium text-right" style={{ color: "var(--foreground)" }}>{value}</span>
                 </div>
               ))}
             </div>
