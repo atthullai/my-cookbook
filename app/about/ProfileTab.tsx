@@ -381,8 +381,8 @@ export default function ProfileTab({ initialProfile, userId, stats, cuisineBreak
                   text: "Andhra and Karnataka recipes from grandmothers and aunts — the thakalis, rasams, and chutneys that smell like home. The recipes that live in memory, finally written down.",
                 },
                 {
-                  date: "A new kitchen",
-                  text: "New pantry constraints, different ingredients, different shelves. Learning to cook familiar food in an unfamiliar kitchen — and discovering new dishes along the way.",
+                  date: "Moving to Stuttgart",
+                  text: "German ingredients, Pfand bottles, Tetra Pak. Learning to cook Indian food in a European kitchen — and discovering German Sunday meals.",
                 },
                 {
                   date: "Building this cookbook",

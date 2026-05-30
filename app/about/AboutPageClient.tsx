@@ -371,7 +371,7 @@ export default function AboutPageClient({ initialProfile, userId, stats, cuisine
                 <LottieAnimation
                   src="/animations/peacock.json"
                   loop
-                  style={{ width: 200, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }}
+                  style={{ width: 280, filter: "drop-shadow(0 18px 36px rgba(0,0,0,0.35))" }}
                 />
               </motion.div>
             </div>
