@@ -1452,12 +1452,29 @@ export default function PantryPage() {
                           📂 Opened
                         </span>
                       )}
-                      {item.pfandAmount != null && item.pfandAmount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-                          style={{ background: "rgba(34,197,94,0.1)", color: "#15803d", border: "1px solid rgba(34,197,94,0.25)" }}>
-                          ♻️ €{item.pfandAmount.toFixed(2)}
-                        </span>
-                      )}
+                      {(() => {
+                        const stored = item.pfandAmount != null && item.pfandAmount > 0 ? item.pfandAmount : null;
+                        const detected = detectPfand(item.name);
+                        const amount = stored ?? (detected.pfandType !== "none" ? detected.deposit : null);
+                        if (!amount) return null;
+                        return (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                              style={{ background: "rgba(34,197,94,0.1)", color: "#15803d", border: "1px solid rgba(34,197,94,0.25)" }}>
+                              ♻️ €{amount.toFixed(2)}
+                            </span>
+                            <button type="button"
+                              onClick={() => void addPfandEntry(item.name, detected.pfandType !== "none" ? detected : { pfandType: "einweg", deposit: amount, containerType: "bottle", disposal: "pfandautomat", disposalLabel: "Return to Pfandautomat" }).then((ok) => {
+                                if (ok) toast.success(`♻️ ${item.name} logged to Pfand tracker`);
+                                else toast.error("Failed to log — check Pfand page");
+                              })}
+                              className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition hover:opacity-70"
+                              style={{ background: "rgba(34,197,94,0.18)", color: "#15803d", border: "1px solid rgba(34,197,94,0.35)" }}>
+                              Log to Pfand →
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                     {/* +/- stepper */}
                     <div className="flex items-center gap-1 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
@@ -1723,6 +1740,29 @@ export default function PantryPage() {
                           📂 Opened
                         </span>
                       )}
+                      {(() => {
+                        const stored = item.pfandAmount != null && item.pfandAmount > 0 ? item.pfandAmount : null;
+                        const detected = detectPfand(item.name);
+                        const amount = stored ?? (detected.pfandType !== "none" ? detected.deposit : null);
+                        if (!amount) return null;
+                        return (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                              style={{ background: "rgba(34,197,94,0.1)", color: "#15803d", border: "1px solid rgba(34,197,94,0.25)" }}>
+                              ♻️ €{amount.toFixed(2)}
+                            </span>
+                            <button type="button"
+                              onClick={() => void addPfandEntry(item.name, detected.pfandType !== "none" ? detected : { pfandType: "einweg", deposit: amount, containerType: "bottle", disposal: "pfandautomat", disposalLabel: "Return to Pfandautomat" }).then((ok) => {
+                                if (ok) toast.success(`♻️ ${item.name} logged to Pfand tracker`);
+                                else toast.error("Failed to log — check Pfand page");
+                              })}
+                              className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition hover:opacity-70"
+                              style={{ background: "rgba(34,197,94,0.18)", color: "#15803d", border: "1px solid rgba(34,197,94,0.35)" }}>
+                              Log to Pfand →
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-1 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
                       <button type="button" onClick={() => adjustQuantity(item, -1)} disabled={item.quantity <= 0}
