@@ -28,7 +28,6 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import LottieAnimation from "@/components/LottieAnimation";
 import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
 import { CATEGORY_MAP } from "@/lib/pantry-items";
 import { convertToBase } from "@/lib/conversion";
@@ -71,7 +70,13 @@ function toISO(date: Date): string {
 }
 
 // ── Draggable recipe chip ─────────────────────────────────────────────────────
-function DraggableRecipeChip({ recipe }: { recipe: RecipeSummary }) {
+function DraggableRecipeChip({
+  recipe, isSelected, onSelect,
+}: {
+  recipe: RecipeSummary;
+  isSelected?: boolean;
+  onSelect?: () => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `recipe-${recipe.id}`,
     data: { recipeId: recipe.id, title: recipe.title, cuisine: recipe.cuisine },
@@ -81,38 +86,45 @@ function DraggableRecipeChip({ recipe }: { recipe: RecipeSummary }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform) }}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        ...(isSelected
+          ? { background: "var(--accent)", borderColor: "var(--accent-strong)", color: "#fff" }
+          : {}),
+      }}
       {...listeners}
       {...attributes}
+      onClick={onSelect}
       className={[
-        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium cursor-grab active:cursor-grabbing",
+        "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium cursor-grab active:cursor-grabbing",
         "transition-all duration-150 select-none border",
-        theme.cardGradient, theme.textColor,
+        isSelected ? "" : [theme.cardGradient, theme.textColor].join(" "),
         isDragging ? "opacity-50 shadow-2xl scale-95 rotate-1" : "shadow-sm hover:shadow-md hover:scale-[1.02]",
       ].join(" ")}
     >
-      <span className="text-base flex-shrink-0">{theme.emoji}</span>
+      <span className="text-sm flex-shrink-0">{theme.emoji}</span>
       <span className="truncate flex-1 leading-tight text-xs">{recipe.title}</span>
-      <span className="text-[9px] opacity-50 flex-shrink-0 font-normal">drag</span>
     </div>
   );
 }
 
 // ── Droppable slot cell ───────────────────────────────────────────────────────
 interface SlotCellProps {
-  date:        Date;
-  slot:        MealSlot;
-  meal?:       PlannedMeal;
-  recipe?:     RecipeSummary;
-  onRemove:    () => void;
-  onServings:  (delta: number) => void;
-  onCooked:    () => void;
-  mealStatus?: MealCheckResult;
-  expanded?:   boolean;
-  onExpand?:   () => void;
+  date:         Date;
+  slot:         MealSlot;
+  meal?:        PlannedMeal;
+  recipe?:      RecipeSummary;
+  onRemove:     () => void;
+  onServings:   (delta: number) => void;
+  onCooked:     () => void;
+  mealStatus?:  MealCheckResult;
+  expanded?:    boolean;
+  onExpand?:    () => void;
+  onClickPlan?: () => void;
+  hasSelected?: boolean;
 }
 
-function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, mealStatus, expanded, onExpand }: SlotCellProps) {
+function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, mealStatus, expanded, onExpand, onClickPlan, hasSelected }: SlotCellProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `${toISO(date)}-${slot}`,
     data: { date: toISO(date), slot },
@@ -250,8 +262,15 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
           </AnimatePresence>
         </motion.div>
       ) : (
-        <div className="h-full flex items-center justify-center min-h-[64px]">
-          <span className="text-xl opacity-25" style={{ color: "var(--muted)" }}>+</span>
+        <div
+          className="h-full flex items-center justify-center min-h-[64px] transition-colors"
+          style={hasSelected ? { background: "rgba(192,138,45,0.06)", cursor: "pointer" } : { cursor: "default" }}
+          onClick={onClickPlan}
+        >
+          <span
+            className="text-xl transition-opacity"
+            style={{ color: "var(--muted)", opacity: hasSelected ? 0.5 : 0.2 }}
+          >+</span>
         </div>
       )}
     </div>
@@ -271,6 +290,7 @@ export default function PlannerPage() {
   const [removeTarget,  setRemoveTarget]  = useState<PlannedMeal | null>(null);
   const [isRemoving,    setIsRemoving]    = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
 
   // ── Pantry sufficiency ────────────────────────────────────────────────────
   const [, setPantryStock]   = useState<PantryStockItem[]>([]);
@@ -538,6 +558,38 @@ export default function PlannerPage() {
     }
   }, [plannedMeals, recipes]);
 
+  // ── Click-to-plan (alternative to drag) ──────────────────────────────────
+  const handleClickPlan = useCallback(async (date: string, slot: MealSlot) => {
+    if (!selectedRecipeId) return;
+    if (plannedMeals.find((m) => m.date === date && m.slot === slot)) {
+      toast.error("Slot already filled — remove the current meal first");
+      return;
+    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      const { data, error } = await supabase.from("planned_meals").insert({
+        user_id: user.id, meal_date: date, meal_slot: slot,
+        recipe_id: parseInt(selectedRecipeId), servings: 1,
+      }).select().single();
+      if (error) {
+        if (error.message.includes("relation") || error.message.includes("does not exist")) {
+          setMigrationNeeded(true);
+        } else throw error;
+        return;
+      }
+      setPlannedMeals((prev) => [...prev, {
+        id: data.id as string, date: data.meal_date as string,
+        slot: data.meal_slot as MealSlot, recipeId: String(data.recipe_id), servings: 1,
+      }]);
+      const recipe = recipes.find((r) => r.id === selectedRecipeId);
+      toast.success(`${recipe?.title ?? "Recipe"} → ${slot}`, { duration: 2500 });
+      setSelectedRecipeId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add meal");
+    }
+  }, [selectedRecipeId, plannedMeals, recipes]);
+
   // ── Update servings ────────────────────────────────────────────────────────
   const handleServings = useCallback(async (mealId: string, delta: number) => {
     const meal = plannedMeals.find((m) => m.id === mealId);
@@ -667,110 +719,135 @@ export default function PlannerPage() {
     <>
       <Toaster position="top-right" />
 
-      <main className="min-h-screen" style={{ background: "var(--parchment)" }}>
-        <div className="max-w-screen-xl mx-auto px-4 py-8">
+      <main className="min-h-screen" style={{ background: "var(--background)" }}>
 
-          {/* ── Migration banner ──────────────────────────────────────────── */}
-          <AnimatePresence>
-            {migrationNeeded && (
-              <motion.div
-                initial={{ opacity: 0, y: -16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                className="mb-6 rounded-2xl p-4 flex gap-3 items-start"
-                style={{ background: "rgba(192,138,45,0.12)", border: "1px solid rgba(192,138,45,0.35)" }}
-              >
-                <span className="text-2xl flex-shrink-0">⚠️</span>
-                <div>
-                  <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
-                    One-time setup needed
-                  </p>
-                  <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
-                    The meal planner table doesn&apos;t exist yet. Go to{" "}
-                    <strong>Supabase → SQL Editor → New Query</strong>, paste the contents of{" "}
-                    <code className="text-xs px-1 rounded" style={{ background: "rgba(0,0,0,0.07)" }}>
-                      supabase/migrations/20260528_fix_all_tables.sql
-                    </code>{" "}
-                    and click <strong>Run</strong>. Then refresh this page.
-                  </p>
+        {/* ── Page hero ── */}
+        <section
+          className="relative overflow-hidden px-5 pt-10 pb-8 border-b"
+          style={{
+            background: "radial-gradient(ellipse 70% 60% at 80% 0%, rgba(212,168,83,.07) 0%, transparent 60%), radial-gradient(ellipse 50% 80% at 5% 100%, rgba(232,132,74,.05) 0%, transparent 60%), var(--linen)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <div className="max-w-screen-xl mx-auto">
+
+            {/* ── Migration banner ── */}
+            <AnimatePresence>
+              {migrationNeeded && (
+                <motion.div
+                  initial={{ opacity: 0, y: -16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  className="mb-5 rounded-2xl p-4 flex gap-3 items-start"
+                  style={{ background: "rgba(192,138,45,0.12)", border: "1px solid rgba(192,138,45,0.35)" }}
+                >
+                  <span className="text-2xl flex-shrink-0">⚠️</span>
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+                      One-time setup needed
+                    </p>
+                    <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                      The meal planner table doesn&apos;t exist yet. Go to{" "}
+                      <strong>Supabase → SQL Editor → New Query</strong>, paste the contents of{" "}
+                      <code className="text-xs px-1 rounded" style={{ background: "rgba(0,0,0,0.07)" }}>
+                        supabase/migrations/20260528_fix_all_tables.sql
+                      </code>{" "}
+                      and click <strong>Run</strong>. Then refresh this page.
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setMigrationNeeded(false)} className="ml-auto p-1" style={{ color: "var(--muted)" }}>
+                    <X size={14} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex items-end justify-between gap-5 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-px w-5" style={{ background: "var(--saffron)" }} />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
+                    Weekly menu
+                  </span>
                 </div>
-                <button type="button" onClick={() => setMigrationNeeded(false)} className="ml-auto p-1" style={{ color: "var(--muted)" }}>
-                  <X size={14} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Header ────────────────────────────────────────────────────── */}
-          <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-1"
-                style={{ color: "var(--accent)", opacity: 0.8 }}>
-                Weekly Menu
-              </p>
-              <h1 className="text-3xl font-bold leading-tight" style={{ color: "var(--foreground)" }}>
-                This Week&apos;s Plan
-              </h1>
-              <div className="flex items-center gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setWeekOffset((w) => w - 1)}
-                  className="p-1.5 rounded-lg border transition shadow-sm"
-                  style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
-                >
-                  <ChevronLeft size={15} />
-                </button>
-                <span className="text-sm font-medium tabular-nums" style={{ color: "var(--muted)" }}>{weekLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => setWeekOffset((w) => w + 1)}
-                  className="p-1.5 rounded-lg border transition shadow-sm"
-                  style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
-                >
-                  <ChevronRight size={15} />
-                </button>
-                {weekOffset !== 0 && (
+                <h1 className="font-bold leading-tight mb-1" style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--foreground)" }}>
+                  This Week&apos;s <em style={{ color: "var(--accent)", fontStyle: "italic" }}>Plan</em>
+                </h1>
+                <p className="text-sm italic" style={{ color: "var(--muted)" }}>
+                  {loadingMeals ? "Loading…" : `${weekStats.totalMeals} meal${weekStats.totalMeals !== 1 ? "s" : ""} planned`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {plannedMeals.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setWeekOffset(0)}
-                    className="text-xs font-medium hover:underline ml-1"
-                    style={{ color: "var(--accent)" }}
+                    onClick={() => void handleClearWeek()}
+                    className="px-3 py-2 rounded-xl text-sm transition"
+                    style={{ color: "var(--muted)", border: "1px solid var(--border)", background: "var(--surface)" }}
                   >
-                    ← Today
+                    Clear week
                   </button>
                 )}
-              </div>
-            </div>
-
-            {/* Meal planner animation + action buttons */}
-            <div className="flex flex-col items-end gap-3">
-              <div aria-hidden="true">
-                <LottieAnimation
-                  src="/animations/meal-planner.json"
-                  loop
-                  style={{ width: 200, height: 200 }}
-                />
-              </div>
-            <div className="flex items-center gap-2">
-              {plannedMeals.length > 0 && (
+                <Link
+                  href="/planner/shopping"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                  style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+                >
+                  <ShoppingCart size={15} /> Shopping list
+                </Link>
                 <button
                   type="button"
-                  onClick={() => void handleClearWeek()}
-                  className="px-3 py-2 rounded-xl text-sm transition"
-                  style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
+                  onClick={() => void load()}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                  style={{ background: "var(--accent)", color: "#fff" }}
+                  title="Re-check pantry sufficiency"
                 >
-                  Clear week
+                  ↻ Check pantry
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="max-w-screen-xl mx-auto px-5 py-5">
+
+          {/* ── Week navigation ── */}
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWeekOffset((w) => w - 1)}
+                className="p-1.5 rounded-lg border transition"
+                style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <span className="text-sm font-medium tabular-nums" style={{ color: "var(--muted)" }}>{weekLabel}</span>
+              <button
+                type="button"
+                onClick={() => setWeekOffset((w) => w + 1)}
+                className="p-1.5 rounded-lg border transition"
+                style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
+              >
+                <ChevronRight size={15} />
+              </button>
+              {weekOffset !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => setWeekOffset(0)}
+                  className="text-xs font-medium hover:underline"
+                  style={{ color: "var(--accent)" }}
+                >
+                  ← Today
                 </button>
               )}
-              <Link
-                href="/planner/shopping"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm"
-                style={{ background: "var(--foreground)", color: "var(--parchment)" }}
-              >
-                <ShoppingCart size={15} /> Shopping List
-              </Link>
             </div>
-            </div>
+            {!loadingMeals && weekStats.uniqueCuisines > 0 && (
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                <span className="font-semibold" style={{ color: "var(--foreground)" }}>{weekStats.uniqueCuisines}</span>
+                {" "}cuisine{weekStats.uniqueCuisines !== 1 ? "s" : ""} this week
+              </p>
+            )}
           </div>
 
           {/* ── Week stats bar ─────────────────────────────────────────────── */}
@@ -931,6 +1008,8 @@ export default function PlannerPage() {
                               mealStatus={meal ? mealStatuses[meal.id] : undefined}
                               expanded={meal ? expandedMealId === meal.id : false}
                               onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
+                              onClickPlan={!meal ? () => void handleClickPlan(toISO(date), slot) : undefined}
+                              hasSelected={!!selectedRecipeId}
                             />
                           );
                         })}
@@ -962,8 +1041,13 @@ export default function PlannerPage() {
                     />
                   </div>
 
-                  <p className="text-[10px] mb-2" style={{ color: "var(--muted)", opacity: 0.7 }}>
-                    ← Drag onto a day slot
+                  <p
+                    className="text-[10px] mb-2 leading-snug transition-colors"
+                    style={{ color: selectedRecipeId ? "var(--accent)" : "var(--muted)", opacity: selectedRecipeId ? 1 : 0.75 }}
+                  >
+                    {selectedRecipeId
+                      ? "✓ Recipe selected — click any empty slot to plan it"
+                      : "Click a recipe then click an empty slot to plan it. Or drag."}
                   </p>
 
                   <div className="space-y-1.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-0.5">
@@ -980,7 +1064,12 @@ export default function PlannerPage() {
                       </div>
                     ) : (
                       filteredRecipes.map((r) => (
-                        <DraggableRecipeChip key={r.id} recipe={r} />
+                        <DraggableRecipeChip
+                          key={r.id}
+                          recipe={r}
+                          isSelected={selectedRecipeId === r.id}
+                          onSelect={() => setSelectedRecipeId((prev) => prev === r.id ? null : r.id)}
+                        />
                       ))
                     )}
                   </div>
@@ -1067,7 +1156,7 @@ export default function PlannerPage() {
               <p className="text-3xl mb-3">📅</p>
               <p className="font-medium" style={{ color: "var(--foreground)" }}>Your week is open</p>
               <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-                Drag any recipe from the right panel onto a meal slot to start building your menu
+                Drag a recipe from the right panel onto a slot, or click a recipe chip then click a slot.
               </p>
               {recipes.length === 0 && (
                 <Link href="/add" className="inline-block mt-4 px-5 py-2 rounded-xl text-sm font-medium transition"
@@ -1077,7 +1166,7 @@ export default function PlannerPage() {
               )}
             </div>
           )}
-        </div>
+        </div>{/* end page content */}
       </main>
 
       <ConfirmDialog
