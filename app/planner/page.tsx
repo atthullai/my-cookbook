@@ -14,6 +14,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   PointerSensor, useSensor, useSensors, useDroppable, useDraggable,
@@ -102,7 +103,17 @@ function DraggableRecipeChip({
         isDragging ? "opacity-50 shadow-2xl scale-95 rotate-1" : "shadow-sm hover:shadow-md hover:scale-[1.02]",
       ].join(" ")}
     >
-      <span className="text-sm flex-shrink-0">{theme.emoji}</span>
+      {recipe.imageUrl ? (
+        <Image
+          src={recipe.imageUrl}
+          alt=""
+          width={24}
+          height={24}
+          className="rounded-md object-cover flex-shrink-0"
+        />
+      ) : (
+        <span className="text-sm flex-shrink-0">{theme.emoji}</span>
+      )}
       <span className="truncate flex-1 leading-tight text-xs">{recipe.title}</span>
     </div>
   );
