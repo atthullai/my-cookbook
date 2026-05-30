@@ -68,26 +68,34 @@ function CuisineCard({ origin, index, recipeCount }: { origin: CuisineOrigin; in
     >
       <Link
         href={`/recipes?cuisine=${encodeURIComponent(origin)}`}
-        className="block rounded-2xl select-none relative overflow-hidden aspect-[4/3] cursor-pointer"
-        style={
-          photo
+        className="block rounded-2xl select-none relative overflow-hidden cursor-pointer"
+        style={{
+          minHeight: 160,
+          ...(photo
             ? { backgroundImage: `url(${photo})`, backgroundSize: "cover", backgroundPosition: "center" }
-            : { background: theme.cardGradient }
-        }
+            : { background: theme.cardGradient }),
+        }}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        {/* Full dark overlay so text always readable */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+
+        {/* Recipe count — top right */}
         <span
-          className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm"
+          className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10"
           style={{
-            background: count > 0 ? "rgba(212,168,83,0.85)" : "rgba(0,0,0,0.45)",
-            color: count > 0 ? "#1a0e00" : "rgba(255,255,255,0.7)",
+            background: count > 0 ? "rgba(212,168,83,0.9)" : "rgba(0,0,0,0.5)",
+            color: count > 0 ? "#1a0e00" : "rgba(255,255,255,0.75)",
           }}
         >
           {count} {count === 1 ? "recipe" : "recipes"}
         </span>
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
-          <p className="text-xs font-bold text-white leading-tight">{theme.label}</p>
-          <p className="text-[10px] text-white/70 mt-0.5 leading-snug line-clamp-1">{theme.descriptor}</p>
+
+        {/* Label + descriptor */}
+        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 z-10">
+          <p className="text-[11px] font-bold text-white leading-tight mb-1">{theme.label}</p>
+          <p className="text-[10px] leading-snug line-clamp-2" style={{ color: "rgba(255,255,255,0.75)" }}>
+            {theme.descriptor}
+          </p>
         </div>
       </Link>
     </motion.div>
