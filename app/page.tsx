@@ -24,10 +24,11 @@ import LottieAnimation from "@/components/LottieAnimation";
 
 // ── Quick-nav card ────────────────────────────────────────────────────────────
 function NavCard({
-  icon, label, href, bg, iconBg,
+  icon, label, desc, href, bg, iconBg,
 }: {
   icon: React.ReactNode;
   label: string;
+  desc?: string;
   href: string;
   bg: string;
   iconBg: string;
@@ -35,12 +36,17 @@ function NavCard({
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center gap-2.5 py-5 px-3 rounded-2xl ${bg} border border-white/60 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 text-center group`}
+      className={`flex flex-col items-center gap-2 py-5 px-3 rounded-2xl ${bg} border border-white/60 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 text-center group`}
     >
       <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-200`}>
         {icon}
       </div>
       <span className="text-xs font-semibold text-stone-600 tracking-wide">{label}</span>
+      {desc && (
+        <span className="text-[11px] leading-snug hidden sm:block" style={{ color: "var(--muted)" }}>
+          {desc}
+        </span>
+      )}
     </Link>
   );
 }
@@ -124,12 +130,21 @@ export default function Home() {
           className="relative overflow-hidden px-4 pt-12 pb-14"
           style={{
             background: [
-              "radial-gradient(ellipse 80% 60% at 72% 68%, rgba(192, 130, 30, 0.18) 0%, transparent 60%)",
-              "radial-gradient(ellipse 50% 40% at 18% 25%, rgba(220, 160, 50, 0.12) 0%, transparent 55%)",
+              "radial-gradient(ellipse 80% 60% at 70% 20%, rgba(212,168,83,.10) 0%, transparent 55%)",
+              "radial-gradient(ellipse 60% 80% at 10% 80%, rgba(232,132,74,.08) 0%, transparent 55%)",
               "linear-gradient(160deg, var(--linen) 0%, var(--parchment) 55%, var(--background) 100%)",
             ].join(", "),
           }}
         >
+          {/* Grain noise overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none select-none"
+            aria-hidden="true"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E")`,
+              opacity: 0.5,
+            }}
+          />
           <div className="relative max-w-5xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-8">
 
             {/* ── Editorial text ─────────────────────────────────────── */}
@@ -229,6 +244,7 @@ export default function Home() {
                     { value: records.length, label: "recipes" },
                     { value: new Set(records.map((r) => r.cuisine).filter(Boolean)).size, label: "cuisines" },
                     { value: new Set(records.flatMap((r) => r.badges)).size, label: "tags" },
+                    { value: 20, label: "origins" },
                   ].map(({ value, label }) => (
                     <div key={label} className="text-center lg:text-left">
                       <p
@@ -269,6 +285,7 @@ export default function Home() {
             <NavCard
               icon={<BookOpen size={19} style={{ color: "var(--accent-strong)" }} />}
               label="Recipes"
+              desc="Save, search, and filter your collection. Full ingredients, steps, nutrition."
               href="/recipes"
               bg="bg-orange-50"
               iconBg="bg-orange-100/80"
@@ -276,6 +293,7 @@ export default function Home() {
             <NavCard
               icon={<CalendarDays size={19} style={{ color: "var(--olive)" }} />}
               label="Planner"
+              desc="Drag recipes onto a weekly calendar. Auto-generate shopping lists."
               href="/planner"
               bg="bg-lime-50"
               iconBg="bg-lime-100/80"
@@ -283,6 +301,7 @@ export default function Home() {
             <NavCard
               icon={<ShoppingCart size={19} style={{ color: "var(--teal)" }} />}
               label="Shopping"
+              desc="Check off as you go. Grouped by category. Pantry handoff on check."
               href="/planner/shopping"
               bg="bg-teal-50"
               iconBg="bg-teal-100/80"
@@ -290,6 +309,7 @@ export default function Home() {
             <NavCard
               icon={<Leaf size={19} style={{ color: "var(--olive)" }} />}
               label="Pantry"
+              desc="Know what's running low or expiring. Suggest recipes from what's on hand."
               href="/pantry"
               bg="bg-green-50"
               iconBg="bg-green-100/80"
