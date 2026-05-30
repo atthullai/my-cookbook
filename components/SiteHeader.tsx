@@ -9,13 +9,13 @@ import { usePathname } from "next/navigation";
 import AppIcon from "@/components/AppIcon";
 
 const navItems = [
-  { href: "/", label: "Home", icon: "home" as const },
-  { href: "/recipes", label: "Recipes", icon: "book" as const },
-  { href: "/planner", label: "Planner", icon: "quick" as const },
-  { href: "/pantry", label: "Pantry", icon: "onepot" as const },
-  { href: "/pfand", label: "Pfand ♻️", icon: "about" as const },
-  { href: "/about", label: "About Me", icon: "about" as const },
-  { href: "/add", label: "Add Recipe", icon: "add" as const },
+  { href: "/",        label: "Home",       icon: "home"   as const, emoji: "🏠" },
+  { href: "/recipes", label: "Recipes",    icon: "book"   as const, emoji: "📖" },
+  { href: "/planner", label: "Planner",    icon: "quick"  as const, emoji: "📅" },
+  { href: "/pantry",  label: "Pantry",     icon: "onepot" as const, emoji: "🛒" },
+  { href: "/pfand",   label: "Pfand",      icon: "about"  as const, emoji: "♻️" },
+  { href: "/about",   label: "About Me",   icon: "about"  as const, emoji: "👤" },
+  { href: "/add",     label: "Add Recipe", icon: "add"    as const, emoji: ""   },
 ];
 
 export default function SiteHeader() {
@@ -47,7 +47,7 @@ export default function SiteHeader() {
             return (
               <Link key={item.href} href={item.href} className={isActive ? "site-nav-link active" : "site-nav-link"}>
                 <AppIcon name={item.icon} size={16} />
-                <span>{item.label}</span>
+                <span>{item.emoji ? `${item.emoji} ${item.label}` : item.label}</span>
               </Link>
             );
           })}
