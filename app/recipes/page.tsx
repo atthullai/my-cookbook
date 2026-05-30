@@ -25,7 +25,6 @@ import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import DeerDivider from "@/components/DeerDivider";
 import type { RecipeSummary, CuisineOrigin, RecipeTag } from "@/types";
 
 // Slow, breathing, handcrafted — Tamil Nadu motion philosophy
@@ -151,74 +150,105 @@ export default function RecipesPage() {
   return (
     <>
       <Toaster position="top-right" />
-      <main className="min-h-screen" style={{ background: "var(--parchment, #fdf8f0)" }}>
-        <div className="max-w-7xl mx-auto px-4 py-8">
+      <main className="min-h-screen" style={{ background: "var(--background)" }}>
 
-          {/* ── Header ──────────────────────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, ease: EASE_WARM }}
-            className="flex items-center justify-between mb-2"
-          >
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] mb-1"
-                style={{ color: "var(--accent)", opacity: 0.8 }}>
-                Your Heirloom Collection
-              </p>
-              <h1 className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
-                My Recipes
+        {/* ── Page hero ── */}
+        <section
+          className="relative overflow-hidden px-5 pt-10 pb-8 border-b"
+          style={{
+            background: "radial-gradient(ellipse 70% 60% at 80% 0%, rgba(212,168,83,.07) 0%, transparent 60%), radial-gradient(ellipse 50% 80% at 5% 100%, rgba(232,132,74,.05) 0%, transparent 60%), var(--linen)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <div className="max-w-7xl mx-auto flex items-end justify-between gap-5 flex-wrap">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: EASE_WARM }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-px w-5" style={{ background: "var(--saffron)" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
+                  Your heirloom collection
+                </span>
+              </div>
+              <h1 className="font-bold leading-tight mb-1" style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--foreground)" }}>
+                My <em style={{ color: "var(--accent)", fontStyle: "italic" }}>Recipes</em>
               </h1>
-              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-                {recipes.length} recipe{recipes.length !== 1 ? "s" : ""} in your cookbook
+              <p className="text-sm italic" style={{ color: "var(--muted)" }}>
+                {recipes.length > 0
+                  ? `${recipes.length} recipe${recipes.length !== 1 ? "s" : ""} in your cookbook`
+                  : "Your cookbook"}
               </p>
-            </div>
+            </motion.div>
             <Link
               href="/add"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition"
               style={{ background: "var(--accent)", color: "#fff" }}
             >
               <Plus size={16} /> Add Recipe
             </Link>
-          </motion.div>
+          </div>
+        </section>
 
-          <DeerDivider className="mb-6" />
+        <div className="max-w-7xl mx-auto px-5 py-6">
 
-          {/* ── Search + filter toggle ──────────────────────────────── */}
-          <div className="flex gap-2 mb-4">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none" style={{ color: "var(--muted)" }} />
+          {/* ── Quick filter chips + search + full-filters toggle ── */}
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
+            {/* All */}
+            <button
+              type="button"
+              onClick={() => { setTags([]); setCuisines([]); }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium border transition"
+              style={tags.length === 0 && cuisines.length === 0
+                ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
+                : { background: "transparent", color: "var(--foreground)", borderColor: "var(--border)" }}
+            >
+              All
+            </button>
+            {/* Quick tag chips */}
+            {(["veg", "spicy", "quick", "high-protein"] as RecipeTag[]).map((tag) => {
+              const meta = TAG_META[tag];
+              const active = tags.includes(tag);
+              return (
+                <button key={tag} type="button" onClick={() => toggleTag(tag)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium border transition"
+                  style={active
+                    ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
+                    : { background: "transparent", color: "var(--foreground)", borderColor: "var(--border)" }}
+                >
+                  {meta.emoji} {meta.label}
+                </button>
+              );
+            })}
+            {/* Search */}
+            <div className="relative flex-1 min-w-[140px]">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
               <input
                 type="text"
                 placeholder="Search recipes…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
-                style={{
-                  border: "1px solid var(--border)",
-                  background: "var(--surface)",
-                  color: "var(--foreground)",
-                  paddingLeft: "2.5rem",
-                }}
+                className="w-full pl-9 pr-4 py-1.5 rounded-full text-xs focus:outline-none"
+                style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
               />
             </div>
+            {/* Full filters */}
             <button
               type="button"
               onClick={() => setShowFilters((f) => !f)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition"
               style={{
-                background: showFilters ? "var(--accent)" : "var(--surface)",
+                background: showFilters ? "var(--accent)" : "transparent",
                 color: showFilters ? "#fff" : "var(--foreground)",
                 borderColor: showFilters ? "var(--accent)" : "var(--border)",
               }}
             >
-              <SlidersHorizontal size={15} />
+              <SlidersHorizontal size={12} />
               Filters
               {activeFilterCount > 0 && (
-                <span
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold"
-                  style={{ background: showFilters ? "rgba(255,255,255,0.25)" : "var(--accent)", color: showFilters ? "#fff" : "#fff" }}
-                >
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
+                  style={{ background: showFilters ? "rgba(255,255,255,0.3)" : "var(--accent)", color: "#fff" }}>
                   {activeFilterCount}
                 </span>
               )}
@@ -363,11 +393,17 @@ export default function RecipesPage() {
             )}
           </AnimatePresence>
 
-          {/* ── Results count ───────────────────────────────────────── */}
+          {/* ── Section label ── */}
           {!loading && (
-            <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>
-              Showing {filtered.length} of {recipes.length} recipes
-            </p>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] whitespace-nowrap" style={{ color: "var(--muted)" }}>
+                Saved recipes
+              </span>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--border), transparent)" }} />
+              <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--muted)" }}>
+                {filtered.length}{filtered.length !== recipes.length ? ` of ${recipes.length}` : ""} recipe{filtered.length !== 1 ? "s" : ""}
+              </span>
+            </div>
           )}
 
           {/* ── Loading skeletons ───────────────────────────────────── */}
@@ -455,7 +491,7 @@ export default function RecipesPage() {
               ))}
             </motion.div>
           )}
-        </div>
+        </div>{/* end page content */}
 
         {/* ── Floating add button (mobile) ──────────────────────────── */}
         <Link
