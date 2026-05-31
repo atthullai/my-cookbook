@@ -5,6 +5,9 @@ type JsonLdValue = Record<string, unknown>;
 // Best case: the site has JSON-LD Recipe data. Fallback: we scrape common HTML patterns from known blogs.
 // The output is NOT saved here; app/add/page.tsx puts it into the editor first.
 
+import { matchToLibrary } from "@/lib/ingredient-matcher";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+
 export type ImportedRecipeDraft = {
   sourceUrl: string;
   title: string;
@@ -26,6 +29,10 @@ export type ImportedRecipeDraft = {
       amount: string;
       unit: string;
       name_en: string;
+      note?: string;
+      isToTaste?: boolean;
+      libraryId?: string | null;
+      weightConfidence?: string;
     }>;
   }>;
   instructionSections: Array<{
@@ -661,11 +668,34 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
   const imageUrls = extractImageUrls(html, recipe);
   const hebbarOverrides = extractHebbarOverrides(html);
   const coverImageUrl = pickBestCoverImage(html, recipe) || imageUrls[0] || "";
-  const importedIngredients = hebbarOverrides?.ingredients.length ? hebbarOverrides.ingredients : extractIngredients(recipe);
+  const rawIngredients = hebbarOverrides?.ingredients.length ? hebbarOverrides.ingredients : extractIngredients(recipe);
   const importedInstructionSections =
     hebbarOverrides?.instructionSections.length ? hebbarOverrides.instructionSections : flattenInstructions(recipe.recipeInstructions);
   const importedEquipment =
-    hebbarOverrides?.equipment.length ? hebbarOverrides.equipment : inferEquipment(title, importedInstructionSections, importedIngredients, html);
+    hebbarOverrides?.equipment.length ? hebbarOverrides.equipment : inferEquipment(title, importedInstructionSections, rawIngredients, html);
+
+  // Match every ingredient to the library — best-effort, never throws
+  let importedIngredients = rawIngredients;
+  try {
+    const supabase = await createSupabaseServerClient();
+    importedIngredients = await Promise.all(
+      rawIngredients.map(async (group) => ({
+        ...group,
+        items: await Promise.all(
+          group.items.map(async (item) => {
+            try {
+              const { libraryId, confidence } = await matchToLibrary(item.name_en, supabase);
+              return { ...item, libraryId, weightConfidence: confidence };
+            } catch {
+              return item;
+            }
+          })
+        ),
+      }))
+    );
+  } catch {
+    // If library matching fails entirely, continue with unmatched ingredients
+  }
 
   return {
     sourceUrl: url.toString(),
