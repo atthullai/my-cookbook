@@ -199,7 +199,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
                     title={`Pantry: ${mealStatus.overall}`}
                   >
                     {mealStatus.overall === "sufficient" ? "✓" :
-                     mealStatus.overall === "partial"    ? "⚠" : "✗"}
+                     mealStatus.overall === "partial"    ? "~" : "!"}
                   </span>
                 )}
                 <button
@@ -281,6 +281,35 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
                       ))
                     }
                   </ul>
+                  {/* Add missing to shopping list */}
+                  {mealStatus.overall !== "sufficient" && (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const missing = mealStatus.ingredients.filter((i) => i.status === "unavailable" || i.status === "partial");
+                        if (!missing.length) return;
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (!user) return;
+                        await Promise.all(missing.map((ing) =>
+                          supabase.from("shopping_list").upsert({
+                            user_id: user.id,
+                            name: ing.name,
+                            quantity: ing.needed_base >= 1000 ? ing.needed_base / 1000 : ing.needed_base,
+                            unit: ing.needed_base >= 1000 ? (ing.base_unit === "g" ? "kg" : "L") : ing.base_unit,
+                            category: "other",
+                            checked: false,
+                            source: "planner",
+                          }, { onConflict: "user_id,name" })
+                        ));
+                        toast.success(`${missing.length} missing item${missing.length > 1 ? "s" : ""} added to shopping list`);
+                      }}
+                      className="mt-1.5 w-full text-[9px] py-1 rounded-md font-semibold transition"
+                      style={{ background: "rgba(201,149,42,0.25)", color: "#fff" }}
+                    >
+                      🛒 Add missing to shopping list
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -334,8 +363,7 @@ export default function PlannerPage() {
 
   // ── Expiry suggestions banner ──────────────────────────────────────────────
   interface ExpirySuggestion {
-    itemName: string;
-    daysLeft: number;
+    items: { name: string; daysLeft: number }[];
     recipe: RecipeSummary;
   }
   const [expirySuggestions, setExpirySuggestions] = useState<ExpirySuggestion[]>([]);
@@ -403,24 +431,28 @@ export default function PlannerPage() {
 
       const allRecipesForSuggestions = toRecipeSummaries(mapRecipeRows(recipesRes.data ?? []));
       const rawForSuggestions = mapRecipeRows(recipesRes.data ?? []);
-      const suggestions: ExpirySuggestion[] = [];
-      for (const pantryItem of expiringPantry.slice(0, 10)) {
-        const nameL = (pantryItem.name as string).toLowerCase();
-        const daysLeft = Math.ceil((new Date(pantryItem.expiry_date as string).getTime() - now) / 86_400_000);
-        for (const raw of rawForSuggestions) {
-          const recipe = allRecipesForSuggestions.find((r) => r.id === String(raw.id));
-          if (!recipe) continue;
+      // Score each recipe by how many expiring items it uses
+      type ScoredSuggestion = { items: { name: string; daysLeft: number }[]; recipe: RecipeSummary };
+      const scored: ScoredSuggestion[] = [];
+      for (const raw of rawForSuggestions) {
+        const recipe = allRecipesForSuggestions.find((r) => r.id === String(raw.id));
+        if (!recipe) continue;
+        const matchedItems: { name: string; daysLeft: number }[] = [];
+        for (const pantryItem of expiringPantry) {
+          const nameL = (pantryItem.name as string).toLowerCase();
+          const daysLeft = Math.ceil((new Date(pantryItem.expiry_date as string).getTime() - now) / 86_400_000);
           const matches = raw.ingredients.some((g) =>
             g.items.some((i) => i.name_en.toLowerCase().includes(nameL) || nameL.includes(i.name_en.toLowerCase()))
           );
-          if (matches) {
-            suggestions.push({ itemName: pantryItem.name as string, daysLeft, recipe });
-            break;
-          }
+          if (matches) matchedItems.push({ name: pantryItem.name as string, daysLeft });
         }
-        if (suggestions.length >= 3) break;
+        if (matchedItems.length > 0) {
+          matchedItems.sort((a, b) => a.daysLeft - b.daysLeft);
+          scored.push({ items: matchedItems, recipe });
+        }
       }
-      setExpirySuggestions(suggestions);
+      scored.sort((a, b) => b.items.length - a.items.length);
+      setExpirySuggestions(scored.slice(0, 3));
 
       const mealRows: PlannedMeal[] = (mealsRes.data ?? []).map((row) => ({
         id:       row.id as string,
@@ -904,46 +936,58 @@ export default function PlannerPage() {
 
           {/* ── Expiry-driven suggestions banner ─────────────────────────── */}
           {!expiryBannerDismissed && expirySuggestions.length > 0 && (
-            <div className="rounded-2xl p-4 mb-5 space-y-2"
-              style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.28)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#b45309" }}>
-                  ⏰ Use before they expire
-                </p>
+            <div className="rounded-2xl mb-5 overflow-hidden"
+              style={{ border: "1px solid rgba(245,158,11,0.28)" }}>
+              <div className="flex items-center justify-between px-4 py-2.5"
+                style={{ background: "rgba(245,158,11,0.10)" }}>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#b45309" }}>
+                  ⏰ Use soon
+                </span>
                 <button type="button"
                   onClick={() => {
                     setExpiryBannerDismissed(true);
                     if (typeof window !== "undefined") localStorage.setItem("planner-expiry-banner-dismissed", String(Date.now()));
                   }}
-                  className="text-xs px-2 py-1 rounded-lg transition"
-                  style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
+                  className="text-xs opacity-50 hover:opacity-100 transition"
+                  style={{ color: "var(--muted)" }}
                 >
-                  Dismiss
+                  <X size={14} />
                 </button>
               </div>
-              {expirySuggestions.map((s, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5"
-                  style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
-                  <p className="text-sm" style={{ color: "var(--foreground)" }}>
-                    Use <strong>{s.itemName}</strong>{" "}
-                    <span className="text-xs" style={{ color: "#b45309" }}>
-                      ({s.daysLeft === 0 ? "expires today!" : s.daysLeft === 1 ? "exp tomorrow" : `${s.daysLeft}d left`})
-                    </span>{" "}
-                    → <span className="font-medium">{s.recipe.title}</span>
-                  </p>
-                  <button type="button"
-                    onClick={() => {
-                      setAddToPlanSuggestion(s);
-                      setAddToPlanDay(toISO(monday));
-                      setAddToPlanSlot("dinner");
-                    }}
-                    className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-medium transition whitespace-nowrap"
-                    style={{ background: "var(--accent)", color: "#fff" }}
-                  >
-                    Add to plan →
-                  </button>
-                </div>
-              ))}
+              <div className="divide-y" style={{ borderColor: "rgba(245,158,11,0.12)" }}>
+                {expirySuggestions.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium mb-0.5" style={{ color: "var(--foreground)" }}>
+                        {s.items.map((item, idx) => (
+                          <span key={idx}>
+                            {idx > 0 && <span style={{ color: "var(--muted)" }}>, </span>}
+                            <strong>{item.name}</strong>
+                            <span className="ml-1 font-normal" style={{ color: "#b45309" }}>
+                              ({item.daysLeft === 0 ? "today!" : item.daysLeft === 1 ? "exp tomorrow" : `exp in ${item.daysLeft}d`})
+                            </span>
+                          </span>
+                        ))}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--muted)" }}>
+                        Suggested: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{s.recipe.title}</span>
+                        {s.items.length > 1 && <span> uses {s.items.length === 2 ? "both" : `all ${s.items.length}`} →</span>}
+                      </p>
+                    </div>
+                    <button type="button"
+                      onClick={() => {
+                        setAddToPlanSuggestion(s);
+                        setAddToPlanDay(toISO(monday));
+                        setAddToPlanSlot("dinner");
+                      }}
+                      className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap"
+                      style={{ background: "var(--accent)", color: "#fff" }}
+                    >
+                      Add to plan ↗
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
