@@ -214,7 +214,9 @@ export function estimateIngredientWeightGrams(ingredient: RecipeIngredient): num
   const quantity = parseQuantity(ingredient.quantity ?? ingredient.amount);
   const unit = normalizeUnit(ingredient.unit || ingredient.defaultUnit || "");
   const entity = resolveIngredientEntity(ingredient.canonicalName || ingredient.name_en);
-  const isToTaste = /to taste|as needed/i.test(`${ingredient.amount ?? ""} ${ingredient.unit} ${ingredient.name_en}`);
+  // Only treat as "to taste" when the unit or amount field itself says so — not when the ingredient name has a parenthetical note like "(as needed)"
+  const isToTaste = /to taste|as needed/i.test(`${ingredient.amount ?? ""} ${ingredient.unit ?? ""}`)
+    || /^(to taste|as needed)$/i.test((ingredient.name_en ?? "").trim());
 
   if (isToTaste || ingredient.optional) {
     return ingredient.garnish ? 0.25 : 0.5;
@@ -238,6 +240,28 @@ function ingredientSpecificUnitGrams(name: string, unit: string): number | null 
   if (unit === "cup" && /rice/.test(name)) return 185;
   if (unit === "piece" && /onion/.test(name)) return 110;
   if (unit === "piece" && /tomato/.test(name)) return 120;
+
+  // Per-count (no.) weights for common items — overrides the generic 100g default
+  if (unit === "no.") {
+    if (/chilli|chili|green chilli|red chilli/.test(name)) return 12;
+    if (/tomato/.test(name)) return 120;
+    if (/onion/.test(name)) return 110;
+    if (/potato/.test(name)) return 170;
+    if (/egg/.test(name)) return 55;
+    if (/lemon/.test(name)) return 100;
+    if (/lime/.test(name)) return 67;
+    if (/garlic clove|garlic/.test(name)) return 5;
+    if (/cardamom/.test(name)) return 0.8;
+    if (/clove/.test(name)) return 0.3;
+    if (/curry leaf|curry leave/.test(name)) return 0.5;
+    if (/bay leaf|bay leave/.test(name)) return 0.5;
+    if (/banana/.test(name)) return 120;
+    if (/apple/.test(name)) return 180;
+    if (/orange/.test(name)) return 180;
+    if (/carrot/.test(name)) return 80;
+    if (/cucumber/.test(name)) return 300;
+    if (/bell pepper|capsicum/.test(name)) return 160;
+  }
   return null;
 }
 
