@@ -211,6 +211,13 @@ export default function ShoppingListPage() {
 
       const recipeIds = [...new Set(meals.map((m) => Number(m.recipe_id)))];
 
+      // Sum total servings per recipe across all planned occurrences this week
+      const totalServings: Record<number, number> = {};
+      for (const m of meals) {
+        const id = Number(m.recipe_id);
+        totalServings[id] = (totalServings[id] ?? 0) + (Number(m.servings) || 1);
+      }
+
       // Load full recipe data (with ingredients)
       const { data: recipeRows, error: recipesError } = await supabase
         .from("recipes")
@@ -227,40 +234,63 @@ export default function ShoppingListPage() {
         .select("name, quantity")
         .eq("user_id", user.id);
 
-      const pantryNames = new Set(
-        (pantryRows ?? []).map((p: { name: string }) => p.name.toLowerCase().trim())
+      // Normalise pantry names: lowercase, strip trailing 's', common synonyms
+      const normaliseName = (n: string) =>
+        n.toLowerCase().trim().replace(/s$/, "").replace(/\s+/g, " ");
+
+      const pantryNorms = new Set(
+        (pantryRows ?? []).map((p: { name: string }) => normaliseName(p.name))
       );
+      const inPantry = (name: string) => {
+        const n = normaliseName(name);
+        if (pantryNorms.has(n)) return true;
+        // partial match: pantry item contains ingredient or vice-versa
+        for (const p of pantryNorms) {
+          if (p.includes(n) || n.includes(p)) return true;
+        }
+        return false;
+      };
 
       // Existing shopping list item names (to avoid duplicates)
-      const existingNames = new Set(items.map((i) => i.name.toLowerCase().trim()));
+      const existingNorms = new Set(items.map((i) => normaliseName(i.name)));
 
-      // Collect needed ingredients (not in pantry, not already in list)
-      const needed: { name: string; quantity: number; unit: string; category: ShoppingCategory }[] = [];
+      // Aggregate quantities by normalised name across all recipes + servings
+      const aggregated = new Map<string, { name: string; quantity: number; unit: string; category: ShoppingCategory }>();
 
       for (const record of records) {
-        const mealEntry = meals.find((m) => Number(m.recipe_id) === record.id);
-        const servingMultiplier = mealEntry?.servings ? Number(mealEntry.servings) : 1;
+        const multiplier = totalServings[record.id] ?? 1;
 
         for (const group of record.ingredients) {
           for (const item of group.items) {
-            const nameNorm = item.name_en.toLowerCase().trim();
+            const nameNorm = normaliseName(item.name_en);
             if (!nameNorm) continue;
-            if (pantryNames.has(nameNorm)) continue;
-            if (existingNames.has(nameNorm)) continue;
+            if (inPantry(item.name_en)) continue;
+            if (existingNorms.has(nameNorm)) continue;
 
-            // Guess shopping category from ingredient name
-            const cat = guessCategory(nameNorm);
-            const qty = item.amount ? parseFloat(String(item.amount)) * servingMultiplier : 1;
-            needed.push({
-              name: item.name_en.trim(),
-              quantity: isNaN(qty) ? 1 : Math.round(qty * 10) / 10,
-              unit: item.unit ?? "",
-              category: cat,
-            });
-            existingNames.add(nameNorm); // prevent duplicates from multiple recipes
+            const qty = item.amount ? parseFloat(String(item.amount)) * multiplier : 0;
+            if (aggregated.has(nameNorm)) {
+              // Same unit → sum; different unit → keep larger quantity (best-effort)
+              const existing = aggregated.get(nameNorm)!;
+              if (existing.unit === (item.unit ?? "")) {
+                existing.quantity = Math.round((existing.quantity + (isNaN(qty) ? 0 : qty)) * 10) / 10;
+              } else if (!existing.unit && item.unit) {
+                existing.unit = item.unit;
+                existing.quantity = Math.round((existing.quantity + (isNaN(qty) ? 0 : qty)) * 10) / 10;
+              }
+              // else: keep existing (unit mismatch — don't corrupt the value)
+            } else {
+              aggregated.set(nameNorm, {
+                name:     item.name_en.trim(),
+                quantity: isNaN(qty) || qty === 0 ? 1 : Math.round(qty * 10) / 10,
+                unit:     item.unit ?? "",
+                category: guessCategory(nameNorm),
+              });
+            }
           }
         }
       }
+
+      const needed = [...aggregated.values()];
 
       if (needed.length === 0) {
         toast.success("All ingredients already in pantry or shopping list!");
