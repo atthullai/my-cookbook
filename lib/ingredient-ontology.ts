@@ -38,6 +38,7 @@ export type RecipeIngredientOntology = {
   garnish: boolean;
   approximate: boolean;
   estimatedWeightGrams: number;
+  weightConfidence: 'exact' | 'measured' | 'estimated' | 'unknown';
 };
 
 export type CookingAdjustment = {
@@ -215,7 +216,8 @@ export function estimateIngredientWeightGrams(ingredient: RecipeIngredient): num
   const unit = normalizeUnit(ingredient.unit || ingredient.defaultUnit || "");
   const entity = resolveIngredientEntity(ingredient.canonicalName || ingredient.name_en);
   // Only treat as "to taste" when the unit or amount field itself says so — not when the ingredient name has a parenthetical note like "(as needed)"
-  const isToTaste = /to taste|as needed/i.test(`${ingredient.amount ?? ""} ${ingredient.unit ?? ""}`)
+  const isToTaste = ingredient.isToTaste === true
+    || /to taste|as needed/i.test(`${ingredient.amount ?? ""} ${ingredient.unit ?? ""}`)
     || /^(to taste|as needed)$/i.test((ingredient.name_en ?? "").trim());
 
   if (isToTaste || ingredient.optional) {
@@ -280,6 +282,7 @@ export function normalizeRecipeIngredientOntology(ingredient: RecipeIngredient):
     garnish: Boolean(ingredient.garnish),
     approximate: Boolean(ingredient.approximate || quantity === null),
     estimatedWeightGrams,
+    weightConfidence: (ingredient.weightConfidence ?? (estimatedWeightGrams != null ? 'estimated' : 'unknown')) as 'exact' | 'measured' | 'estimated' | 'unknown',
   };
 }
 

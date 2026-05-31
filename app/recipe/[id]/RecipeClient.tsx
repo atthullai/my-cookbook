@@ -376,8 +376,20 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                         {ingredient.optional ? " (optional)" : ""}
                         {ingredient.garnish ? " (garnish)" : ""}
                       </span>
-                      {(ontology.estimatedWeightGrams ?? 0) > 0 && (
-                        <span className="ingredient-weight">{ontology.estimatedWeightGrams}g est.</span>
+                      {(() => {
+                        const w = ontology.estimatedWeightGrams;
+                        const conf = ontology.weightConfidence;
+                        if (!w || w <= 0) return conf === 'unknown' ? (
+                          <span className="ingredient-weight" style={{ color: 'var(--muted)', opacity: 0.5 }}>?</span>
+                        ) : null;
+                        const prefix = conf === 'exact' ? '' : conf === 'measured' ? '~' : '≈';
+                        const color = conf === 'estimated' ? '#b45309' : conf === 'unknown' ? '#dc2626' : 'inherit';
+                        return (
+                          <span className="ingredient-weight" style={{ color }}>{prefix}{w}g est.</span>
+                        );
+                      })()}
+                      {ingredient.note && (
+                        <span className="text-xs italic" style={{ color: 'var(--muted)' }}> ({ingredient.note})</span>
                       )}
                     </button>
                   );
@@ -511,6 +523,17 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         </div>
       ) : null}
+
+      {(() => {
+        const allIngredients = recipe.ingredients?.flatMap((g: { items: unknown[] }) => g.items as Array<{ weightConfidence?: string }>) ?? [];
+        const unknownCount = allIngredients.filter(i => !i.weightConfidence || i.weightConfidence === 'unknown').length;
+        if (unknownCount === 0) return null;
+        return (
+          <div className="rounded-xl px-3 py-2 text-xs mb-3" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#b45309' }}>
+            ⚠️ {unknownCount} ingredient{unknownCount > 1 ? 's' : ''} unmatched — nutrition estimate may be inaccurate
+          </div>
+        );
+      })()}
 
       <div className="card nutrition-panel" style={{ marginTop: 20 }}>
         <div className="nutrition-panel-header">

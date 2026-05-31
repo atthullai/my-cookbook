@@ -71,6 +71,10 @@ export type RecipeIngredient = {
   approximate: boolean;
   estimatedWeightGrams: number | null;
   defaultUnit: string;
+  libraryId?: string | null;
+  note?: string | null;
+  isToTaste?: boolean;
+  weightConfidence?: 'exact' | 'measured' | 'estimated' | 'unknown';
 };
 
 export type RecipeIngredientGroup = {
@@ -259,6 +263,12 @@ function normalizeIngredient(value: unknown): RecipeIngredient {
           ? raw.estimated_weight_grams
           : null,
     defaultUnit: normalizeString(raw.defaultUnit) || normalizeString(raw.default_unit),
+    libraryId: typeof raw.libraryId === "string" ? raw.libraryId : null,
+    note: typeof raw.note === "string" ? raw.note : null,
+    isToTaste: typeof raw.isToTaste === "boolean" ? raw.isToTaste : undefined,
+    weightConfidence: (["exact","measured","estimated","unknown"].includes(raw.weightConfidence as string)
+      ? raw.weightConfidence as 'exact' | 'measured' | 'estimated' | 'unknown'
+      : undefined),
   };
 }
 

@@ -283,27 +283,16 @@ function extractRecipeYield(recipe: JsonLdValue): string {
   return match ? match[0] : normalized;
 }
 
+import { parseIngredientLine as _parseIngredientLine } from './parse-ingredient';
+
 function parseIngredientLine(line: string) {
-  const cleanedLine = line.replace(/\s+/g, " ").trim();
-  const match = cleanedLine.match(/^([0-9./\-\s]+|a\s+\w+|an?\s+\w+)?\s*([a-zA-Z]+)?\s*(.*)$/);
-
-  if (!match) {
-    return {
-      amount: "",
-      unit: "",
-      name_en: cleanedLine,
-    };
-  }
-
-  const [, rawAmount = "", rawUnit = "", rawName = ""] = match;
-  const amount = rawAmount.trim();
-  const unit = amount ? rawUnit.trim() : "";
-  const name_en = (amount ? rawName : cleanedLine).trim() || cleanedLine;
-
+  const parsed = _parseIngredientLine(line);
   return {
-    amount,
-    unit,
-    name_en,
+    amount: parsed.quantity != null ? String(parsed.quantity) : "",
+    unit: parsed.unit === 'to_taste' ? 'to taste' : parsed.unit,
+    name_en: parsed.name_en,
+    note: parsed.note ?? undefined,
+    isToTaste: parsed.isToTaste,
   };
 }
 
