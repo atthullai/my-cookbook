@@ -184,7 +184,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
                 className="text-[11px] font-semibold leading-tight line-clamp-2 flex-1 hover:underline text-white drop-shadow"
                 onClick={(e) => e.stopPropagation()}
               >
-                {recipe.title}
+                {recipe.title.split("|")[0].split("–")[0].trim()}
               </Link>
               <div className="flex items-center gap-0.5 flex-shrink-0">
                 {mealStatus && (
@@ -257,7 +257,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="relative z-10 overflow-hidden mt-1 px-2 pb-2"
+                className="relative z-10 mt-1 px-2 pb-2 max-h-48 overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="rounded-lg p-1.5" style={{ background: "rgba(0,0,0,0.45)" }}>
