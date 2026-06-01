@@ -1477,11 +1477,11 @@ ul {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 16px;
   align-items: center;
-  border: 1px solid rgba(77, 61, 48, 0.12);
+  border: 1px solid var(--border);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(36, 115, 110, 0.12), rgba(196, 92, 54, 0.1)),
-    rgba(255, 250, 241, 0.72);
+    linear-gradient(135deg, var(--teal-soft), var(--accent-soft)),
+    var(--surface-strong);
   padding: 16px;
 }
 
@@ -1524,17 +1524,17 @@ ul {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgba(36, 115, 110, 0.18);
+  border: 1px solid var(--teal-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.68);
+  background: var(--surface-strong);
   padding: 0.4rem 0.62rem;
-  color: #2f7461;
+  color: var(--teal);
 }
 
 .macro-card {
-  border: 1px solid rgba(77, 61, 48, 0.12);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 250, 241, 0.62);
+  background: var(--surface-strong);
   padding: 14px;
 }
 
