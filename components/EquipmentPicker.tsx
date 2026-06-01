@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   EQUIPMENT_LIBRARY,
   EQUIPMENT_CATEGORIES,
+  findEquipmentItem,
   type EquipmentCategory,
   type EquipmentItem,
 } from "@/lib/equipment-library";
@@ -138,7 +139,16 @@ export default function EquipmentPicker({
     }
   }, [open]);
 
-  const selectedKeys = useMemo(() => new Set(selected.map(draftKey)), [selected]);
+  // Build selected key set — include both stored label_en AND canonical library name
+  // so old labels (e.g. "Mixer Grinder / Blender") still highlight the right card.
+  const selectedKeys = useMemo(() => {
+    const keys = new Set(selected.map(draftKey));
+    for (const draft of selected) {
+      const canonical = findEquipmentItem(draft.label_en);
+      if (canonical) keys.add(canonical.name_en.toLowerCase().trim());
+    }
+    return keys;
+  }, [selected]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -338,6 +348,9 @@ function SelectedChip({
   draft: EquipmentDraft;
   onRemove: () => void;
 }) {
+  // Prefer stored image, fall back to library lookup for existing recipes saved before backfill
+  const imageSrc = draft.image ?? findEquipmentItem(draft.label_en)?.image ?? null;
+
   return (
     <div
       style={{
@@ -351,9 +364,9 @@ function SelectedChip({
         fontWeight: 500,
       }}
     >
-      {draft.image && (
+      {imageSrc && (
         <div style={{ width: 28, height: 28, borderRadius: 6, overflow: "hidden", flexShrink: 0, position: "relative" }}>
-          <Image src={draft.image} alt={draft.label_en} fill style={{ objectFit: "cover" }} unoptimized />
+          <Image src={imageSrc} alt={draft.label_en} fill style={{ objectFit: "cover" }} unoptimized />
         </div>
       )}
       <span>{draft.label_en}</span>
