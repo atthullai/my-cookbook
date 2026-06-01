@@ -580,15 +580,46 @@ function blankNutritionDraft(): NutritionDraft {
   };
 }
 
+// Imported lazily to avoid circular deps — route.ts exports this type
+type LibraryCacheRow = Record<string, number | string | null | string[]>;
+type LibraryCache = Record<string, LibraryCacheRow>;
+
+// Maps NutritionDraft field → library column name
+const LIBRARY_COLUMN_MAP: Partial<Record<Exclude<keyof NutritionDraft, "note_en" | "note_de">, string>> = {
+  calories_kcal:    "kcal_per_100g",
+  fat_g:            "fat_per_100g",
+  saturated_fat_g:  "sat_fat_per_100g",
+  carbs_g:          "carbs_per_100g",
+  fiber_g:          "fiber_per_100g",
+  sugar_g:          "sugar_per_100g",
+  protein_g:        "protein_per_100g",
+  sodium_mg:        "sodium_per_100g",
+  cholesterol_mg:   "cholesterol_per_100g",
+  potassium_mg:     "potassium_per_100g",
+  calcium_mg:       "calcium_per_100g",
+  iron_mg:          "iron_per_100g",
+  magnesium_mg:     "magnesium_per_100g",
+  phosphorus_mg:    "phosphorus_per_100g",
+  zinc_mg:          "zinc_per_100g",
+  vitamin_a_mcg:    "vitamin_a_per_100g",
+  vitamin_c_mg:     "vitamin_c_per_100g",
+  vitamin_d_mcg:    "vitamin_d_per_100g",
+  vitamin_e_mg:     "vitamin_e_per_100g",
+  vitamin_k_mcg:    "vitamin_k_per_100g",
+  vitamin_b6_mg:    "vitamin_b6_per_100g",
+  vitamin_b12_mcg:  "vitamin_b12_per_100g",
+  folate_mcg:       "folate_per_100g",
+};
+
 export async function estimateNutritionFromIngredients(input: {
   ingredientGroups: IngredientGroupDraft[];
   servings: string;
+  libraryCache?: LibraryCache;
 }): Promise<NutritionEstimateResult> {
   // Main nutrition flow:
-  // 1. Flatten all ingredient sections into one list.
-  // 2. Search USDA for each ingredient.
-  // 3. Convert ingredient amount/unit to grams.
-  // 4. Add nutrients together and divide by servings.
+  // 1. Flatten ingredients.
+  // 2. For each: check library cache first (no USDA call), then fall back to live USDA.
+  // 3. Convert amount/unit to grams, accumulate nutrients, divide by servings.
   const nutritionTotals = Object.fromEntries(
     Object.keys(blankNutritionDraft())
       .filter((key) => !["note_en", "note_de"].includes(key))
@@ -599,50 +630,59 @@ export async function estimateNutritionFromIngredients(input: {
     group.items.filter((ingredient) => ingredient.name_en.trim())
   );
   let matchedIngredients = 0;
+  let libraryCacheHits = 0;
   let localFallbackIngredients = 0;
   const unmatchedIngredients: string[] = [];
+  const cache = input.libraryCache ?? {};
 
   for (const ingredient of ingredients) {
     const foodQuery = normalizeIngredientName(ingredient.name_en);
+    if (!foodQuery) continue;
 
-    if (!foodQuery) {
-      continue;
+    const quantity = resolveIngredientQuantity(ingredient.amount, ingredient.unit);
+    const ontologyGrams = estimateIngredientWeightGrams({
+      id: "", ingredientId: "", canonicalName: foodQuery,
+      name_en: ingredient.name_en, name_de: ingredient.name_de,
+      amount: ingredient.amount, quantity: ingredient.amount, unit: ingredient.unit,
+      preparation: ingredient.preparation ?? "", optional: Boolean(ingredient.optional),
+      garnish: Boolean(ingredient.garnish), approximate: Boolean(ingredient.approximate),
+      estimatedWeightGrams: null, defaultUnit: "",
+    });
+
+    // ── Step 1: Check library cache ──────────────────────────────────────────
+    const cacheKey = ingredient.name_en.trim().toLowerCase();
+    const cached = cache[cacheKey];
+    if (cached && typeof cached.kcal_per_100g === "number") {
+      const grams = ontologyGrams || resolveGramWeight(
+        { fdcId: -1, description: foodQuery, foodNutrients: [] },
+        quantity.amount, quantity.unit, foodQuery
+      );
+      if (grams) {
+        matchedIngredients++;
+        libraryCacheHits++;
+        for (const [field, col] of Object.entries(LIBRARY_COLUMN_MAP) as Array<[Exclude<keyof NutritionDraft, "note_en" | "note_de">, string]>) {
+          const per100 = typeof cached[col] === "number" ? (cached[col] as number) : 0;
+          nutritionTotals[field] += (per100 * grams) / 100;
+        }
+        continue;
+      }
     }
 
+    // ── Step 2: Live USDA + local pantry fallback ────────────────────────────
     const searchResult = await searchFood(foodQuery).catch(() => null);
     if (!searchResult) {
       unmatchedIngredients.push(ingredient.name_en.trim());
       continue;
     }
 
-    const quantity = resolveIngredientQuantity(ingredient.amount, ingredient.unit);
-    const ontologyGrams = estimateIngredientWeightGrams({
-      id: "",
-      ingredientId: "",
-      canonicalName: foodQuery,
-      name_en: ingredient.name_en,
-      name_de: ingredient.name_de,
-      amount: ingredient.amount,
-      quantity: ingredient.amount,
-      unit: ingredient.unit,
-      preparation: ingredient.preparation ?? "",
-      optional: Boolean(ingredient.optional),
-      garnish: Boolean(ingredient.garnish),
-      approximate: Boolean(ingredient.approximate),
-      estimatedWeightGrams: null,
-      defaultUnit: "",
-    });
     const grams = ontologyGrams || resolveGramWeight(searchResult, quantity.amount, quantity.unit, foodQuery);
-
     if (!grams) {
       unmatchedIngredients.push(ingredient.name_en.trim());
       continue;
     }
 
     matchedIngredients += 1;
-    if (searchResult.source === "local") {
-      localFallbackIngredients += 1;
-    }
+    if (searchResult.source === "local") localFallbackIngredients += 1;
 
     for (const [field, nutrientNames] of Object.entries(NUTRIENT_NAME_MAP) as Array<
       [Exclude<keyof NutritionDraft, "note_en" | "note_de">, string[]]
@@ -658,8 +698,11 @@ export async function estimateNutritionFromIngredients(input: {
   const confidence = matchRatio >= 0.85 ? "high" : matchRatio >= 0.5 ? "medium" : "low";
   const confidenceDe = confidence === "high" ? "hoch" : confidence === "medium" ? "mittel" : "niedrig";
   const missed = unmatchedIngredients.slice(0, 5).join(", ");
-  const sourceText = localFallbackIngredients > 0 ? "USDA FoodData Central plus local pantry fallback" : "USDA FoodData Central";
-  const sourceTextDe = localFallbackIngredients > 0 ? "USDA FoodData Central plus lokaler Pantry-Fallback" : "USDA FoodData Central";
+  const libNote = libraryCacheHits > 0 ? ` ${libraryCacheHits} from ingredient library cache.` : "";
+  const libNoteDe = libraryCacheHits > 0 ? ` ${libraryCacheHits} aus dem Zutaten-Cache.` : "";
+  const sourceText = libraryCacheHits > 0 ? "ingredient library + USDA FoodData Central" : localFallbackIngredients > 0 ? "USDA FoodData Central plus local pantry fallback" : "USDA FoodData Central";
+  const sourceTextDe = libraryCacheHits > 0 ? "Zutaten-Bibliothek + USDA FoodData Central" : localFallbackIngredients > 0 ? "USDA FoodData Central plus lokaler Pantry-Fallback" : "USDA FoodData Central";
+  void libNote; void libNoteDe;
   const fallbackText = localFallbackIngredients > 0 ? ` ${localFallbackIngredients} matched with the local fallback.` : "";
   const fallbackTextDe = localFallbackIngredients > 0 ? ` ${localFallbackIngredients} mit lokalem Fallback erkannt.` : "";
   const noteEn =
