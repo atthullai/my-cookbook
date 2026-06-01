@@ -164,9 +164,71 @@ function ifctToNutrition(row: IFCTRow) {
   };
 }
 
+// Canonical name aliases: our library name → IFCT food name
+// Needed when our name_en differs from IFCT's English name.
+const IFCT_ALIASES: Record<string, string> = {
+  'sesame oil':          'gingelly oil',
+  'sesame seed oil':     'gingelly oil',
+  'sesame seeds':        'gingelly seeds, white',
+  'black sesame seeds':  'gingelly seeds, black',
+  'toor dal':            'red gram, dal',
+  'arhar dal':           'red gram, dal',
+  'pigeon peas':         'red gram, dal',
+  'urad dal':            'black gram, dal',
+  'black gram':          'black gram, dal',
+  'chana dal':           'bengal gram, dal',
+  'chickpeas':           'bengal gram, whole',
+  'moong dal':           'green gram, dal',
+  'mung beans':          'green gram, whole',
+  'masoor dal':          'lentil dal',
+  'red lentils':         'lentil dal',
+  'turmeric powder':     'turmeric powder',
+  'turmeric':            'turmeric powder',
+  'curry leaves':        'curry leaf',
+  'mustard seeds':       'mustard seeds',
+  'cumin seeds':         'cumin seeds',
+  'fenugreek seeds':     'fenugreek seeds',
+  'coriander seeds':     'coriander seeds',
+  'groundnut oil':       'groundnut oil',
+  'peanut oil':          'groundnut oil',
+  'coconut oil':         'coconut oil',
+  'mustard oil':         'mustard oil',
+  'rice bran oil':       'rice bran oil',
+  'jaggery':             'jaggery, cane',
+  'tamarind':            'tamarind, dry',
+  'peanuts':             'groundnuts, roasted',
+  'roasted peanuts':     'groundnuts, roasted',
+  'groundnuts':          'groundnuts, roasted',
+  'asafoetida':          'asafoetida',
+  'hing':                'asafoetida',
+  'idli rice':           'rice, raw milled',
+  'poha':                'rice flakes',
+  'rice flakes':         'rice flakes',
+  'semolina':            'wheat semolina',
+  'rava':                'wheat semolina',
+  'besan':               'bengal gram flour',
+  'gram flour':          'bengal gram flour',
+  'coconut milk':        'coconut milk',
+  'drumstick':           'drumstick, pods',
+  'raw banana':          'plantain, raw',
+  'raw mango':           'mango, raw',
+  'amla':                'indian gooseberry',
+  'indian gooseberry':   'indian gooseberry',
+};
+
 // Simple fuzzy search against IFCT rows
 function searchIFCT(ifctRows: IFCTRow[], query: string): IFCTRow | null {
   const q = query.toLowerCase().trim();
+
+  // 0. Check alias map first — maps our canonical names to IFCT names
+  const aliased = IFCT_ALIASES[q];
+  if (aliased) {
+    const aliasMatch = ifctRows.find(r => r.name.toLowerCase() === aliased.toLowerCase());
+    if (aliasMatch) return aliasMatch;
+    // Also try prefix/contains with the alias
+    const aliasFuzzy = ifctRows.find(r => r.name.toLowerCase().includes(aliased.toLowerCase()));
+    if (aliasFuzzy) return aliasFuzzy;
+  }
 
   // 1. Exact name match
   const exact = ifctRows.find(r => r.name.toLowerCase() === q);
@@ -268,11 +330,9 @@ async function fetchUSDANutrition(fdcId: number) {
 
 // ── Local fallback for gaps neither IFCT nor USDA covers ─────────────────────
 
+// Only for ingredients genuinely absent from both IFCT and USDA.
+// asafoetida → IFCT G019, gingelly oil → IFCT T004 (removed from here).
 const LOCAL_FALLBACK: Array<{ patterns: RegExp[]; data: Record<string, number | null> }> = [
-  { patterns: [/asafoetida|hing|perungayam/i],
-    data: { kcal_per_100g: 297, protein_per_100g: 4, fat_per_100g: 1, carbs_per_100g: 68, fiber_per_100g: 4, sodium_per_100g: 1100, calcium_per_100g: 690, iron_per_100g: 39, potassium_per_100g: 1060 } },
-  { patterns: [/gingelly oil|sesame oil/i],
-    data: { kcal_per_100g: 884, fat_per_100g: 100, sat_fat_per_100g: 14, vitamin_e_per_100g: 1.4, vitamin_k_per_100g: 13.6 } },
   { patterns: [/pottukadalai|roasted gram|fried gram/i],
     data: { kcal_per_100g: 372, protein_per_100g: 22, fat_per_100g: 5.5, carbs_per_100g: 59, fiber_per_100g: 17, calcium_per_100g: 120, iron_per_100g: 5.5, magnesium_per_100g: 170, phosphorus_per_100g: 350, potassium_per_100g: 800 } },
   { patterns: [/kokum/i],
