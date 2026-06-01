@@ -85,6 +85,7 @@ export function buildEquipmentPayload(equipment: EquipmentDraft[]): RecipeEquipm
     .map((item) => ({
       label_en: item.label_en.trim(),
       label_de: item.label_de.trim() || item.label_en.trim(),
+      ...(item.image ? { image: item.image } : {}),
     }));
 }
 

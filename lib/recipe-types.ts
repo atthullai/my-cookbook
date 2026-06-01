@@ -1,4 +1,6 @@
 import type { User } from "@supabase/supabase-js";
+import { findEquipmentItem } from "@/lib/equipment-library";
+import { inferEquipmentFromText } from "@/lib/equipment-matcher";
 
 // RECIPE TYPES MAP
 // This is the app's dictionary.
@@ -86,6 +88,7 @@ export type RecipeIngredientGroup = {
 export type RecipeEquipmentItem = {
   label_en: string;
   label_de: string;
+  image?: string; // path relative to /public, e.g. /equipment/wok.jpg
 };
 
 export type RecipeInstructionSection = {
@@ -286,49 +289,24 @@ function normalizeIngredientGroup(value: unknown): RecipeIngredientGroup {
 
 function normalizeEquipmentItem(value: unknown): RecipeEquipmentItem {
   if (typeof value === "string") {
-    return {
-      label_en: value,
-      label_de: value,
-    };
+    const label = value;
+    const canonical = findEquipmentItem(label);
+    return { label_en: label, label_de: label, image: canonical?.image };
   }
 
   const item = value && typeof value === "object" ? value : {};
   const raw = item as Record<string, unknown>;
   const legacyLabel = normalizeString(raw.label);
+  const labelEn = normalizeString(raw.label_en) || legacyLabel;
+  // Prefer the stored image, but fall back to canonical library lookup
+  const storedImage = typeof raw.image === "string" ? raw.image : undefined;
+  const canonical = storedImage ? undefined : findEquipmentItem(labelEn);
 
   return {
-    label_en: normalizeString(raw.label_en) || legacyLabel,
-    label_de: normalizeString(raw.label_de) || legacyLabel || normalizeString(raw.label_en),
+    label_en: labelEn,
+    label_de: normalizeString(raw.label_de) || legacyLabel || labelEn,
+    image: storedImage ?? canonical?.image,
   };
-}
-
-function inferEquipmentLabelsFromText(text: string): string[] {
-  const normalized = text.toLowerCase();
-  const matches: string[] = [];
-  const equipmentRules: Array<[RegExp, string]> = [
-    [/\bpressure cooker|instant pot\b/, "Pressure Cooker"],
-    [/\bblend|blender|mixer grinder|grind to\b/, "Mixer Grinder / Blender"],
-    [/\bwhisk|beat\b/, "Whisk"],
-    [/\boven|bake|preheat\b/, "Oven"],
-    [/\bpiping bag|pipe\b/, "Piping Bag"],
-    [/\bbaking tray|sheet pan\b/, "Baking Tray"],
-    [/\bdeep fry|deep-fry|shallow fry|fry\b/, "Deep Fry Pan / Kadai"],
-    [/\btemper|tadka\b/, "Tempering Pan"],
-    [/\bboil|simmer\b/, "Saucepan / Pot"],
-    [/\bskillet|saute|sautee|pan roast|tawa\b/, "Skillet / Pan"],
-    [/\bstrain|sieve|filter\b/, "Strainer / Sieve"],
-    [/\broll|flatten\b/, "Rolling Pin"],
-    [/\bmix\b/, "Mixing Bowl"],
-    [/\bspatula|ladle|stir\b/, "Spatula / Ladle"],
-  ];
-
-  for (const [pattern, label] of equipmentRules) {
-    if (pattern.test(normalized)) {
-      matches.push(label);
-    }
-  }
-
-  return [...new Set(matches)].slice(0, 8);
 }
 
 function inferEquipmentFromRecipe(raw: Record<string, unknown>, ingredients: RecipeIngredientGroup[], stepsEn: string): RecipeEquipmentItem[] {
@@ -346,9 +324,11 @@ function inferEquipmentFromRecipe(raw: Record<string, unknown>, ingredients: Rec
       .join("\n"),
   ];
 
-  return inferEquipmentLabelsFromText(textParts.join("\n")).map((label) => ({
-    label_en: label,
-    label_de: label,
+  // Use the canonical equipment library matcher instead of hard-coded regexes
+  return inferEquipmentFromText(textParts.join("\n")).map((item) => ({
+    label_en: item.name_en,
+    label_de: item.name_de,
+    image: item.image,
   }));
 }
 
@@ -877,6 +857,7 @@ export const EMPTY_INGREDIENT_GROUP: IngredientGroupDraft = {
 export type EquipmentDraft = {
   label_en: string;
   label_de: string;
+  image?: string; // path relative to /public, e.g. /equipment/wok.jpg
 };
 
 export const EMPTY_EQUIPMENT: EquipmentDraft = {

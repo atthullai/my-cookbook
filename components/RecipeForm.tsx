@@ -20,8 +20,8 @@ import type {
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
+import EquipmentPicker from "@/components/EquipmentPicker";
 import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
-import { getEquipmentIcon } from "@/lib/ingredient-icons";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
 const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
@@ -153,6 +153,7 @@ type RecipeFormProps = {
   onEquipmentAdd: () => void;
   onEquipmentRemove: (index: number) => void;
   onEquipmentChange: (index: number, field: keyof EquipmentDraft, value: string) => void;
+  onEquipmentSet: (items: EquipmentDraft[]) => void;
   onImageUrlsChange: (value: string) => void;
   onCoverImageUrlChange: (value: string) => void;
   onEstimateNutrition: () => void;
@@ -511,64 +512,10 @@ export default function RecipeForm(props: RecipeFormProps) {
         ))}
       </div>
 
-      {/* Equipment is bilingual too, which lets the checklist switch cleanly with the language toggle. */}
+      {/* Equipment — searchable picker backed by the canonical equipment library */}
       <div className="card" style={{ marginBottom: 0 }}>
-        {/* Nutrition values are per serving. Blank fields simply do not show on the recipe page. */}
-        <h3 style={{ marginBottom: 8 }}>Equipment</h3>
-        {props.equipment.map((item, index) => {
-          const equipIcon = getEquipmentIcon(item.label_en || item.label_de || "");
-          return (
-            <div
-              key={`equipment-${index}`}
-              style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
-            >
-              {/* Equipment icon */}
-              <motion.span
-                key={`equip-icon-${index}`}
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                style={{
-                  fontSize: 24,
-                  width: 40,
-                  height: 40,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "#f3f4f6",
-                  borderRadius: 10,
-                  flexShrink: 0,
-                }}
-                title={item.label_en || "Equipment"}
-              >
-                {equipIcon.emoji}
-              </motion.span>
-              <input
-                className="input"
-                style={{ flex: 1 }}
-                placeholder="Equipment (EN)"
-                value={item.label_en}
-                onChange={(event) => props.onEquipmentChange(index, "label_en", event.target.value)}
-              />
-              <input
-                className="input"
-                style={{ flex: 1 }}
-                placeholder="Equipment (DE)"
-                value={item.label_de}
-                onChange={(event) => props.onEquipmentChange(index, "label_de", event.target.value)}
-              />
-              <button className="button" type="button" onClick={() => props.onEquipmentRemove(index)}>
-                <AppIcon name="delete" size={16} />
-                Remove
-              </button>
-            </div>
-          );
-        })}
-
-        <button className="button" type="button" onClick={props.onEquipmentAdd}>
-          <AppIcon name="add" size={16} />
-          Add Equipment
-        </button>
+        <h3 style={{ marginBottom: 10 }}>Equipment</h3>
+        <EquipmentPicker selected={props.equipment} onChange={props.onEquipmentSet} />
       </div>
 
       <div className="card" style={{ marginBottom: 0 }}>

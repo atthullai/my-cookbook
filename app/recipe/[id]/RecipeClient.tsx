@@ -37,6 +37,7 @@ import {
 } from "@/lib/recipe-view";
 import { calculateHealthScore, normalizeRecipeIngredientOntology } from "@/lib/ingredient-ontology";
 import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
+import { findEquipmentItem } from "@/lib/equipment-library";
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
@@ -400,18 +401,102 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
           {recipe.equipment && recipe.equipment.length > 0 ? (
             <div id="equipment" className="card">
-              <h3>{lang === "de" ? "Equipment" : "Equipment"}</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {recipe.equipment.map((item) => (
-                  <button key={stableCompositeId(recipe.id, "equipment", item.label_en)} type="button" onClick={() => toggleEquipmentCheck(item.label_en)} className="check-row">
-                    <span className={checkedEquipment.includes(item.label_en) ? "checkmark-box checked" : "checkmark-box"}>
-                      {checkedEquipment.includes(item.label_en) ? "✓" : ""}
-                    </span>
-                    <span style={{ textDecoration: checkedEquipment.includes(item.label_en) ? "line-through" : "none" }}>
-                      {getEquipmentLabel(item, lang)}
-                    </span>
-                  </button>
-                ))}
+              <h3>Equipment</h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                {recipe.equipment.map((item) => {
+                  const label = getEquipmentLabel(item, lang);
+                  const isChecked = checkedEquipment.includes(item.label_en);
+                  // Resolve image: stored image > canonical library lookup > null
+                  const imageSrc = item.image ?? findEquipmentItem(item.label_en)?.image ?? null;
+                  return (
+                    <button
+                      key={stableCompositeId(recipe.id, "equipment", item.label_en)}
+                      type="button"
+                      onClick={() => toggleEquipmentCheck(item.label_en)}
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        aspectRatio: "1 / 1",
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        border: isChecked
+                          ? "3px solid var(--color-primary, #e67e22)"
+                          : "3px solid transparent",
+                        cursor: "pointer",
+                        background: "#f3f4f6",
+                        padding: 0,
+                        opacity: isChecked ? 0.55 : 1,
+                        transition: "opacity 0.2s, border-color 0.15s",
+                      }}
+                      title={label}
+                    >
+                      {imageSrc ? (
+                        <Image
+                          src={imageSrc}
+                          alt={label}
+                          fill
+                          sizes="(max-width: 600px) 28vw, 110px"
+                          style={{ objectFit: "cover" }}
+                          unoptimized
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+                          🔧
+                        </div>
+                      )}
+                      {/* gradient label */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          padding: "6px 4px 6px",
+                          background: isChecked
+                            ? "rgba(0,0,0,0.6)"
+                            : "linear-gradient(transparent, rgba(0,0,0,0.7))",
+                          color: "#fff",
+                          fontSize: 10,
+                          fontWeight: 600,
+                          lineHeight: 1.25,
+                          textAlign: "center",
+                          wordBreak: "break-word",
+                          textDecoration: isChecked ? "line-through" : "none",
+                        }}
+                      >
+                        {label}
+                      </div>
+                      {/* check badge */}
+                      {isChecked && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: 5,
+                            right: 5,
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            background: "var(--color-primary, #e67e22)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fff",
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✓
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : null}

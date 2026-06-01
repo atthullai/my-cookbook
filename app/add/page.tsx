@@ -569,6 +569,7 @@ export default function AddRecipe() {
           onEquipmentAdd={() => setEquipment((cur) => [...cur, { ...EMPTY_EQUIPMENT }])}
           onEquipmentRemove={(i) => setEquipment((cur) => cur.filter((_, idx) => idx !== i))}
           onEquipmentChange={updateEquipment}
+          onEquipmentSet={setEquipment}
           onImageUrlsChange={setImageUrls}
           onCoverImageUrlChange={setCoverImageUrl}
           onEstimateNutrition={() => void handleEstimateNutrition()}
