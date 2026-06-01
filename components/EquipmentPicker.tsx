@@ -227,7 +227,7 @@ export default function EquipmentPicker({
                 left: 0,
                 right: 0,
                 maxHeight: "90dvh",
-                background: "var(--card-bg, #fff)",
+                background: "var(--surface, #fffaf0)",
                 borderRadius: "20px 20px 0 0",
                 zIndex: 1001,
                 display: "flex",
@@ -288,16 +288,13 @@ export default function EquipmentPicker({
                       flexShrink: 0,
                       padding: "5px 12px",
                       borderRadius: 20,
-                      border: "none",
+                      border: activeCategory === cat.id ? "none" : "1px solid var(--border, rgba(83,55,38,0.22))",
                       cursor: "pointer",
                       fontWeight: activeCategory === cat.id ? 700 : 400,
-                      background:
-                        activeCategory === cat.id
-                          ? "var(--color-primary, #e67e22)"
-                          : "var(--chip-bg, #f3f4f6)",
-                      color: activeCategory === cat.id ? "#fff" : "inherit",
+                      background: activeCategory === cat.id ? "var(--accent, #b85d36)" : "var(--oat, #ead9bd)",
+                      color: activeCategory === cat.id ? "#fff" : "var(--foreground, #2d2018)",
                       fontSize: 13,
-                      transition: "background 0.15s",
+                      transition: "background 0.15s, border-color 0.15s",
                     }}
                   >
                     {cat.label}
@@ -356,16 +353,19 @@ function SelectedChip({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 6,
-        padding: "4px 8px 4px 4px",
-        background: "var(--chip-bg, #f3f4f6)",
-        borderRadius: 10,
+        gap: 8,
+        padding: imageSrc ? "3px 10px 3px 3px" : "6px 10px",
+        background: "var(--oat, #ead9bd)",
+        border: "1px solid var(--border, rgba(83,55,38,0.22))",
+        borderRadius: 12,
         fontSize: 13,
-        fontWeight: 500,
+        fontWeight: 600,
+        color: "var(--foreground, #2d2018)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
       }}
     >
       {imageSrc && (
-        <div style={{ width: 28, height: 28, borderRadius: 6, overflow: "hidden", flexShrink: 0, position: "relative" }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative" }}>
           <Image src={imageSrc} alt={draft.label_en} fill style={{ objectFit: "cover" }} unoptimized />
         </div>
       )}
@@ -380,9 +380,10 @@ function SelectedChip({
           padding: 0,
           display: "flex",
           alignItems: "center",
-          color: "#999",
-          fontSize: 16,
+          color: "var(--muted, #6f5747)",
+          fontSize: 18,
           lineHeight: 1,
+          marginLeft: 2,
         }}
         aria-label={`Remove ${draft.label_en}`}
       >
