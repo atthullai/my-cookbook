@@ -164,61 +164,321 @@ function ifctToNutrition(row: IFCTRow) {
   };
 }
 
-// Canonical name aliases: our library name → IFCT food name
-// Needed when our name_en differs from IFCT's English name.
+// Canonical name aliases: our library name_en → exact IFCT food name.
+// Use ONLY verified matches — wrong matches give worse data than "not found".
+// Ingredients not listed here fall through to fuzzy search, then USDA.
 const IFCT_ALIASES: Record<string, string> = {
-  'sesame oil':          'gingelly oil',
-  'sesame seed oil':     'gingelly oil',
-  'sesame seeds':        'gingelly seeds, white',
-  'black sesame seeds':  'gingelly seeds, black',
-  'toor dal':            'red gram, dal',
-  'arhar dal':           'red gram, dal',
-  'pigeon peas':         'red gram, dal',
-  'urad dal':            'black gram, dal',
-  'black gram':          'black gram, dal',
-  'chana dal':           'bengal gram, dal',
-  'chickpeas':           'bengal gram, whole',
-  'moong dal':           'green gram, dal',
-  'mung beans':          'green gram, whole',
-  'masoor dal':          'lentil dal',
-  'red lentils':         'lentil dal',
-  'turmeric powder':     'turmeric powder',
-  'turmeric':            'turmeric powder',
-  'curry leaves':        'curry leaf',
-  'mustard seeds':       'mustard seeds',
-  'cumin seeds':         'cumin seeds',
-  'fenugreek seeds':     'fenugreek seeds',
-  'coriander seeds':     'coriander seeds',
-  'groundnut oil':       'groundnut oil',
-  'peanut oil':          'groundnut oil',
-  'coconut oil':         'coconut oil',
-  'mustard oil':         'mustard oil',
-  'rice bran oil':       'rice bran oil',
-  'jaggery':             'jaggery, cane',
-  'tamarind':            'tamarind, dry',
-  'peanuts':             'groundnuts, roasted',
-  'roasted peanuts':     'groundnuts, roasted',
-  'groundnuts':          'groundnuts, roasted',
-  'asafoetida':          'asafoetida',
-  'hing':                'asafoetida',
-  'idli rice':           'rice, raw milled',
-  'poha':                'rice flakes',
-  'rice flakes':         'rice flakes',
-  'semolina':            'wheat semolina',
-  'rava':                'wheat semolina',
-  'besan':               'bengal gram flour',
-  'gram flour':          'bengal gram flour',
-  'coconut milk':        'coconut milk',
-  'drumstick':           'drumstick, pods',
-  'raw banana':          'plantain, raw',
-  'raw mango':           'mango, raw',
-  'amla':                'indian gooseberry',
-  'indian gooseberry':   'indian gooseberry',
+  // ── Oils & Fats ────────────────────────────────────────────────────────────
+  'sesame oil':           'gingelly oil',           // T004
+  'sesame seed oil':      'gingelly oil',           // T004
+  'gingelly oil':         'gingelly oil',           // T004
+  'til oil':              'gingelly oil',           // T004
+  'coconut oil':          'coconut oil',            // T001
+  'groundnut oil':        'groundnut oil',          // T005
+  'peanut oil':           'groundnut oil',          // T005
+  'mustard oil':          'mustard oil',            // T006
+  'rice bran oil':        'rice bran oil',          // T008
+  'sunflower oil':        'sunflower oil',          // T012
+  'corn oil':             'corn oil',               // T002
+  'safflower oil':        'safflower oil',          // T009
+  'soyabean oil':         'soyabean oil',           // T011
+  'palm oil':             'palm oil',               // T007
+  'ghee':                 'ghee',                   // T013
+  // walnut oil, olive oil, rapeseed oil, avocado oil, flaxseed oil → USDA
+
+  // ── Whole Spices ───────────────────────────────────────────────────────────
+  'mustard seeds':        'mustard seeds',          // H013
+  'rai':                  'mustard seeds',          // H013
+  'kadugu':               'mustard seeds',          // H013
+  'cumin seeds':          'cumin seeds',            // G025
+  'jeera':                'cumin seeds',            // G025
+  'jeeragam':             'cumin seeds',            // G025
+  'fenugreek seeds':      'fenugreek seeds',        // G026
+  'methi seeds':          'fenugreek seeds',        // G026
+  'vendhayam':            'fenugreek seeds',        // G026
+  'coriander seeds':      'coriander seeds',        // G024
+  'dhania':               'coriander seeds',        // G024
+  'peppercorns':          'pepper, black',          // G031
+  'black peppercorns':    'pepper, black',          // G031
+  'cardamom':             'cardamom, green',        // G020
+  'green cardamom':       'cardamom, green',        // G020
+  'elaichi':              'cardamom, green',        // G020
+  'black cardamom':       'cardamom, black',        // G021
+  'badi elaichi':         'cardamom, black',        // G021
+  'cloves':               'cloves',                 // G023
+  'laung':                'cloves',                 // G023
+  'nutmeg':               'nutmeg',                 // G028
+  'jaiphal':              'nutmeg',                 // G028
+  'mace':                 'mace',                   // G027
+  'ajwain':               'omum',                   // G029 (omum = ajwain)
+  'carom seeds':          'omum',                   // G029
+  'omam':                 'omum',                   // G029
+  'poppy seeds':          'poppy seeds',            // G032
+  'khus khus':            'poppy seeds',            // G032
+  // fennel seeds, star anise, cinnamon, bay leaf → USDA (not in IFCT)
+
+  // ── Ground Spices ──────────────────────────────────────────────────────────
+  'turmeric powder':      'turmeric powder',        // G033
+  'turmeric':             'turmeric powder',        // G033
+  'haldi':                'turmeric powder',        // G033
+  'manjal':               'turmeric powder',        // G033
+  'red chilli powder':    'chillies, red',          // G022
+  'lal mirch':            'chillies, red',          // G022
+  'dried red chillies':   'chillies, red',          // G022
+  'dry red chillies':     'chillies, red',          // G022
+  'asafoetida':           'asafoetida',             // G019
+  'hing':                 'asafoetida',             // G019
+  'perungayam':           'asafoetida',             // G019
+  // garam masala, sambar powder, rasam powder → USDA (blends, not in IFCT)
+  // coriander powder, cumin powder → USDA (IFCT only has whole seeds)
+
+  // ── Herbs ──────────────────────────────────────────────────────────────────
+  'curry leaves':         'curry leaves',           // G010
+  'karivepilai':          'curry leaves',           // G010
+  'kadi patta':           'curry leaves',           // G010
+  'coriander leaves':     'coriander leaves',       // G009
+  'cilantro':             'coriander leaves',       // G009
+  'mint leaves':          'mint leaves',            // G016
+  'pudina':               'mint leaves',            // G016
+  'fenugreek leaves':     'fenugreek leaves',       // C020
+  'methi leaves':         'fenugreek leaves',       // C020
+  'dried fenugreek leaves': 'fenugreek leaves',     // C020
+  'kasuri methi':         'fenugreek leaves',       // C020
+  'parsley':              'parsley',                // C028
+  'drumstick leaves':     'drumstick leaves',       // C019
+  // basil, rosemary, thyme → USDA
+
+  // ── Dals & Legumes ─────────────────────────────────────────────────────────
+  'toor dal':             'red gram, dal',          // B021
+  'arhar dal':            'red gram, dal',          // B021
+  'tuvar dal':            'red gram, dal',          // B021
+  'pigeon peas':          'red gram, dal',          // B021
+  'urad dal':             'black gram, dal',        // B003
+  'ulutham paruppu':      'black gram, dal',        // B003
+  'chana dal':            'bengal gram, dal',       // B001
+  'kadalai paruppu':      'bengal gram, dal',       // B001
+  'moong dal':            'green gram, dal',        // B010
+  'paasi paruppu':        'green gram, dal',        // B010
+  'mung beans':           'green gram, whole',      // B011
+  'green gram':           'green gram, whole',      // B011
+  'masoor dal':           'lentil dal',             // B013
+  'red lentils':          'lentil dal',             // B013
+  'rajma':                'rajmah, red',            // B020
+  'kidney beans':         'rajmah, red',            // B020
+  'black eyed peas':      'cowpea, white',          // B006
+  'lobia':                'cowpea, white',          // B006
+  'chickpeas':            'bengal gram, whole',     // B002
+  'kabuli chana':         'bengal gram, whole',     // B002
+  'horse gram':           'horse gram, whole',      // B012
+  'kollu':                'horse gram, whole',      // B012
+  'soya bean':            'soya bean, white',       // B025
+  'green peas':           'peas, dry',              // B017 (closest; fresh = D061)
+  'dry peas':             'peas, dry',              // B017
+  'moth bean':            'moth bean',              // B016
+
+  // ── Rice & Grains ──────────────────────────────────────────────────────────
+  'basmati rice':         'rice, raw, milled',      // A015
+  'rice':                 'rice, raw, milled',      // A015
+  'idli rice':            'rice, raw, milled',      // A015
+  'parboiled rice':       'rice, parboiled, milled',// A014
+  'brown rice':           'rice, raw, brown',       // A013
+  'poha':                 'rice flakes',            // A011
+  'aval':                 'rice flakes',            // A011
+  'puffed rice':          'rice puffed',            // A012
+  'wheat flour':          'wheat flour, atta',      // A019
+  'atta':                 'wheat flour, atta',      // A019
+  'maida':                'wheat flour, refined',   // A018
+  'refined flour':        'wheat flour, refined',   // A018
+  'semolina':             'wheat, semolina',        // A022
+  'rava':                 'wheat, semolina',        // A022
+  'sooji':                'wheat, semolina',        // A022
+  'suji':                 'wheat, semolina',        // A022
+  'ragi':                 'ragi',                   // A010
+  'finger millet':        'ragi',                   // A010
+  'bajra':                'bajra',                  // A003
+  'pearl millet':         'bajra',                  // A003
+  'jowar':                'jowar',                  // A005
+  'sorghum':              'jowar',                  // A005
+  'quinoa':               'quinoa',                 // A009
+  'amaranth':             'amaranth seed, pale brown', // A002
+  'vermicelli':           'wheat, vermicelli',      // A023
+  // besan → USDA (IFCT has chana dal but not besan flour specifically)
+  // oats → USDA
+
+  // ── Vegetables ─────────────────────────────────────────────────────────────
+  'onion':                'onion, big',             // G017
+  'big onion':            'onion, big',             // G017
+  'small onion':          'onion, small',           // G018
+  'shallots':             'onion, small',           // G018
+  'spring onion':         'onion, stalk',           // D058
+  'tomato':               'tomato, ripe, local',    // D076
+  'ripe tomato':          'tomato, ripe, hybrid',   // D075
+  'green tomato':         'tomato, green',          // D074
+  'potato':               'potato, brown skin, big',// F006
+  'brinjal':              'brinjal - all varieties',// D031
+  'eggplant':             'brinjal - all varieties',// D031
+  'aubergine':            'brinjal - all varieties',// D031
+  'capsicum':             'capsicum, green',        // D033
+  'green capsicum':       'capsicum, green',        // D033
+  'red capsicum':         'capsicum, red',          // D034
+  'yellow capsicum':      'capsicum, yellow',       // D035
+  'bell pepper':          'capsicum, green',        // D033
+  'carrot':               'carrot, orange',         // F002
+  'cauliflower':          'cauliflower',            // D036
+  'cabbage':              'cabbage, green',         // C015
+  'spinach':              'spinach',                // C033
+  'palak':                'spinach',                // C033
+  'drumstick':            'drumstick',              // D046
+  'moringa':              'drumstick',              // D046
+  'murungakkai':          'drumstick',              // D046
+  'ladies finger':        'ladies finger',          // D056
+  'okra':                 'ladies finger',          // D056
+  'bhindi':               'ladies finger',          // D056
+  'bitter gourd':         'bitter gourd, jagged, teeth ridges, elongate', // D004
+  'karela':               'bitter gourd, jagged, teeth ridges, elongate', // D004
+  'bottle gourd':         'bottle gourd, elongate, pale green', // D007
+  'lauki':                'bottle gourd, elongate, pale green', // D007
+  'dudhi':                'bottle gourd, elongate, pale green', // D007
+  'ridge gourd':          'ridge gourd',            // D068
+  'turai':                'ridge gourd',            // D068
+  'snake gourd':          'snake gourd, long, pale green', // D070
+  'ash gourd':            'ash gourd',              // D001
+  'pumpkin':              'pumpkin, orange, round', // D066
+  'raw banana':           'plantain, green',        // D063
+  'green banana':         'plantain, green',        // D063
+  'raw mango':            'mango, green, raw',      // D057
+  'raw papaya':           'papaya, raw',            // D059
+  'colocasia':            'colocasia',              // F004
+  'arbi':                 'colocasia',              // F004
+  'taro':                 'colocasia',              // F004
+  'sweet potato':         'sweet potato, brown skin', // F013
+  'shakarkandi':          'sweet potato, brown skin', // F013
+  'tapioca':              'tapioca',                // F015
+  'cassava':              'tapioca',                // F015
+  'yam':                  'yam, elephant',          // F017
+  'elephant yam':         'yam, elephant',          // F017
+  'suran':                'yam, elephant',          // F017
+  'beetroot':             'beet root',              // F001
+  'radish':               'radish, elongate, white skin', // F010
+  'mooli':                'radish, elongate, white skin', // F010
+  'peas':                 'peas, dry',              // B017
+  'french beans':         'french beans, country',  // D049
+  'broad beans':          'broad beans',            // D032
+  'cluster beans':        'cluster beans',          // D039
+  'gavar':                'cluster beans',          // D039
+  'green chilli':         'chillies, green - all varieties', // G008
+  'hari mirch':           'chillies, green - all varieties', // G008
+  'ginger':               'ginger, fresh',          // G014
+  'adrak':                'ginger, fresh',          // G014
+  'garlic':               'garlic, big clove',      // G011
+  'lahsun':               'garlic, big clove',      // G011
+  'jackfruit':            'jack fruit, raw',        // D051
+  'bamboo shoot':         'bamboo shoot, tender',   // D002
+
+  // ── Fruits ─────────────────────────────────────────────────────────────────
+  'lemon':                'lemon, juice',           // E033
+  'lime':                 'lime, sweet, pulp',      // E034
+  'mango':                'mango, ripe, totapari',  // E042 (generic ripe mango)
+  'ripe mango':           'mango, ripe, totapari',  // E042
+  'banana':               'banana, ripe, robusta',  // E012 (most common variety)
+  'apple':                'apple, big',             // E001
+  'orange':               'orange, pulp',           // E047
+  'pomegranate':          'pomegranate, maroon seeds', // E055
+  'guava':                'guava, white flesh',     // E028
+  'papaya':               'papaya, ripe',           // E049
+  'watermelon':           'water melon, dark green (sugar baby)', // E065
+  'grapes':               'grapes, seeded, round, black', // E022
+  'pineapple':            'pineapple',              // E053
+  'coconut':              'coconut, kernel, fresh', // H007
+  'dates':                'dates, dry, dark brown', // E018
+  'tamarind':             'tamarind, pulp',         // E064
+  'amla':                 'goosberry',              // E021 (Indian gooseberry)
+  'indian gooseberry':    'goosberry',              // E021
+  'custard apple':        'custard apple',          // E016
+  'sapota':               'sapota',                 // E060
+  'chikoo':               'sapota',                 // E060
+  'jamun':                'jambu fruit, ripe',      // E031
+
+  // ── Nuts & Seeds ───────────────────────────────────────────────────────────
+  'peanuts':              'ground nut',             // H012
+  'groundnuts':           'ground nut',             // H012
+  'roasted peanuts':      'ground nut',             // H012 (closest available)
+  'moongphali':           'ground nut',             // H012
+  'cashew':               'cashew nut',             // H005
+  'kaju':                 'cashew nut',             // H005
+  'almond':               'almond',                 // H001
+  'badam':                'almond',                 // H001
+  'walnut':               'walnut',                 // H021
+  'akhrot':               'walnut',                 // H021
+  'pistachio':            'pistachio nuts',         // H018
+  'pista':                'pistachio nuts',         // H018
+  'sesame seeds':         'gingelly seeds, white',  // H011
+  'white sesame':         'gingelly seeds, white',  // H011
+  'til':                  'gingelly seeds, white',  // H011
+  'ellu':                 'gingelly seeds, white',  // H011
+  'black sesame seeds':   'gingelly seeds, black',  // H009
+  'kola til':             'gingelly seeds, black',  // H009
+  'sunflower seeds':      'sunflower seeds',        // H020
+  'coconut dry':          'coconut, kernal, dry',   // H006
+  'desiccated coconut':   'coconut, kernal, dry',   // H006
+  'linseeds':             'linseeds',               // H014
+  'flaxseeds':            'linseeds',               // H014
+
+  // ── Dairy ──────────────────────────────────────────────────────────────────
+  'milk':                 'milk, whole, cow',       // L002
+  'cow milk':             'milk, whole, cow',       // L002
+  'buffalo milk':         'milk, whole, buffalo',   // L001
+  'paneer':               'paneer',                 // L003
+  'khoa':                 'khoa',                   // L004
+  'mawa':                 'khoa',                   // L004
+  // yogurt, cream, cheese, butter → USDA
+
+  // ── Eggs & Meat ────────────────────────────────────────────────────────────
+  'egg':                  'egg, poultry, whole, raw',   // M001
+  'chicken':              'chicken, poultry, breast, skinless', // N003
+  'chicken breast':       'chicken, poultry, breast, skinless', // N003
+  'chicken thigh':        'chicken, poultry, thigh, skinless',  // N002
+  'chicken leg':          'chicken, poultry, leg, skinless',    // N001
+  'mutton':               'goat, shoulder, meat',   // O001
+  'goat meat':            'goat, shoulder, meat',   // O001
+  'lamb':                 'goat, shoulder, meat',   // O001 (closest)
+  'beef':                 'beef, shoulder',         // O025
+  'pork':                 'pork, shoulder',         // O048
+  'prawn':                'tiger prawns, brown',    // Q007
+  'shrimp':               'tiger prawns, brown',    // Q007
+  'fish':                 'mackerel',               // P034 (generic fallback)
+  // specific fish use USDA
+
+  // ── Sugars ─────────────────────────────────────────────────────────────────
+  'jaggery':              'jaggery, cane',          // I001
+  'vellam':               'jaggery, cane',          // I001
+  'gur':                  'jaggery, cane',          // I001
+  // sugar, honey → USDA (IFCT sugar entry is only sugarcane juice)
+
+  // ── Other ──────────────────────────────────────────────────────────────────
+  'coconut water':        'coconut water',          // K002
+  'tender coconut water': 'coconut water',          // K002
+  // coconut milk → USDA (IFCT only has coconut water K002, not milk)
 };
+
+// These should go straight to USDA — too generic or wrong category in IFCT.
+const SKIP_IFCT = new Set([
+  'oil', 'sugar', 'salt', 'water', 'vinegar', 'soy sauce', 'tomato puree',
+  'coconut milk', 'cream', 'cheese', 'butter', 'yogurt', 'curd',
+  'honey', 'oats', 'besan', 'gram flour', 'garam masala', 'sambar powder',
+  'rasam powder', 'chat masala', 'amchur powder', 'paprika', 'star anise',
+  'bay leaf', 'cinnamon stick', 'fennel seeds', 'caraway seeds', 'ajwain powder',
+  'basil', 'rosemary', 'thyme', 'olive oil', 'extra virgin olive oil',
+  'rapeseed oil', 'flaxseed oil', 'avocado oil', 'walnut oil', 'grapeseed oil',
+  'soya chunks', 'chironji', 'orange', 'watermelon', 'mango',
+]);
 
 // Simple fuzzy search against IFCT rows
 function searchIFCT(ifctRows: IFCTRow[], query: string): IFCTRow | null {
   const q = query.toLowerCase().trim();
+
+  // Skip ingredients that should always go to USDA
+  if (SKIP_IFCT.has(q)) return null;
 
   // 0. Check alias map first — maps our canonical names to IFCT names
   const aliased = IFCT_ALIASES[q];
