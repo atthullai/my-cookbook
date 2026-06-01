@@ -227,6 +227,22 @@ const QUERY_ALIASES: Array<[RegExp, string]> = [
   [/\bjaggery\b/i, "sugar"],
   [/\bpoha\b|\baval\b/i, "rice flakes"],
   [/\bridava\b|\brava\b|\bsooji\b|\bsuji\b/i, "semolina"],
+  // Indian spices / herbs commonly missed by USDA
+  [/\bturmeric\b/i, "turmeric, ground"],
+  [/\basafoetida\b|\bhing\b|\bperungayam\b/i, "asafoetida"],
+  [/\bcurry leaves?\b|\bkari patta\b|\bkarivepilai\b/i, "curry leaves"],
+  [/\bsesame seeds?\b|\btil\b|\bellu\b|\bgingelly seeds?\b/i, "sesame seeds"],
+  [/\bpeanuts?\b|\bgroundnuts?\b|\bmoongphali\b|\bkadala\b/i, "peanuts"],
+  [/\bmustard seeds?\b|\brai\b|\bkadugu\b|\bsarson\b/i, "mustard seed"],
+  [/\bcumin seeds?\b|\bjeera\b|\bjeeragam\b/i, "cumin seed"],
+  [/\bcoriander (seeds?|powder)\b|\bdhania\b|\bmalli\b/i, "coriander seed"],
+  [/\bred chilli\b|\bred chili\b|\blal mirch\b|\bkandha milagai\b/i, "chili pepper, red"],
+  [/\bgreen chilli\b|\bgreen chili\b|\bhari mirch\b/i, "chili pepper, green"],
+  [/\bdry red chilli\b|\bdried red chilli?\b/i, "chili pepper, dried"],
+  [/\bfenugreek\b|\bmethi\b|\bvendhayam\b/i, "fenugreek seed"],
+  [/\bjaggery\b|\bgur\b|\bvellam\b/i, "brown sugar"],
+  [/\bcoconut milk\b/i, "coconut milk, canned"],
+  [/\btamarind\b|\bpuli\b/i, "tamarind"],
 ];
 
 const LOCAL_FOOD_FALLBACKS: Array<{ pattern: RegExp; food: FoodSearchResult }> = [
@@ -252,6 +268,20 @@ const LOCAL_FOOD_FALLBACKS: Array<{ pattern: RegExp; food: FoodSearchResult }> =
   localFood(/\bsugar\b/i, "Sugar, granulated", { calories_kcal: 387, carbs_g: 100, sugar_g: 100 }),
   localFood(/\b(flour|maida|all-purpose flour)\b/i, "Wheat flour, all-purpose", { calories_kcal: 364, carbs_g: 76, fiber_g: 2.7, sugar_g: 0.3, protein_g: 10.3, fat_g: 1, saturated_fat_g: 0.2, potassium_mg: 107, calcium_mg: 15, iron_mg: 4.6, magnesium_mg: 22, phosphorus_mg: 108, zinc_mg: 0.7, folate_mcg: 183 }),
   localFood(/\begg\b/i, "Egg, whole", { calories_kcal: 143, carbs_g: 0.7, sugar_g: 0.4, protein_g: 12.6, fat_g: 9.5, saturated_fat_g: 3.1, cholesterol_mg: 372, sodium_mg: 142, potassium_mg: 138, calcium_mg: 56, iron_mg: 1.8, magnesium_mg: 12, phosphorus_mg: 198, zinc_mg: 1.3, vitamin_a_mcg: 160, vitamin_d_mcg: 2, vitamin_e_mg: 1.1, vitamin_b6_mg: 0.2, vitamin_b12_mcg: 0.9, folate_mcg: 47 }),
+  // ── Indian pantry staples commonly missed by USDA API ──────────────────────
+  localFood(/\bsesame seeds?\b|\btil\b|\bellu\b|\bgingelly seeds?\b/i, "Sesame seeds", { calories_kcal: 573, fat_g: 50, saturated_fat_g: 7, carbs_g: 23, fiber_g: 12, protein_g: 18, calcium_mg: 975, iron_mg: 14.6, magnesium_mg: 351, phosphorus_mg: 629, zinc_mg: 7.8, potassium_mg: 468, folate_mcg: 97, vitamin_e_mg: 0.25, vitamin_b6_mg: 0.79 }),
+  localFood(/\basafoetida\b|\bhing\b|\bperungayam\b/i, "Asafoetida (hing)", { calories_kcal: 297, carbs_g: 68, fiber_g: 4, protein_g: 4, fat_g: 1, calcium_mg: 690, iron_mg: 39, phosphorus_mg: 50, potassium_mg: 1060 }),
+  localFood(/\bcurry leaves?\b|\bkari patta\b|\bkarivepilai\b/i, "Curry leaves", { calories_kcal: 108, carbs_g: 19, fiber_g: 7, protein_g: 6, fat_g: 1, calcium_mg: 810, iron_mg: 7, magnesium_mg: 44, potassium_mg: 535, vitamin_a_mcg: 7000, vitamin_c_mg: 4, folate_mcg: 57 }),
+  localFood(/\b(roasted )?peanuts?\b|\bgroundnuts?\b|\bmoongphali\b|\bkadala\b/i, "Peanuts, roasted", { calories_kcal: 585, fat_g: 49.7, saturated_fat_g: 6.9, carbs_g: 21, fiber_g: 8, sugar_g: 4, protein_g: 23.7, calcium_mg: 54, iron_mg: 2.3, magnesium_mg: 176, phosphorus_mg: 363, zinc_mg: 3.3, potassium_mg: 705, vitamin_e_mg: 6.9, vitamin_b6_mg: 0.3, folate_mcg: 145 }),
+  localFood(/\bturmeric\b/i, "Turmeric, ground", { calories_kcal: 312, carbs_g: 68, fiber_g: 22, protein_g: 9.7, fat_g: 3.3, saturated_fat_g: 1.1, calcium_mg: 183, iron_mg: 55, magnesium_mg: 208, phosphorus_mg: 268, potassium_mg: 2525, zinc_mg: 4.4, vitamin_c_mg: 26, vitamin_b6_mg: 1.8, folate_mcg: 20 }),
+  localFood(/\bmustard seeds?\b|\brai\b|\bkadugu\b|\bsarson\b/i, "Mustard seed", { calories_kcal: 508, fat_g: 36, saturated_fat_g: 2, carbs_g: 28, fiber_g: 12, protein_g: 26, calcium_mg: 266, iron_mg: 9.2, magnesium_mg: 370, phosphorus_mg: 828, potassium_mg: 738, zinc_mg: 6.1, folate_mcg: 162 }),
+  localFood(/\bcumin seeds?\b|\bjeera\b|\bjeeragam\b/i, "Cumin seed", { calories_kcal: 375, fat_g: 22, saturated_fat_g: 1.5, carbs_g: 44, fiber_g: 11, protein_g: 18, calcium_mg: 931, iron_mg: 66, magnesium_mg: 366, phosphorus_mg: 499, potassium_mg: 1788, zinc_mg: 5, vitamin_e_mg: 3.3, vitamin_b6_mg: 0.4, folate_mcg: 10 }),
+  localFood(/\bcoriander\b/i, "Coriander seed", { calories_kcal: 298, fat_g: 18, carbs_g: 55, fiber_g: 42, protein_g: 12, calcium_mg: 709, iron_mg: 16.3, magnesium_mg: 330, phosphorus_mg: 409, potassium_mg: 1267, zinc_mg: 4.7, vitamin_c_mg: 21, vitamin_e_mg: 2.5, folate_mcg: 0 }),
+  localFood(/\bfenugreek\b|\bmethi\b|\bvendhayam\b/i, "Fenugreek seed", { calories_kcal: 323, fat_g: 6.4, carbs_g: 58, fiber_g: 25, sugar_g: 0, protein_g: 23, calcium_mg: 176, iron_mg: 34, magnesium_mg: 191, phosphorus_mg: 296, potassium_mg: 770, zinc_mg: 2.5, folate_mcg: 57 }),
+  localFood(/\b(red chill[iy]|chili pepper|lal mirch|chilli powder)\b/i, "Chili powder", { calories_kcal: 314, fat_g: 14, carbs_g: 56, fiber_g: 35, protein_g: 13, calcium_mg: 330, iron_mg: 20, magnesium_mg: 254, phosphorus_mg: 300, potassium_mg: 2028, zinc_mg: 2.5, vitamin_a_mcg: 2081, vitamin_c_mg: 76, vitamin_e_mg: 29, vitamin_b6_mg: 2.1, folate_mcg: 23 }),
+  localFood(/\btamarind\b|\bpuli\b/i, "Tamarind, raw", { calories_kcal: 239, fat_g: 0.6, carbs_g: 63, fiber_g: 5.1, sugar_g: 38, protein_g: 2.8, calcium_mg: 74, iron_mg: 2.8, magnesium_mg: 92, phosphorus_mg: 113, potassium_mg: 628, zinc_mg: 0.1, folate_mcg: 14, vitamin_c_mg: 3.5 }),
+  localFood(/\bcoconut milk\b/i, "Coconut milk, canned", { calories_kcal: 197, fat_g: 21, saturated_fat_g: 18.9, carbs_g: 2.8, sugar_g: 0.8, fiber_g: 0, protein_g: 2, calcium_mg: 18, iron_mg: 3.3, magnesium_mg: 37, phosphorus_mg: 100, potassium_mg: 263, zinc_mg: 0.7 }),
+  localFood(/\bsemolina\b|\brava\b|\bsooji\b|\bsuji\b/i, "Semolina, unenriched", { calories_kcal: 360, fat_g: 1.1, carbs_g: 73, fiber_g: 3.9, sugar_g: 0.9, protein_g: 13, calcium_mg: 17, iron_mg: 4.4, magnesium_mg: 47, phosphorus_mg: 136, potassium_mg: 186, zinc_mg: 1.1, folate_mcg: 72 }),
 ];
 
 function localFood(

@@ -1596,26 +1596,27 @@ ul {
 .nutrition-fact-card {
   display: grid;
   gap: 10px;
-  border: 1px solid rgba(77, 61, 48, 0.12);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 250, 241, 0.82);
+  background: var(--surface-strong);
   padding: 12px;
+  color: var(--foreground);
 }
 
 .nutrition-energy {
-  border-color: rgba(196, 92, 54, 0.24);
+  border-color: rgba(196, 92, 54, 0.35);
 }
 
 .nutrition-macro {
-  border-color: rgba(68, 104, 176, 0.2);
+  border-color: rgba(68, 104, 176, 0.3);
 }
 
 .nutrition-mineral {
-  border-color: rgba(36, 115, 110, 0.2);
+  border-color: rgba(36, 115, 110, 0.3);
 }
 
 .nutrition-vitamin {
-  border-color: rgba(183, 134, 29, 0.22);
+  border-color: rgba(183, 134, 29, 0.32);
 }
 
 .nutrition-fact-topline {

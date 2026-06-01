@@ -614,7 +614,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         const unknownCount = allIngredients.filter(i => !i.weightConfidence || i.weightConfidence === 'unknown').length;
         if (unknownCount === 0) return null;
         return (
-          <div className="rounded-xl px-3 py-2 text-xs mb-3" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#b45309' }}>
+          <div className="rounded-xl px-3 py-2 text-xs mb-3" style={{ background: 'var(--saffron-soft)', border: '1px solid var(--saffron)', color: 'var(--saffron)' }}>
             ⚠️ {unknownCount} ingredient{unknownCount > 1 ? 's' : ''} unmatched — nutrition estimate may be inaccurate
           </div>
         );
