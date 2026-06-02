@@ -148,7 +148,10 @@ export type RecipeSummary = Pick<
   | "nutritionStatus"
   | "isFavourite"
   | "category"
->;
+> & {
+  /** Flat list of ingredient links used for ingredient-based filtering in the recipe search. */
+  ingredientLinks: { libraryId: string | null; name_en: string }[];
+};
 
 // ---------------------------------------------------------------------------
 // Meal Planner

@@ -12,11 +12,10 @@ type FilterableRecipe = {
   id: string;
   title: string;
   title_de?: string;
-  ingredients?: Array<{
-    items?: Array<{
-      libraryId?: string | null;
-      name_en?: string;
-    }>;
+  /** Flat ingredient links added by toRecipeSummary — used for ingredient filtering */
+  ingredientLinks?: Array<{
+    libraryId?: string | null;
+    name_en?: string;
   }>;
   [key: string]: unknown;
 };
@@ -26,7 +25,7 @@ function normalise(s: string | null | undefined): string {
 }
 
 export function useRecipeSearch<T extends FilterableRecipe>(allRecipes: T[]) {
-  const [titleQuery, setTitleQuery]         = useState("");
+  const [titleQuery, setTitleQuery]             = useState("");
   const [ingredientFilter, setIngredientFilter] = useState<IngredientResult | null>(null);
 
   const filteredRecipes = useMemo(() => {
@@ -42,16 +41,16 @@ export function useRecipeSearch<T extends FilterableRecipe>(allRecipes: T[]) {
 
     // ── Ingredient filter ─────────────────────────────────────────────────
     if (ingredientFilter) {
-      const libId   = ingredientFilter.id;
+      const libId    = ingredientFilter.id;
       const nameNorm = normalise(ingredientFilter.name_en);
 
       result = result.filter((recipe) => {
-        const items = (recipe.ingredients ?? []).flatMap((g) => g.items ?? []);
-        return items.some((item) => {
-          // Prefer libraryId exact match — covers newly linked ingredients
-          if (item.libraryId && item.libraryId === libId) return true;
-          // Fall back to name_en exact match — covers old unlinked ingredients
-          if (normalise(item.name_en) === nameNorm) return true;
+        const links = recipe.ingredientLinks ?? [];
+        return links.some((link) => {
+          // Prefer libraryId exact match — covers library-linked ingredients
+          if (link.libraryId && link.libraryId === libId) return true;
+          // Fall back to normalised name_en match — covers manually entered ingredients
+          if (normalise(link.name_en) === nameNorm) return true;
           return false;
         });
       });

@@ -206,6 +206,14 @@ export function toRecipeSummary(record: RecipeRecord): RecipeSummary {
   const prepMins = record.prep_time_min ?? parseTimeToMinutes(record.prep_time);
   const cookMins = record.cook_time_min ?? parseTimeToMinutes(record.cook_time);
 
+  // Flatten all ingredient items for ingredient-based filtering
+  const ingredientLinks = (record.ingredients ?? []).flatMap((group) =>
+    (group.items ?? []).map((item) => ({
+      libraryId: item.libraryId ?? null,
+      name_en:   item.name_en ?? "",
+    }))
+  );
+
   return {
     id:              String(record.id),
     title:           record.title_en,
@@ -219,6 +227,7 @@ export function toRecipeSummary(record: RecipeRecord): RecipeSummary {
     nutrition:       toNutritionInfo(record.nutrition ?? null, record.calories),
     nutritionStatus: record.nutrition ? "calculated" : "pending",
     isFavourite:     (record as RecipeRecord & { is_favourite?: boolean }).is_favourite ?? false,
+    ingredientLinks,
   };
 }
 
