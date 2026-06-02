@@ -21,9 +21,10 @@ import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { usePushSubscription } from "@/lib/usePushSubscription";
 import { mapRecipeRows } from "@/lib/recipe-db";
-import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory, StorageLocation } from "@/types";
+import type { PantryItem, PantryItemStatus, ShoppingCategory, StorageLocation } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import type { RecipeRecord } from "@/lib/recipe-types";
+import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
@@ -166,8 +167,8 @@ export default function PantryPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving]     = useState(false);
   const [sortBy, setSortBy]         = useState<SortOption>("name");
-  const [suggestions, setSuggestions] = useState<RecipeSummary[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [allRecipes, setAllRecipes]   = useState<RecipeRecord[]>([]);
   const [alertsExpanded, setAlertsExpanded]   = useState(true);
   const [expandedGroups, setExpandedGroups]   = useState<Set<string>>(new Set());
   const [groupedView, setGroupedView]         = useState(() => {
@@ -393,54 +394,20 @@ export default function PantryPage() {
   };
 
 
-  // ── Suggest recipes (scored by ingredient availability) ──────────────────
-  const [recipeScores, setRecipeScores] = useState<
-    { id: string; matched: number; total: number; missing: string[] }[]
-  >([]);
-
-  const suggestRecipes = async () => {
+  // ── Suggest recipes — opens SuggestRecipesModal ──────────────────────────
+  const openSuggestModal = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = "/login"; return; }
 
-      const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
-      const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
-      const rawRows = mapRecipeRows(data ?? []);
-
-      // Normalise pantry names for comparison
-      const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
-      const pantryNormNames = new Set(items.map((i) => norm(i.name)));
-
-      // Score by ingredient availability using full recipe ingredient lists
-      const scored: { recipe: RecipeSummary; matched: number; total: number; missing: string[] }[] = [];
-
-      for (const recipe of allRecipes) {
-        const raw = rawRows.find((r: RecipeRecord) => String(r.id) === recipe.id);
-        if (!raw) continue;
-        const allIngredients = raw.ingredients.flatMap((g) => g.items);
-        if (allIngredients.length === 0) continue;
-        const matched: string[] = [];
-        const missing: string[] = [];
-        for (const ing of allIngredients) {
-          // libraryId match first, then normalised name_en exact match
-          const inPantry =
-            (ing.libraryId && items.some((p) => (p as PantryItem & { libraryId?: string }).libraryId === ing.libraryId)) ||
-            pantryNormNames.has(norm(ing.name_en));
-          if (inPantry) matched.push(ing.name_en);
-          else missing.push(ing.name_en);
-        }
-        scored.push({ recipe, matched: matched.length, total: allIngredients.length, missing });
+      // Fetch recipes once; re-use cached copy on subsequent opens
+      if (allRecipes.length === 0) {
+        const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
+        setAllRecipes(mapRecipeRows(data ?? []));
       }
-
-      // Sort by score desc, take top 5
-      scored.sort((a, b) => b.matched / b.total - a.matched / a.total);
-      const top5 = scored.slice(0, 5);
-
-      setSuggestions(top5.map((s) => s.recipe));
-      setRecipeScores(top5.map((s) => ({ id: s.recipe.id, matched: s.matched, total: s.total, missing: s.missing })));
-      setShowSuggestions(true);
+      setShowSuggest(true);
     } catch {
-      toast.error("Failed to suggest recipes");
+      toast.error("Failed to load recipes");
     }
   };
 
@@ -590,8 +557,8 @@ export default function PantryPage() {
           );
       });
       if (matched.length) {
-        setSuggestions(matched);
-        setShowSuggestions(true);
+        // Navigate to recipes page pre-filtered by this ingredient name
+        window.location.assign(`/recipes?search=${encodeURIComponent(item.name)}`);
       } else {
         // No recipe found — open the request / share modal
         setNoRecipeItem(item);
@@ -724,7 +691,7 @@ export default function PantryPage() {
               >
                 <ShoppingCart size={15} /> Shopping list
               </Link>
-              <button type="button" onClick={suggestRecipes}
+              <button type="button" onClick={openSuggestModal}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
                 style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
               >
@@ -1875,69 +1842,20 @@ export default function PantryPage() {
 
         {/* Recipe suggestions modal */}
         <AnimatePresence>
-          {showSuggestions && (
-            <motion.div
-              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            >
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowSuggestions(false)} />
-              <motion.div
-                className="relative rounded-2xl shadow-xl p-6 mx-4 w-full max-w-md max-h-[80vh] flex flex-col"
-                style={{ background: "var(--surface)" }}
-                initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 380, damping: 28 }}
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-semibold" style={{ color: "var(--foreground)" }}>Recipes You Can Make</h2>
-                  <button type="button" onClick={() => setShowSuggestions(false)}><X size={16} style={{ color: "var(--muted)" }} /></button>
-                </div>
-                {suggestions.length === 0 ? (
-                  <p className="text-sm text-center py-8" style={{ color: "var(--muted)" }}>
-                    No recipes found matching your pantry items.
-                  </p>
-                ) : (
-                  <ul className="overflow-y-auto space-y-3">
-                    {suggestions.map((r) => {
-                      const score = recipeScores.find((s) => s.id === r.id);
-                      return (
-                        <li key={r.id} className="rounded-xl p-4 space-y-2"
-                          style={{ background: "var(--surface-strong)", border: "1px solid var(--border)" }}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl">🍳</span>
-                              <a href={`/recipes/${r.id}`} className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
-                                {r.title}
-                              </a>
-                            </div>
-                            <Link href="/planner"
-                              className="flex-shrink-0 text-xs px-2.5 py-1 rounded-lg font-medium transition whitespace-nowrap"
-                              style={{ background: "var(--accent)", color: "#fff" }}
-                            >
-                              Plan →
-                            </Link>
-                          </div>
-                          {score && (
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
-                                <div className="h-full rounded-full" style={{ background: "var(--accent)", width: `${(score.matched / score.total) * 100}%` }} />
-                              </div>
-                              <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--muted)" }}>
-                                {score.matched}/{score.total} ingredients
-                              </span>
-                            </div>
-                          )}
-                          {score && score.missing.length > 0 && (
-                            <p className="text-xs" style={{ color: "#ef4444" }}>
-                              Missing: {score.missing.slice(0, 5).join(", ")}{score.missing.length > 5 ? ` +${score.missing.length - 5} more` : ""}
-                            </p>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </motion.div>
-            </motion.div>
+          {showSuggest && (
+            <SuggestRecipesModal
+              pantryItems={items}
+              allRecipes={allRecipes}
+              onClose={() => setShowSuggest(false)}
+              onPlan={(recipe) => {
+                window.location.assign(`/planner?add=${recipe.id}`);
+                setShowSuggest(false);
+              }}
+              onView={(recipe) => {
+                window.location.assign(`/recipe/${recipe.id}`);
+                setShowSuggest(false);
+              }}
+            />
           )}
         </AnimatePresence>
       </main>
