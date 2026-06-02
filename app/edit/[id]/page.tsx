@@ -286,7 +286,7 @@ export default function EditRecipe() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user || !recipeId || !recipe) {
-      alert("Recipe is not ready to save yet.");
+      notify({ tone: "error", title: "Not ready", message: "Recipe is not ready to save yet." });
       return;
     }
 

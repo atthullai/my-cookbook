@@ -92,9 +92,11 @@ export default function AddRecipe() {
   // Auth check — redirect to login if not signed in
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: u } }) => {
-      if (!u) { window.location.href = "/login"; return; }
+      if (!u) { router.push("/login"); return; }
       setUser(u);
     });
+  // router is stable from useRouter — safe to omit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Updater helpers (same as Edit page) ─────────────────────────────────────
@@ -144,8 +146,8 @@ export default function AddRecipe() {
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!user) { alert("Please sign in before saving."); return; }
-    if (!title.trim()) { alert("Title is required."); return; }
+    if (!user) { notify({ tone: "error", title: "Not signed in", message: "Please sign in before saving." }); return; }
+    if (!title.trim()) { notify({ tone: "error", title: "Title required", message: "Please enter a recipe title." }); return; }
 
     setSaving(true);
 

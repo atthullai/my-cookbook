@@ -1,45 +1,40 @@
 "use client";
 
-// LOGIN PAGE MAP
-// This tiny page signs you into Supabase.
-// After login succeeds, it sends you back to "/" so the cookbook can load your private recipes.
-
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import AppIcon from "@/components/AppIcon";
 import type { FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Login() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
-    // Prevent the browser from doing a normal form submit/reload.
-    // React handles the login so we can show loading text and errors.
     event.preventDefault();
+    setError("");
     setLoading(true);
 
-    // Supabase handles the actual authentication; this page just collects credentials
-    // and redirects to the private cookbook once login succeeds.
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
+    if (authError) {
+      setError(authError.message);
       return;
     }
 
-    window.location.href = "/";
+    router.push("/");
   };
 
   return (
     <main className="container auth-shell">
-      {/* Login stays intentionally simple because it only needs to unlock the private cookbook. */}
       <div className="hero-panel" style={{ marginBottom: 20 }}>
         <div className="hero-copy">
           <p className="eyebrow">Private Access</p>
@@ -55,6 +50,8 @@ export default function Login() {
           className="input"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
+          autoComplete="email"
+          required
         />
 
         <input
@@ -63,11 +60,29 @@ export default function Login() {
           className="input"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
+          autoComplete="current-password"
+          required
         />
+
+        {error && (
+          <p
+            role="alert"
+            style={{
+              color: "#dc2626",
+              fontSize: "0.875rem",
+              padding: "0.5rem 0.75rem",
+              background: "rgba(220,38,38,0.08)",
+              borderRadius: "0.5rem",
+              margin: 0,
+            }}
+          >
+            {error}
+          </p>
+        )}
 
         <button className="button button-primary" type="submit" disabled={loading}>
           <AppIcon name="login" size={16} />
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Logging in…" : "Login"}
         </button>
       </form>
     </main>
