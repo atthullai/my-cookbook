@@ -23,6 +23,7 @@ import { usePushSubscription } from "@/lib/usePushSubscription";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { PantryItem, PantryItemStatus, RecipeSummary, ShoppingCategory, StorageLocation } from "@/types";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
+import type { RecipeRecord } from "@/lib/recipe-types";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
@@ -405,23 +406,28 @@ export default function PantryPage() {
       const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
       const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
       const rawRows = mapRecipeRows(data ?? []);
-      const pantryNames = new Set(items.map((i) => i.name.toLowerCase()));
+
+      // Normalise pantry names for comparison
+      const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+      const pantryNormNames = new Set(items.map((i) => norm(i.name)));
 
       // Score by ingredient availability using full recipe ingredient lists
       const scored: { recipe: RecipeSummary; matched: number; total: number; missing: string[] }[] = [];
 
       for (const recipe of allRecipes) {
-        const raw = rawRows.find((r) => String(r.id) === recipe.id);
+        const raw = rawRows.find((r: RecipeRecord) => String(r.id) === recipe.id);
         if (!raw) continue;
-        const allIngredients = raw.ingredients.flatMap((g) => g.items.map((i) => i.name_en));
+        const allIngredients = raw.ingredients.flatMap((g) => g.items);
         if (allIngredients.length === 0) continue;
         const matched: string[] = [];
         const missing: string[] = [];
-        for (const ingName of allIngredients) {
-          const lower = ingName.toLowerCase();
-          const found = [...pantryNames].some((p) => p.includes(lower) || lower.includes(p));
-          if (found) matched.push(ingName);
-          else missing.push(ingName);
+        for (const ing of allIngredients) {
+          // libraryId match first, then normalised name_en exact match
+          const inPantry =
+            (ing.libraryId && items.some((p) => (p as PantryItem & { libraryId?: string }).libraryId === ing.libraryId)) ||
+            pantryNormNames.has(norm(ing.name_en));
+          if (inPantry) matched.push(ing.name_en);
+          else missing.push(ing.name_en);
         }
         scored.push({ recipe, matched: matched.length, total: allIngredients.length, missing });
       }
@@ -568,11 +574,21 @@ export default function PantryPage() {
       if (!user) return;
       const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
       const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
-      const keyword = item.name.toLowerCase();
-      const matched = allRecipes.filter((r) =>
-        r.title.toLowerCase().includes(keyword) ||
-        keyword.split(" ").some((w) => w.length > 2 && r.title.toLowerCase().includes(w))
-      );
+      const rawRows = mapRecipeRows(data ?? []);
+      const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+      const nameNorm = norm(item.name);
+      const pantryLibraryId = (item as PantryItem & { libraryId?: string }).libraryId;
+
+      const matched = allRecipes.filter((r) => {
+        const raw = rawRows.find((rr: RecipeRecord) => String(rr.id) === r.id);
+        if (!raw) return false;
+        return raw.ingredients
+          .flatMap((g) => g.items)
+          .some((ing) =>
+            (pantryLibraryId && ing.libraryId === pantryLibraryId) ||
+            norm(ing.name_en) === nameNorm
+          );
+      });
       if (matched.length) {
         setSuggestions(matched);
         setShowSuggestions(true);
