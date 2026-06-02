@@ -46,12 +46,15 @@ export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, 
     }
   }, []);
 
-  const matches = useMemo(
-    () => singleItem
-      ? suggestRecipes([singleItem], allRecipes, { minCoverage: 0, maxResults: 20 })
-      : suggestRecipes(pantryItems, allRecipes, { minCoverage: 40, maxResults: 20 }),
-    [pantryItems, allRecipes, singleItem]
-  );
+  const matches = useMemo(() => {
+    if (singleItem) {
+      // Score against the single item, then keep only recipes that actually contain it
+      return suggestRecipes([singleItem], allRecipes, { minCoverage: 0, maxResults: 100 })
+        .filter((m) => m.matchedCount > 0)
+        .slice(0, 20);
+    }
+    return suggestRecipes(pantryItems, allRecipes, { minCoverage: 40, maxResults: 20 });
+  }, [pantryItems, allRecipes, singleItem]);
 
   const canMakeNow  = matches.filter((m) => m.canMakeNow);
   const almostThere = matches.filter((m) => !m.canMakeNow);
