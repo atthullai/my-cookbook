@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { matchToLibrary } from "@/lib/ingredient-matcher";
 
+// Hardcoded owner user ID — only this account may trigger backfill.
+// Change this to your Supabase auth user ID if the account changes.
+const OWNER_EMAIL = "test@test.com";
+
 export async function POST() {
+  // Verify the caller is the authenticated owner
+  const authClient = await createSupabaseServerClient();
+  const { data: { user } } = await authClient.auth.getUser();
+
+  if (!user || user.email !== OWNER_EMAIL) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

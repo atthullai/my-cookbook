@@ -25,7 +25,7 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refresh session — this is what makes auth available in server components
+  // Refresh session so auth is available in server components and API routes
   await supabase.auth.getUser();
 
   return supabaseResponse;

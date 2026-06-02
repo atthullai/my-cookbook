@@ -7,6 +7,7 @@
  * Animations stripped — replaced with instant CSS transitions for performance.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   BookOpen, Plus, LogOut, LogIn, Search, X,
@@ -16,6 +17,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
+import { getCuisineTheme } from "@/lib/cuisine-themes";
 import type { AppUser, RecipeRecord } from "@/lib/recipe-types";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -49,6 +51,7 @@ function NavCard({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Home() {
+  const router = useRouter();
   const [records,       setRecords]       = useState<RecipeRecord[]>([]);
   const [user,          setUser]          = useState<AppUser | null>(null);
   const [loading,       setLoading]       = useState(true);
@@ -94,7 +97,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.reload();
+    router.replace("/login");
   };
 
   const confirmDelete = async () => {
@@ -240,7 +243,7 @@ export default function Home() {
                     { value: records.length, label: "recipes" },
                     { value: new Set(records.map((r) => r.cuisine).filter(Boolean)).size, label: "cuisines" },
                     { value: new Set(records.flatMap((r) => r.badges)).size, label: "tags" },
-                    { value: 20, label: "origins" },
+                    { value: new Set(records.map((r) => r.cuisine).filter(Boolean)).size, label: "origins" },
                   ].map(({ value, label }) => (
                     <div key={label} className="text-center lg:text-left">
                       <p
@@ -323,7 +326,7 @@ export default function Home() {
                   {todayPick.title}
                 </h2>
                 <p className="text-sm" style={{ opacity: 0.75 }}>
-                  {todayPick.cuisine} · {todayPick.prepTimeMinutes + todayPick.cookTimeMinutes} min · serves {todayPick.servings}
+                  {getCuisineTheme(todayPick.cuisine)?.label ?? todayPick.cuisine} · {todayPick.prepTimeMinutes + todayPick.cookTimeMinutes} min · serves {todayPick.servings}
                 </p>
               </div>
               <Link
@@ -453,7 +456,7 @@ export default function Home() {
                   <RecipeCard
                     key={recipe.id}
                     recipe={recipe}
-                    onEdit={() => { window.location.assign(`/edit/${recipe.id}`); }}
+                    onEdit={() => { router.push(`/edit/${recipe.id}`); }}
                     onDelete={() => setDeleteTarget(recipe.id)}
                   />
                 ))}
