@@ -252,6 +252,15 @@ export default function EditRecipe() {
       )
     );
   };
+  const selectIngredient = (groupIndex: number, ingredientIndex: number, updates: Partial<IngredientDraft>) => {
+    setIngredientGroups((current) =>
+      current.map((group, gi) =>
+        gi === groupIndex
+          ? { ...group, items: group.items.map((ing, ii) => (ii === ingredientIndex ? { ...ing, ...updates } : ing)) }
+          : group
+      )
+    );
+  };
   const updateInstructionSection = (index: number, field: keyof InstructionSectionDraft, value: string) => {
     setInstructionSections((current) => current.map((section, currentIndex) => (currentIndex === index ? { ...section, [field]: value } : section)));
   };
@@ -623,6 +632,7 @@ export default function EditRecipe() {
           )
         }
         onIngredientChange={updateIngredient}
+        onIngredientSelect={selectIngredient}
         onInstructionSectionAdd={() => setInstructionSections((current) => [...current, { ...EMPTY_INSTRUCTION_SECTION, title_en: "", title_de: "" }])}
         onInstructionSectionRemove={(index) =>
           setInstructionSections((current) => {

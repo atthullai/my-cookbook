@@ -829,6 +829,7 @@ export type IngredientDraft = {
   optional?: boolean;
   garnish?: boolean;
   approximate?: boolean;
+  libraryId?: string | null;
 };
 
 export const EMPTY_INGREDIENT: IngredientDraft = {
@@ -840,6 +841,7 @@ export const EMPTY_INGREDIENT: IngredientDraft = {
   optional: false,
   garnish: false,
   approximate: false,
+  libraryId: null,
 };
 
 export type IngredientGroupDraft = {

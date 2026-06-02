@@ -21,6 +21,8 @@ import type {
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
 import EquipmentPicker from "@/components/EquipmentPicker";
+import IngredientAutocomplete from "@/components/IngredientAutocomplete";
+import type { IngredientSearchResult } from "@/app/api/ingredients/search/route";
 import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
@@ -128,6 +130,7 @@ type RecipeFormProps = {
   onIngredientAdd: (groupIndex: number) => void;
   onIngredientRemove: (groupIndex: number, ingredientIndex: number) => void;
   onIngredientChange: (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string | boolean) => void;
+  onIngredientSelect: (groupIndex: number, ingredientIndex: number, updates: Partial<IngredientDraft>) => void;
   onInstructionSectionAdd: () => void;
   onInstructionSectionRemove: (index: number) => void;
   onInstructionSectionChange: (index: number, field: keyof InstructionSectionDraft, value: string) => void;
@@ -356,11 +359,22 @@ export default function RecipeForm(props: RecipeFormProps) {
                     <option key={u} value={u}>{u || "— unit —"}</option>
                   ))}
                 </select>
-                <input
+                <IngredientAutocomplete
                   className="input"
                   placeholder="Ingredient (EN)"
                   value={ingredient.name_en}
-                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", event.target.value)}
+                  onChange={(value) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", value)}
+                  onSelect={(result: IngredientSearchResult) => {
+                    const updates: Partial<import("@/lib/recipe-types").IngredientDraft> = {
+                      name_en: result.name_en,
+                      name_de: result.name_de,
+                      libraryId: result.id,
+                    };
+                    if (!ingredient.unit && result.default_unit) {
+                      updates.unit = result.default_unit;
+                    }
+                    props.onIngredientSelect(groupIndex, ingredientIndex, updates);
+                  }}
                 />
                 <input
                   className="input"
