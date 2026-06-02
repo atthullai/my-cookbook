@@ -16,7 +16,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { Plus, SlidersHorizontal, X } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -26,6 +26,8 @@ import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme, normalize
 import { ALL_TAGS, TAG_META } from "@/lib/recipe-tags";
 import RecipeCard from "@/components/RecipeCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { RecipeSearchBar } from "@/components/RecipeSearchBar";
+import { useRecipeSearch } from "@/hooks/useRecipeSearch";
 import type { RecipeSummary, CuisineOrigin, RecipeTag } from "@/types";
 
 // Slow, breathing, handcrafted — Tamil Nadu motion philosophy
@@ -46,8 +48,16 @@ export default function RecipesPage() {
   const [recipes, setRecipes]           = useState<RecipeSummary[]>([]);
   const [loading, setLoading]           = useState(true);
   const [loadError, setLoadError]       = useState("");
-  const [search, setSearch]             = useState("");
   const [cuisines, setCuisines]         = useState<CuisineOrigin[]>([]);
+
+  const {
+    setTitleQuery,
+    ingredientFilter,
+    setIngredientFilter,
+    filteredRecipes,
+    isFiltering,
+    clearAll: clearSearch,
+  } = useRecipeSearch(recipes);
 
   // Apply ?cuisine= param once on mount
   useEffect(() => {
@@ -91,13 +101,9 @@ export default function RecipesPage() {
 
   // ── Filtering & sorting ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    let result = recipes;
-
-    // Text search
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((r) => r.title.toLowerCase().includes(q));
-    }
+    // filteredRecipes already handles title search + ingredient filter.
+    // Apply cuisine, tag, time, and sort on top.
+    let result = filteredRecipes;
 
     // Cuisine filter
     if (cuisines.length > 0) {
@@ -121,7 +127,7 @@ export default function RecipesPage() {
       if (sortBy === "oldest")     return parseInt(a.id) - parseInt(b.id);
       return parseInt(b.id) - parseInt(a.id); // newest
     });
-  }, [recipes, search, cuisines, tags, maxTime, sortBy]);
+  }, [filteredRecipes, cuisines, tags, maxTime, sortBy]);
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
@@ -151,7 +157,7 @@ export default function RecipesPage() {
     setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
 
   const clearFilters = () => {
-    setSearch(""); setCuisines([]); setTags([]); setMaxTime(120);
+    clearSearch(); setCuisines([]); setTags([]); setMaxTime(120);
   };
 
   const activeFilterCount = cuisines.length + tags.length + (maxTime < 120 ? 1 : 0);
@@ -233,14 +239,10 @@ export default function RecipesPage() {
             })}
             {/* Search */}
             <div className="relative flex-1 min-w-[140px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
-              <input
-                type="text"
-                placeholder="Search recipes…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 rounded-full text-xs focus:outline-none"
-                style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+              <RecipeSearchBar
+                onTitleSearch={setTitleQuery}
+                onIngredientFilter={setIngredientFilter}
+                activeIngredient={ingredientFilter}
               />
             </div>
             {/* Full filters */}
@@ -264,6 +266,20 @@ export default function RecipesPage() {
               )}
             </button>
           </div>
+
+          {/* ── Active ingredient filter summary ── */}
+          {isFiltering && ingredientFilter && (
+            <div className="flex items-center gap-2 mb-2" style={{ fontSize: 12, color: "var(--muted)" }}>
+              <span>Showing recipes with <strong style={{ color: "var(--foreground)" }}>{ingredientFilter.name_en}</strong></span>
+              <button
+                onClick={clearFilters}
+                className="hover:underline"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 12, padding: 0 }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
 
           {/* ── Expandable filter panel ─────────────────────────────── */}
           <AnimatePresence>
@@ -462,6 +478,8 @@ export default function RecipesPage() {
               <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>
                 {recipes.length === 0
                   ? "Add your first recipe to get started."
+                  : ingredientFilter
+                  ? `No recipes found with ${ingredientFilter.name_en}. Try a different ingredient or add a recipe that uses it.`
                   : "Try adjusting the filters or search term."}
               </p>
               {recipes.length === 0 && (
