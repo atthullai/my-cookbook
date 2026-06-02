@@ -1145,7 +1145,8 @@ ul {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  padding-left: 188px; /* align under name fields (84 + 96 + 8 gap) */
+  padding-left: 196px; /* align under name fields (84 + 96 + 8+8 gap) */
+  margin-bottom: 4px;
 }
 
 .mini-check {

@@ -358,8 +358,8 @@ export default function RecipeForm(props: RecipeFormProps) {
                       <option key={u} value={u}>{u || "— unit —"}</option>
                     ))}
                   </select>
-                  <div style={{ position: "relative" }}>
-                    {/* Library dot — inside the name field, top-right corner */}
+                  <div style={{ position: "relative", display: "flex" }}>
+                    {/* Library dot — top-right corner of name field */}
                     <span
                       title={ingredient.libraryId ? "Linked to ingredient library" : "Not linked — type to search"}
                       style={{
@@ -401,12 +401,14 @@ export default function RecipeForm(props: RecipeFormProps) {
                     placeholder="Preparation"
                     value={ingredient.preparation ?? ""}
                     onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "preparation", event.target.value)}
+                    style={{ flex: "1 1 140px", minWidth: 0, maxWidth: 220 }}
                   />
                   <input
                     className="input"
                     placeholder="Note"
                     value={ingredient.note ?? ""}
                     onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "note", event.target.value)}
+                    style={{ flex: "1 1 140px", minWidth: 0, maxWidth: 220 }}
                   />
                   <label className="mini-check">
                     <input type="checkbox" checked={Boolean(ingredient.approximate)}

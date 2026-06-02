@@ -95,10 +95,19 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   };
 
   const formatAmount = (value: number) => {
-    if (value === 0.5) return "1/2";
-    if (value === 0.25) return "1/4";
-    if (value === 0.75) return "3/4";
-    return Number(value.toFixed(2)).toString();
+    const fractions: [number, string][] = [
+      [1/8,  "1/8"],  [1/4,  "1/4"],  [1/3,  "1/3"],
+      [3/8,  "3/8"],  [1/2,  "1/2"],  [2/3,  "2/3"],
+      [5/8,  "5/8"],  [3/4,  "3/4"],  [7/8,  "7/8"],
+    ];
+    const whole = Math.floor(value);
+    const frac  = value - whole;
+    const match = fractions.find(([f]) => Math.abs(frac - f) < 0.02);
+    if (match) {
+      return whole > 0 ? `${whole} ${match[1]}` : match[1];
+    }
+    const rounded = Number(value.toFixed(2));
+    return rounded % 1 === 0 ? String(rounded) : rounded.toString();
   };
 
   const toggleCheck = (index: string) => {
