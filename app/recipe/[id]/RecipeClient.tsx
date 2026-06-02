@@ -419,7 +419,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   const ontology = normalizeRecipeIngredientOntology(ingredient);
 
                   return (
-                    <button key={itemId} type="button" onClick={() => toggleCheck(itemId)} className="check-row" style={{ opacity: isChecked ? 0.55 : 1 }}>
+                    <button key={itemId} type="button" onClick={() => toggleCheck(itemId)} className="check-row" aria-pressed={isChecked} style={{ opacity: isChecked ? 0.55 : 1 }}>
                       <span className={isChecked ? "checkmark-box checked" : "checkmark-box"}>{isChecked ? "✓" : ""}</span>
                       <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
                         {amountLabel}
@@ -470,6 +470,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                     <button
                       key={stableCompositeId(recipe.id, "equipment", item.label_en)}
                       type="button"
+                      aria-pressed={isChecked}
+                      aria-label={`${getEquipmentLabel(item, lang)} — ${isChecked ? "ready" : "not ready"}`}
                       onClick={() => toggleEquipmentCheck(item.label_en)}
                       style={{
                         position: "relative",

@@ -2000,23 +2000,44 @@ main.container > p {
 
 /* ── Print styles ────────────────────────────────────────────────────────────── */
 @media print {
+  /* Hide all navigation and interactive chrome */
   .site-shell,
   .bottom-tab-bar,
   .hero-actions,
   .filter-chips,
-  .checkmark-box,
   .jump-to-section,
   .cooking-toolbar,
   .recipe-toolbar,
-  button:not(.check-row button) {
+  .segmented-control,
+  .back-link,
+  .nutrition-reveal button,
+  .hero-panel .hero-actions,
+  [aria-label="Cooking controls"],
+  [aria-label="Recipe language"],
+  [aria-label="Serving multiplier"],
+  button.button:not(.check-row) {
     display: none !important;
   }
+
+  /* Show check-rows as plain text list items */
+  .check-row {
+    display: block !important;
+    border: none !important;
+    background: none !important;
+    padding: 2pt 0 !important;
+    font-size: 10pt;
+  }
+
+  .checkmark-box { display: none !important; }
 
   body {
     background: white !important;
     color: #111 !important;
     font-size: 11pt;
+    font-family: Georgia, serif;
   }
+
+  p { color: #111 !important; }
 
   .recipe-detail-layout {
     grid-template-columns: 1fr !important;
@@ -2024,13 +2045,30 @@ main.container > p {
 
   .card, .card-accent {
     box-shadow: none !important;
-    border: 1px solid #ccc !important;
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    margin-bottom: 8pt !important;
+    padding: 10pt !important;
+  }
+
+  /* Expand nutrition panel for print */
+  .nutrition-reveal { display: block !important; }
+
+  .recipe-cover-photo {
+    max-height: 200pt;
+    width: auto;
     break-inside: avoid;
   }
 
   h1 { font-size: 22pt; }
   h2 { font-size: 16pt; }
   h3 { font-size: 13pt; }
+  h4 { font-size: 11pt; }
 
   a { color: inherit; text-decoration: none; }
+
+  /* Page margins */
+  @page {
+    margin: 18mm 16mm;
+  }
 }

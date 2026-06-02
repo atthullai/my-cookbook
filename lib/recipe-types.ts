@@ -537,10 +537,10 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
     cook_time: normalizeString(raw.cook_time) || null,
     total_time: normalizeString(raw.total_time) || null,
     tags: Array.isArray(raw.tags)
-      ? raw.tags.map((tag) => normalizeString(tag).trim()).filter(Boolean)
+      ? [...new Set(raw.tags.map((tag) => normalizeString(tag).trim()).filter(Boolean))]
       : [],
     badges: Array.isArray(raw.badges)
-      ? raw.badges.map((badge) => normalizeString(badge).trim()).filter(Boolean)
+      ? [...new Set(raw.badges.map((badge) => normalizeString(badge).trim()).filter(Boolean))]
       : [],
     ingredients,
     instruction_sections: normalizeInstructionSections(raw, stepsEn, stepsDe),

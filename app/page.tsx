@@ -114,7 +114,16 @@ export default function Home() {
     setDeleteTarget(null);
   };
 
-  const todayPick = filtered.find((s) => s.category?.toLowerCase().includes("dinner")) ?? filtered[0];
+  // Rotate Today's Pick daily using a deterministic date-seeded index.
+  // Same date always shows the same recipe; changes automatically at midnight.
+  const todayPick = (() => {
+    if (filtered.length === 0) return null;
+    const dinners = filtered.filter((s) => s.category?.toLowerCase().includes("dinner"));
+    const pool = dinners.length > 0 ? dinners : filtered;
+    const dateKey = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const seed = dateKey.split("").reduce((acc, ch) => acc * 31 + ch.charCodeAt(0), 0);
+    return pool[Math.abs(seed) % pool.length];
+  })();
   const latest    = filtered.slice(0, 9);
 
   return (

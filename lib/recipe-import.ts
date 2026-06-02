@@ -198,7 +198,7 @@ function extractLegacyRecipe(html: string, sourceUrl: URL): JsonLdValue | null {
   // This fallback grabs ingredients and method steps from older HTML structures we know about.
   const ingredients = extractLegacyIngredients(html);
   const instructions = extractLegacyMethodSteps(html);
-  const title = extractHeadingText(html) || extractMetaContent(html, "og:title");
+  const title = cleanTitle(extractHeadingText(html) || extractMetaContent(html, "og:title"));
 
   if (!title || ingredients.length === 0 || instructions.length === 0) {
     return null;

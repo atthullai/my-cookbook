@@ -97,11 +97,25 @@ export function parseIngredientLine(raw: string): ParsedIngredient {
         raw,
       };
     } else {
-      // Not a unit — treat [rawUnit rawName] as the ingredient name
+      // "1 to taste Salt" — rawUnit="to", rawName="taste Salt"
+      // Detect when the apparent name starts with a to-taste phrase and strip it.
+      const composedName = `${rawUnit} ${rawName}`.trim();
+      const toTastePrefix = /^(to taste|to season|as needed|as required)\s*/i;
+      if (toTastePrefix.test(composedName)) {
+        const actualName = composedName.replace(toTastePrefix, '').trim();
+        return {
+          quantity: null,
+          unit: 'to taste',
+          name_en: actualName || composedName,
+          note,
+          isToTaste: true,
+          raw,
+        };
+      }
       return {
         quantity,
         unit: '',
-        name_en: `${rawUnit} ${rawName}`.trim(),
+        name_en: composedName,
         note,
         isToTaste: noteIsToTaste,
         raw,
