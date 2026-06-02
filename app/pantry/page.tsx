@@ -19,8 +19,8 @@ import { Plus, Trash2, Pencil, ChefHat, X, Check, ShoppingCart } from "lucide-re
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
-import { usePushSubscription } from "@/lib/usePushSubscription";
 import { mapRecipeRows } from "@/lib/recipe-db";
+import { INGREDIENT_ICONS } from "@/lib/ingredient-icons";
 import type { PantryItem, PantryItemStatus, ShoppingCategory, StorageLocation } from "@/types";
 import type { RecipeRecord } from "@/lib/recipe-types";
 import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
@@ -61,6 +61,16 @@ const CATEGORY_ICONS: Record<ShoppingCategory, string> = {
   "beverages":     "🧃",
   "other":         "🛒",
 };
+
+// Look up by ingredient name first (e.g. capsicum→🫑, lemon→🍋), then fall back to category icon
+function getPantryIcon(name: string, category: ShoppingCategory): string {
+  const key = name.toLowerCase().trim();
+  const exact = INGREDIENT_ICONS[key]?.emoji;
+  if (exact) return exact;
+  // partial match: "cherry tomatoes" → tomato
+  const partial = Object.keys(INGREDIENT_ICONS).find((k) => key.includes(k) || k.includes(key));
+  return partial ? INGREDIENT_ICONS[partial].emoji : CATEGORY_ICONS[category];
+}
 
 const CATEGORIES: ShoppingCategory[] = [
   "produce","fresh-herbs","dairy","eggs","meat","fish-seafood",
@@ -190,7 +200,6 @@ export default function PantryPage() {
   const [shareItem, setShareItem] = useState<PantryItem | null>(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
-  usePushSubscription(); // registers SW + requests notification permission
 
   // ── Load pantry items ─────────────────────────────────────────────────────
   const loadItems = useCallback(async () => {
@@ -1388,7 +1397,7 @@ export default function PantryPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xl" aria-hidden="true">
-                        {CATEGORY_ICONS[item.category]}
+                        {getPantryIcon(item.name, item.category)}
                       </span>
                       <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
@@ -1401,7 +1410,7 @@ export default function PantryPage() {
                   <div className="flex items-center gap-2 -mt-1 flex-wrap">
                     <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium capitalize"
                       style={{ background: "var(--surface-strong)", color: "var(--muted)" }}>
-                      {CATEGORY_ICONS[item.category]} {item.category.replace(/-/g, " ")}
+                      {getPantryIcon(item.name, item.category)} {item.category.replace(/-/g, " ")}
                     </span>
                     {daysLeft !== null ? (
                       <p className={`text-xs font-medium ${
@@ -1717,7 +1726,7 @@ export default function PantryPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-hidden="true">{CATEGORY_ICONS[item.category]}</span>
+                      <span className="text-xl" aria-hidden="true">{getPantryIcon(item.name, item.category)}</span>
                       <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>
@@ -1727,7 +1736,7 @@ export default function PantryPage() {
                   <div className="flex items-center gap-2 -mt-1 flex-wrap">
                     <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium capitalize"
                       style={{ background: "var(--surface-strong)", color: "var(--muted)" }}>
-                      {CATEGORY_ICONS[item.category]} {item.category.replace(/-/g, " ")}
+                      {getPantryIcon(item.name, item.category)} {item.category.replace(/-/g, " ")}
                     </span>
                     {daysLeft !== null ? (
                       <p className={`text-xs font-medium ${status === "expired" ? "text-red-500" : status === "expiring-soon" ? "text-amber-600" : "text-gray-400"}`}>

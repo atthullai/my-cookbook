@@ -10,6 +10,10 @@ export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Redirect to home if already logged in
   useEffect(() => {
@@ -17,8 +21,6 @@ export default function Login() {
       if (user) router.replace("/");
     });
   }, [router]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,6 +40,24 @@ export default function Login() {
     }
 
     router.push("/");
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError("Enter your email address above, then click Forgot password.");
+      return;
+    }
+    setResetLoading(true);
+    setError("");
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    setResetLoading(false);
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setResetSent(true);
+    }
   };
 
   return (
@@ -87,9 +107,33 @@ export default function Login() {
           </p>
         )}
 
+        {resetSent && (
+          <p style={{ color: "var(--olive)", fontSize: "0.875rem", margin: 0 }}>
+            ✓ Password reset email sent — check your inbox.
+          </p>
+        )}
+
         <button className="button button-primary" type="submit" disabled={loading}>
           <AppIcon name="login" size={16} />
           {loading ? "Logging in…" : "Login"}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleForgotPassword}
+          disabled={resetLoading}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--muted)",
+            fontSize: "0.8rem",
+            cursor: "pointer",
+            textDecoration: "underline",
+            padding: "0.25rem 0",
+            alignSelf: "center",
+          }}
+        >
+          {resetLoading ? "Sending…" : "Forgot password?"}
         </button>
       </form>
     </main>

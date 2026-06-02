@@ -414,7 +414,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   const isChecked = checked.includes(itemId);
                   const baseAmount = parseAmount(ingredient.amount);
                   const scaledAmount = baseAmount === null ? null : baseAmount * multiplier;
-                  const amountLabel = scaledAmount === null ? "" : formatAmount(scaledAmount);
+                  const isToTaste = ingredient.isToTaste || ingredient.unit === "to taste";
+                  const amountLabel = scaledAmount === null || isToTaste ? "" : formatAmount(scaledAmount);
                   const ontology = normalizeRecipeIngredientOntology(ingredient);
 
                   return (

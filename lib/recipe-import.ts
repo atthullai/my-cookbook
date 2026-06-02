@@ -411,6 +411,12 @@ function extractDescription(recipe: JsonLdValue): string {
   return normalizeText(recipe.description);
 }
 
+// Blog SEO titles often append site name or alternate title after | or —
+// e.g. "Idli Using Idli Rava | Idli in Mixie with Rice Rava" → "Idli Using Idli Rava"
+function cleanTitle(raw: string): string {
+  return raw.split(/\s*[|–—]\s+/)[0].trim();
+}
+
 function extractCategory(recipe: JsonLdValue): string {
   return normalizeText(recipe.recipeCategory);
 }
@@ -663,7 +669,7 @@ export async function importRecipeFromUrl(recipeUrl: string): Promise<ImportedRe
     throw new Error("I could not find recipe data on that page yet.");
   }
 
-  const title = normalizeText(recipe.name);
+  const title = cleanTitle(normalizeText(recipe.name));
   const tags = extractTags(recipe);
   const imageUrls = extractImageUrls(html, recipe);
   const hebbarOverrides = extractHebbarOverrides(html);
