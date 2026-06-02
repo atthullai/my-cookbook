@@ -66,6 +66,31 @@ export default function RecipesPage() {
     const key = normalizeCuisineToKey(raw);
     if (key) setCuisines([key]);
   }, [searchParams]);
+
+  // Apply ?ingredient= param once on mount — resolves name via search API for libraryId
+  useEffect(() => {
+    const name = searchParams.get("ingredient");
+    if (!name) return;
+    // Try to resolve to a library entry so libraryId matching works
+    fetch(`/api/ingredients/search?q=${encodeURIComponent(name)}&limit=5`)
+      .then((r) => r.json())
+      .then((results: { id: string; name_en: string; name_de: string | null; default_unit: string | null; category: string | null }[]) => {
+        const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+        const exact = results.find((r) => norm(r.name_en) === norm(name));
+        setIngredientFilter(exact ?? {
+          id: "",
+          name_en: name,
+          name_de: null,
+          default_unit: null,
+          category: null,
+        });
+      })
+      .catch(() => {
+        // Fallback: name-only filter (still works via normalised name_en match)
+        setIngredientFilter({ id: "", name_en: name, name_de: null, default_unit: null, category: null });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [tags, setTags]                 = useState<RecipeTag[]>([]);
   const [maxTime, setMaxTime]           = useState<number>(120);
   const [sortBy, setSortBy]             = useState<"newest" | "oldest" | "name-az" | "time-quick">("newest");

@@ -557,8 +557,8 @@ export default function PantryPage() {
           );
       });
       if (matched.length) {
-        // Navigate to recipes page pre-filtered by this ingredient name
-        window.location.assign(`/recipes?search=${encodeURIComponent(item.name)}`);
+        // Navigate to recipes page pre-filtered by this ingredient
+        window.location.assign(`/recipes?ingredient=${encodeURIComponent(item.name)}`);
       } else {
         // No recipe found — open the request / share modal
         setNoRecipeItem(item);
