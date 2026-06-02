@@ -134,8 +134,13 @@ function loadIFCT(): IFCTRow[] {
 }
 
 function ifctToNutrition(row: IFCTRow) {
+  // IFCT stores enerc=0 for pure oils (measured fat but not energy).
+  // Fall back to Atwater calculation: fat×9 + protein×4 + carbs×4
+  const kcal = row.enerc > 0
+    ? row.enerc / 4.184
+    : row.fatce * 9 + row.protcnt * 4 + row.choavldf * 4;
   return {
-    kcal_per_100g:        row.enerc / 4.184,
+    kcal_per_100g:        kcal,
     protein_per_100g:     row.protcnt,
     fat_per_100g:         row.fatce,
     sat_fat_per_100g:     null as number | null,  // IFCT doesn't break out sat fat
@@ -244,6 +249,7 @@ const IFCT_ALIASES: Record<string, string> = {
   'methi leaves':         'fenugreek leaves',       // C020
   'dried fenugreek leaves': 'fenugreek leaves',     // C020
   'kasuri methi':         'fenugreek leaves',       // C020
+  'kasoori methi':        'fenugreek leaves',       // C020
   'parsley':              'parsley',                // C028
   'drumstick leaves':     'drumstick leaves',       // C019
   // basil, rosemary, thyme → USDA
@@ -287,6 +293,8 @@ const IFCT_ALIASES: Record<string, string> = {
   'puffed rice':          'rice puffed',            // A012
   'wheat flour':          'wheat flour, atta',      // A019
   'atta':                 'wheat flour, atta',      // A019
+  'whole wheat flour':    'wheat flour, atta',      // A019
+  'all-purpose flour':    'wheat flour, refined',   // A018
   'maida':                'wheat flour, refined',   // A018
   'refined flour':        'wheat flour, refined',   // A018
   'semolina':             'wheat, semolina',        // A022
@@ -461,16 +469,68 @@ const IFCT_ALIASES: Record<string, string> = {
   // coconut milk → USDA (IFCT only has coconut water K002, not milk)
 };
 
-// These should go straight to USDA — too generic or wrong category in IFCT.
+// These go straight to USDA — either not in IFCT, or IFCT fuzzy-matches them
+// to something completely wrong (verified by running the script and checking output).
 const SKIP_IFCT = new Set([
-  'oil', 'sugar', 'salt', 'water', 'vinegar', 'soy sauce', 'tomato puree',
-  'coconut milk', 'cream', 'cheese', 'butter', 'yogurt', 'curd',
-  'honey', 'oats', 'besan', 'gram flour', 'garam masala', 'sambar powder',
-  'rasam powder', 'chat masala', 'amchur powder', 'paprika', 'star anise',
-  'bay leaf', 'cinnamon stick', 'fennel seeds', 'caraway seeds', 'ajwain powder',
-  'basil', 'rosemary', 'thyme', 'olive oil', 'extra virgin olive oil',
-  'rapeseed oil', 'flaxseed oil', 'avocado oil', 'walnut oil', 'grapeseed oil',
-  'soya chunks', 'chironji', 'orange', 'watermelon', 'mango',
+  // Generic / no IFCT equivalent
+  'oil', 'water', 'salt', 'sugar',
+  // Oils IFCT stores fat=100 but enerc=0 (no energy measured) → USDA better
+  'sesame oil', 'gingelly oil', 'coconut oil', 'groundnut oil', 'mustard oil',
+  'rice bran oil', 'sunflower oil', 'corn oil', 'safflower oil', 'soyabean oil',
+  'palm oil', 'ghee', 'butter', 'vanaspati',
+  'olive oil', 'extra virgin olive oil', 'rapeseed oil', 'flaxseed oil',
+  'avocado oil', 'walnut oil', 'grapeseed oil', 'til oil', 'sesame seed oil',
+  // Spices not in IFCT — fuzzy hits wrong foods
+  'cinnamon stick', 'cinnamon powder', 'cinnamon',
+  'bay leaf', 'star anise', 'fennel seeds',
+  'saffron',                          // IFCT "kesar" = mango variety, not spice
+  'dried kashmiri chilli', 'kashmiri chilli powder',
+  'fenugreek powder',                 // → ricebean (wrong)
+  'fennel powder',                    // → rohu fish (wrong)
+  'curry powder',                     // blend, not in IFCT
+  'sambar powder', 'rasam powder', 'garam masala', 'biryani masala',
+  'chat masala', 'amchur powder', 'paprika', 'paprika powder',
+  'ajwain powder', 'caraway seeds',
+  // Herbs fuzzy-matching wrong IFCT entries
+  'dill',           // → sapota (wrong)
+  'rosemary',       // → amaranth seed (wrong)
+  'chives',         // → bottle gourd (wrong)
+  'lemongrass',     // → lemon juice (wrong)
+  'kaffir lime leaves', // → lime pulp (wrong)
+  'basil', 'thyme',
+  // Vegetables with wrong fuzzy hits
+  'jalapeño',       // → pepper, black (wrong)
+  'taro root',      // → palm fruit (wrong)
+  'asparagus',      // → kiriyan fish (wrong)
+  'leek',           // → bottle gourd (wrong)
+  'bean sprouts',   // → rohu fish (wrong)
+  'corn', 'cornstarch', // → corn, baby (wrong for starch)
+  // Fruits with wrong hits
+  'mango',          // IFCT "kesar" is a mango variety — too ambiguous
+  'orange',         // → cucumber orange (wrong)
+  'watermelon',
+  'blueberry',      // → zizyphus (wrong)
+  'apple cider vinegar', // → apple (wrong)
+  // Dairy / proteins with wrong hits
+  'buttermilk', 'condensed milk',
+  'parmigiano reggiano', 'cheese', 'cream', 'heavy cream', 'sour cream',
+  'yogurt', 'curd', 'cream cheese',
+  'butter',
+  // Pantry / sauces with wrong hits
+  'coconut milk',   // → coconut dry (wrong — different product)
+  'tomato paste', 'tomato passata', 'canned tomatoes',
+  'tahini',         // → mango ripe (wrong)
+  'vegetable stock', 'chicken stock',
+  'rose water',     // → jaggery (wrong)
+  'apple cider vinegar', 'vinegar', 'soy sauce', 'fish sauce',
+  'miso paste', 'thai red curry paste',
+  // Processed / baked goods
+  'oats', 'breadcrumbs', 'pasta',
+  'dark brown sugar', 'powdered sugar',
+  'mixed vegetables',
+  // Misc
+  'soya chunks', 'chironji', 'tofu',
+  // kasoori methi has explicit alias → fenugreek leaves (C020) in IFCT_ALIASES
 ]);
 
 // Simple fuzzy search against IFCT rows
