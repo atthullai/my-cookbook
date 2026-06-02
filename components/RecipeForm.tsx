@@ -339,98 +339,95 @@ export default function RecipeForm(props: RecipeFormProps) {
             </div>
 
             {group.items.map((ingredient, ingredientIndex) => (
-              <div
-                key={`ing-${groupIndex}-${ingredientIndex}`}
-                className="ingredient-row"
-              >
-                <input
-                  className="input"
-                  placeholder="Amount"
-                  value={ingredient.amount}
-                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "amount", event.target.value)}
-                />
-                <select
-                  className="input"
-                  value={ingredient.unit}
-                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "unit", event.target.value)}
-                  title="Unit"
-                >
-                  {UNIT_OPTIONS.map((u) => (
-                    <option key={u} value={u}>{u || "— unit —"}</option>
-                  ))}
-                </select>
-                {/* Library match dot — green = linked, gray = free text */}
-                <span
-                  title={ingredient.libraryId ? "Linked to ingredient library" : "Not linked — type to search"}
-                  style={{
-                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                    background: ingredient.libraryId ? "var(--olive)" : "var(--border)",
-                    alignSelf: "center",
-                  }}
-                />
-                <IngredientAutocomplete
-                  className="input"
-                  placeholder="Ingredient (EN)"
-                  value={ingredient.name_en}
-                  onChange={(value) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", value)}
-                  onSelect={(result: IngredientSearchResult) => {
-                    const updates: Partial<import("@/lib/recipe-types").IngredientDraft> = {
-                      name_en: result.name_en,
-                      name_de: result.name_de,
-                      libraryId: result.id,
-                    };
-                    if (!ingredient.unit && result.default_unit) {
-                      updates.unit = result.default_unit;
-                    }
-                    props.onIngredientSelect(groupIndex, ingredientIndex, updates);
-                  }}
-                />
-                <input
-                  className="input"
-                  placeholder="Ingredient (DE)"
-                  value={ingredient.name_de}
-                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_de", event.target.value)}
-                />
-                <input
-                  className="input"
-                  placeholder="Preparation"
-                  value={ingredient.preparation ?? ""}
-                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "preparation", event.target.value)}
-                />
-                <input
-                  className="input"
-                  placeholder="Note (e.g. finely chopped)"
-                  value={ingredient.note ?? ""}
-                  onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "note", event.target.value)}
-                />
-                <label className="mini-check">
+              <div key={`ing-${groupIndex}-${ingredientIndex}`} style={{ marginBottom: 8 }}>
+                {/* ── Row 1: amount · unit · name (EN+DE) ── */}
+                <div className="ingredient-row">
                   <input
-                    type="checkbox"
-                    checked={Boolean(ingredient.approximate)}
-                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "approximate", event.target.checked)}
+                    className="input"
+                    placeholder="Amount"
+                    value={ingredient.amount}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "amount", event.target.value)}
                   />
-                  Approx
-                </label>
-                <label className="mini-check">
+                  <select
+                    className="input"
+                    value={ingredient.unit}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "unit", event.target.value)}
+                    title="Unit"
+                  >
+                    {UNIT_OPTIONS.map((u) => (
+                      <option key={u} value={u}>{u || "— unit —"}</option>
+                    ))}
+                  </select>
+                  <div style={{ position: "relative" }}>
+                    {/* Library dot — inside the name field, top-right corner */}
+                    <span
+                      title={ingredient.libraryId ? "Linked to ingredient library" : "Not linked — type to search"}
+                      style={{
+                        position: "absolute", top: 6, right: 6, zIndex: 1,
+                        width: 7, height: 7, borderRadius: "50%",
+                        background: ingredient.libraryId ? "var(--olive)" : "var(--border)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <IngredientAutocomplete
+                      className="input"
+                      placeholder="Ingredient (EN)"
+                      value={ingredient.name_en}
+                      onChange={(value) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", value)}
+                      onSelect={(result: IngredientSearchResult) => {
+                        const updates: Partial<import("@/lib/recipe-types").IngredientDraft> = {
+                          name_en: result.name_en,
+                          name_de: result.name_de,
+                          libraryId: result.id,
+                        };
+                        if (!ingredient.unit && result.default_unit) {
+                          updates.unit = result.default_unit;
+                        }
+                        props.onIngredientSelect(groupIndex, ingredientIndex, updates);
+                      }}
+                    />
+                  </div>
                   <input
-                    type="checkbox"
-                    checked={Boolean(ingredient.optional)}
-                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "optional", event.target.checked)}
+                    className="input"
+                    placeholder="Ingredient (DE)"
+                    value={ingredient.name_de}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "name_de", event.target.value)}
                   />
-                  Optional
-                </label>
-                <label className="mini-check">
+                </div>
+                {/* ── Row 2: preparation · note · flags · remove ── */}
+                <div className="ingredient-row-aux">
                   <input
-                    type="checkbox"
-                    checked={Boolean(ingredient.garnish)}
-                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "garnish", event.target.checked)}
+                    className="input"
+                    placeholder="Preparation"
+                    value={ingredient.preparation ?? ""}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "preparation", event.target.value)}
                   />
-                  Garnish
-                </label>
-                <button className="button" type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}>
-                  <AppIcon name="delete" size={16} />
-                  Remove
-                </button>
+                  <input
+                    className="input"
+                    placeholder="Note"
+                    value={ingredient.note ?? ""}
+                    onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "note", event.target.value)}
+                  />
+                  <label className="mini-check">
+                    <input type="checkbox" checked={Boolean(ingredient.approximate)}
+                      onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "approximate", event.target.checked)} />
+                    Approx
+                  </label>
+                  <label className="mini-check">
+                    <input type="checkbox" checked={Boolean(ingredient.optional)}
+                      onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "optional", event.target.checked)} />
+                    Optional
+                  </label>
+                  <label className="mini-check">
+                    <input type="checkbox" checked={Boolean(ingredient.garnish)}
+                      onChange={(event) => props.onIngredientChange(groupIndex, ingredientIndex, "garnish", event.target.checked)} />
+                    Garnish
+                  </label>
+                  <button className="button" type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}>
+                    <AppIcon name="delete" size={16} />
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
 

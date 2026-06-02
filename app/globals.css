@@ -1134,11 +1134,18 @@ ul {
 
 .ingredient-row {
   display: grid;
-  grid-template-columns: 84px 96px minmax(120px, 1fr) minmax(120px, 1fr) minmax(110px, 1fr) repeat(3, auto) auto;
+  grid-template-columns: 84px 96px minmax(140px, 1fr) minmax(140px, 1fr);
   gap: 8px;
   align-items: center;
-  margin-bottom: 8px;
-  min-width: 820px;
+  margin-bottom: 4px;
+}
+
+.ingredient-row-aux {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-left: 188px; /* align under name fields (84 + 96 + 8 gap) */
 }
 
 .mini-check {
@@ -1908,6 +1915,10 @@ main.container > p {
   .three-field-row,
   .step-photo-row {
     grid-template-columns: 1fr;
+  }
+
+  .ingredient-row-aux {
+    padding-left: 0;
   }
 
   .recipe-card-photo {
