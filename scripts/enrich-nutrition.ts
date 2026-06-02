@@ -450,126 +450,27 @@ const IFCT_ALIASES: Record<string, string> = {
   'coconut cream':        'coconut, kernel, fresh',      // H007 (best approximation in IFCT)
 };
 
-// ── SKIP_IFCT: send directly to USDA ─────────────────────────────────────────
-// These have NO valid IFCT entry or would wrongly hit an unrelated food.
-const SKIP_IFCT = new Set([
-  // Oils — IFCT has enerc=0 for all oils (data gap). Since aliases handle them
-  // and Atwater calc fixes kcal, they are NOT skipped. Remove from here if
-  // you want USDA for oils instead (USDA has complete oil nutrition).
-
-  // Generic words with no meaning
-  'oil', 'water', 'salt', 'sugar',
-
-  // Western oils not in IFCT
-  'olive oil', 'extra virgin olive oil', 'rapeseed oil', 'canola oil',
-  'flaxseed oil', 'avocado oil', 'walnut oil', 'grapeseed oil',
-
-  // Spices genuinely absent from IFCT
-  'cinnamon stick', 'cinnamon powder', 'cinnamon',
-  'bay leaf', 'star anise', 'fennel seeds', 'caraway seeds',
-  'saffron',              // IFCT kesar = mango variety, not saffron
-  'dried kashmiri chilli', 'kashmiri chilli powder',
-  'fenugreek powder',     // no ground fenugreek in IFCT
-  'fennel powder',        // no ground fennel in IFCT
-  'garlic powder',        // IFCT has fresh garlic only (very different per 100g)
-  'onion powder',         // same issue
-  'amchur powder',        // mango powder — IFCT has raw mango only
-  'paprika powder', 'paprika',
-  'ajwain powder',
-  // Spice blends (not in IFCT by design)
-  'garam masala', 'biryani masala', 'sambar powder', 'rasam powder',
-  'chat masala', 'curry powder',
-
-  // Herbs not in IFCT
-  'dill', 'rosemary', 'thyme', 'basil',
-  'chives', 'lemongrass', 'kaffir lime leaves',
-
-  // Vegetables not in IFCT or wrong fuzzy hit
-  'jalapeño',     // no jalapeño in IFCT
-  'asparagus',   // no asparagus
-  'leek',        // no leek
-  'bean sprouts', // no bean sprouts
-  'cornstarch',  // different from corn/maize
-
-  // Fruits with no IFCT equivalent
-  'orange',      // E047 orange pulp exists but fuzzy hits cucumber orange
-  'blueberry',   // not in IFCT
-
-  // Dairy not in IFCT
-  'butter', 'yogurt', 'curd', 'buttermilk', 'condensed milk',
-  'cream', 'heavy cream', 'sour cream',
-  'cheese', 'mozzarella', 'feta', 'cream cheese', 'parmigiano reggiano',
-
-  // Proteins not in IFCT
-  'minced meat', 'soya chunks', 'tofu',
-
-  // Pantry / sauces / processed
-  'coconut milk',         // IFCT has coconut water K002 only
-  'tomato paste', 'tomato passata', 'canned tomatoes',
-  'tahini',
-  'vegetable stock', 'chicken stock',
-  'rose water',
-  'vinegar', 'apple cider vinegar',
-  'soy sauce', 'fish sauce',
-  'miso paste', 'thai red curry paste',
-  'honey', 'maple syrup',
-  'sugar', 'dark brown sugar', 'powdered sugar',
-  'breadcrumbs', 'oats',
-  // Pasta — user wants varieties, all go to USDA
-  'pasta', 'spaghetti', 'penne', 'fettuccine', 'linguine',
-  'rigatoni', 'fusilli', 'tagliatelle', 'lasagna sheets',
-  'mixed vegetables',
-  'chironji', 'chia seeds', 'black stone flower',
-  'cocoa powder', 'dark chocolate', 'vanilla extract', 'vanilla bean',
-  'baking powder', 'baking soda', 'yeast',
-  'salt',
-]);
-
-// Simple fuzzy search against IFCT rows
+// ALIAS-ONLY IFCT lookup — NO fuzzy search.
+// If an ingredient is not explicitly in IFCT_ALIASES, it goes to USDA.
+// This completely eliminates wrong matches like water→fish, sugar→watermelon etc.
 function searchIFCT(ifctRows: IFCTRow[], query: string): IFCTRow | null {
   const q = query.toLowerCase().trim();
 
-  // Skip ingredients that should always go to USDA
-  if (SKIP_IFCT.has(q)) return null;
-
-  // 0. Check alias map first — maps our canonical names to IFCT names
+  // Only match if there is an explicit alias — never fuzzy-match
   const aliased = IFCT_ALIASES[q];
-  if (aliased) {
-    const aliasMatch = ifctRows.find(r => r.name.toLowerCase() === aliased.toLowerCase());
-    if (aliasMatch) return aliasMatch;
-    // Also try prefix/contains with the alias
-    const aliasFuzzy = ifctRows.find(r => r.name.toLowerCase().includes(aliased.toLowerCase()));
-    if (aliasFuzzy) return aliasFuzzy;
-  }
+  if (!aliased) return null;
 
-  // 1. Exact name match
-  const exact = ifctRows.find(r => r.name.toLowerCase() === q);
+  // Exact IFCT name match (preferred)
+  const exact = ifctRows.find(r => r.name.toLowerCase() === aliased.toLowerCase());
   if (exact) return exact;
 
-  // 2. Name starts with query
-  const prefix = ifctRows.find(r => r.name.toLowerCase().startsWith(q));
+  // Prefix match on alias (handles "gingelly seeds, white" → "gingelly seeds, white")
+  const prefix = ifctRows.find(r => r.name.toLowerCase().startsWith(aliased.toLowerCase().split(',')[0]));
   if (prefix) return prefix;
 
-  // 3. Query is contained in name
-  const contains = ifctRows.find(r => r.name.toLowerCase().includes(q));
-  if (contains) return contains;
+  // If alias not found in IFCT (data discrepancy), fall through to USDA
+  return null;
 
-  // 4. Name is contained in query (e.g. query="toor dal" matches "Red gram, dal")
-  const reverse = ifctRows.find(r => q.includes(r.name.toLowerCase().split(',')[0].trim()));
-  if (reverse) return reverse;
-
-  // 5. Check local language names (handles: jeera, methi, dal names, etc.)
-  const localMatch = ifctRows.find(r =>
-    r.lang.toLowerCase().split(/[;.,]+/).some(token => {
-      const t = token.trim().replace(/\w+\.\s/g, '').trim();
-      return t.length > 2 && (t === q || q.includes(t) || t.includes(q));
-    })
-  );
-  if (localMatch) return localMatch;
-
-  // 6. Tags match
-  const tagMatch = ifctRows.find(r => r.tags.toLowerCase().includes(q));
-  return tagMatch ?? null;
 }
 
 // ── USDA helpers ──────────────────────────────────────────────────────────────
