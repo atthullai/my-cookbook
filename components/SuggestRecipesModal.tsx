@@ -17,12 +17,16 @@ type Props = {
   onClose: () => void;
   onPlan: (recipe: RecipeRecord) => void;
   onView: (recipe: RecipeRecord) => void;
+  /** When set, scores only against this single item (minCoverage: 0) */
+  singleItem?: PantryItem;
 };
 
-export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, onView }: Props) {
+export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, onView, singleItem }: Props) {
   const matches = useMemo(
-    () => suggestRecipes(pantryItems, allRecipes, { minCoverage: 40, maxResults: 20 }),
-    [pantryItems, allRecipes]
+    () => singleItem
+      ? suggestRecipes([singleItem], allRecipes, { minCoverage: 0, maxResults: 20 })
+      : suggestRecipes(pantryItems, allRecipes, { minCoverage: 40, maxResults: 20 }),
+    [pantryItems, allRecipes, singleItem]
   );
 
   const canMakeNow  = matches.filter((m) => m.canMakeNow);
@@ -73,10 +77,12 @@ export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, 
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "var(--foreground)" }}>
-                What can you cook?
+                {singleItem ? `Recipes with ${singleItem.name}` : "What can you cook?"}
               </h2>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                Based on {pantryItems.length} item{pantryItems.length !== 1 ? "s" : ""} in your pantry
+                {singleItem
+                  ? `${matches.length} recipe${matches.length !== 1 ? "s" : ""} use this ingredient`
+                  : `Based on ${pantryItems.length} item${pantryItems.length !== 1 ? "s" : ""} in your pantry`}
               </p>
             </div>
             <button

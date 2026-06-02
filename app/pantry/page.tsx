@@ -22,7 +22,6 @@ import { supabase } from "@/lib/supabase";
 import { usePushSubscription } from "@/lib/usePushSubscription";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { PantryItem, PantryItemStatus, ShoppingCategory, StorageLocation } from "@/types";
-import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import type { RecipeRecord } from "@/lib/recipe-types";
 import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -168,6 +167,7 @@ export default function PantryPage() {
   const [isSaving, setIsSaving]     = useState(false);
   const [sortBy, setSortBy]         = useState<SortOption>("name");
   const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestItem, setSuggestItem] = useState<PantryItem | null>(null);
   const [allRecipes, setAllRecipes]   = useState<RecipeRecord[]>([]);
   const [alertsExpanded, setAlertsExpanded]   = useState(true);
   const [expandedGroups, setExpandedGroups]   = useState<Set<string>>(new Set());
@@ -539,26 +539,32 @@ export default function PantryPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
-      const allRecipes = toRecipeSummaries(mapRecipeRows(data ?? []));
-      const rawRows = mapRecipeRows(data ?? []);
+
+      // Use cached recipes if available, otherwise fetch
+      let rawRows = allRecipes;
+      if (rawRows.length === 0) {
+        const { data } = await supabase.from("recipes").select("*").eq("user_id", user.id);
+        rawRows = mapRecipeRows(data ?? []);
+        setAllRecipes(rawRows);
+      }
+
       const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
       const nameNorm = norm(item.name);
       const pantryLibraryId = (item as PantryItem & { libraryId?: string }).libraryId;
 
-      const matched = allRecipes.filter((r) => {
-        const raw = rawRows.find((rr: RecipeRecord) => String(rr.id) === r.id);
-        if (!raw) return false;
-        return raw.ingredients
+      const hasMatch = rawRows.some((raw) =>
+        raw.ingredients
           .flatMap((g) => g.items)
           .some((ing) =>
             (pantryLibraryId && ing.libraryId === pantryLibraryId) ||
             norm(ing.name_en) === nameNorm
-          );
-      });
-      if (matched.length) {
-        // Navigate to recipes page pre-filtered by this ingredient
-        window.location.assign(`/recipes?ingredient=${encodeURIComponent(item.name)}`);
+          )
+      );
+
+      if (hasMatch) {
+        // Open modal scored against just this single pantry item
+        setSuggestItem(item);
+        setShowSuggest(true);
       } else {
         // No recipe found — open the request / share modal
         setNoRecipeItem(item);
@@ -1846,14 +1852,15 @@ export default function PantryPage() {
             <SuggestRecipesModal
               pantryItems={items}
               allRecipes={allRecipes}
-              onClose={() => setShowSuggest(false)}
+              singleItem={suggestItem ?? undefined}
+              onClose={() => { setShowSuggest(false); setSuggestItem(null); }}
               onPlan={(recipe) => {
                 window.location.assign(`/planner?add=${recipe.id}`);
-                setShowSuggest(false);
+                setShowSuggest(false); setSuggestItem(null);
               }}
               onView={(recipe) => {
                 window.location.assign(`/recipe/${recipe.id}`);
-                setShowSuggest(false);
+                setShowSuggest(false); setSuggestItem(null);
               }}
             />
           )}
