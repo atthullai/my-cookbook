@@ -485,7 +485,7 @@ export default function RecipeForm(props: RecipeFormProps) {
               className="input"
               value={section.steps_de}
               onChange={(event) => props.onInstructionSectionChange(index, "steps_de", event.target.value)}
-              placeholder={"Schritt 1 auf Deutsch\nSchritt 2 auf Deutsch\nSchritt 3 auf Deutsch"}
+              placeholder={"Auto-translated on save — or type German steps here."}
             />
           </div>
         ))}

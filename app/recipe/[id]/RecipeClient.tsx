@@ -229,7 +229,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div className="card recipe-summary-card">
           <h2 style={{ marginBottom: 10 }}>{lang === "de" ? "Auf einen Blick" : "At a Glance"}</h2>
           <div className="recipe-card-meta">
-            {[recipe.category, getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean).map((item) => (
+            {[...new Set([recipe.category, getRecipeCuisine(recipe, lang), getRecipeCourse(recipe, lang), getRecipeDifficulty(recipe, lang)].filter(Boolean))].map((item) => (
               <span className="meta-pill" key={stableCompositeId(recipe.id, "summary", item)}>{item}</span>
             ))}
             {highlights.map((highlight) => (

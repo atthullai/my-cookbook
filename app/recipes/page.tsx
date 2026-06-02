@@ -232,7 +232,7 @@ export default function RecipesPage() {
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-5 py-6">
+        <div className="max-w-7xl mx-auto px-5 py-6 pb-24 sm:pb-6">
 
           {/* ── Quick filter chips + search + full-filters toggle ── */}
           <div className="flex flex-wrap gap-2 mb-4 items-center">
@@ -452,7 +452,7 @@ export default function RecipesPage() {
               </span>
               <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--border), transparent)" }} />
               <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--muted)" }}>
-                {filtered.length}{filtered.length !== recipes.length ? ` of ${recipes.length}` : ""} recipe{filtered.length !== 1 ? "s" : ""}
+                {filtered.length}{filtered.length !== recipes.length ? ` of ${recipes.length}` : ""} recipe{recipes.length !== 1 ? "s" : ""}
               </span>
             </div>
           )}

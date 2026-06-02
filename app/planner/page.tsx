@@ -1051,10 +1051,10 @@ export default function PlannerPage() {
                         className="grid gap-1.5 mb-1.5"
                         style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}
                       >
-                        {/* Slot label */}
+                        {/* Slot label — sticky so it remains visible when grid scrolls horizontally */}
                         <div
                           className="flex flex-col items-center justify-center rounded-xl px-1 py-2"
-                          style={SLOT_STYLES[slot]}
+                          style={{ ...SLOT_STYLES[slot], position: "sticky", left: 0, zIndex: 2 }}
                         >
                           <span className="text-lg leading-none">{SLOT_ICONS[slot]}</span>
                           <span className="text-[8px] font-semibold capitalize mt-0.5 opacity-70">{slot}</span>

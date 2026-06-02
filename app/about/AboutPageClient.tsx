@@ -22,7 +22,7 @@ type Tab = "profile" | "cookbook" | "cuisines" | "privacy";
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile",  label: "👤 Profile" },
   { id: "cookbook", label: "📖 My Cookbook" },
-  { id: "cuisines", label: "🌍 20 Cuisines" },
+  { id: "cuisines", label: "🌍 Cuisines" },
   { id: "privacy",  label: "🔒 Privacy" },
 ];
 
