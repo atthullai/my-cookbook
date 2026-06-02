@@ -359,35 +359,32 @@ export default function RecipeForm(props: RecipeFormProps) {
                     <option key={u} value={u}>{u || "— unit —"}</option>
                   ))}
                 </select>
-                <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
-                  {/* Green dot = linked to library, gray = free text */}
-                  <span
-                    title={ingredient.libraryId ? "Linked to ingredient library" : "Not linked — type to search"}
-                    style={{
-                      position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
-                      width: 7, height: 7, borderRadius: "50%", flexShrink: 0, zIndex: 1,
-                      background: ingredient.libraryId ? "var(--olive)" : "var(--border)",
-                    }}
-                  />
-                  <IngredientAutocomplete
-                    className="input"
-                    placeholder="Ingredient (EN)"
-                    value={ingredient.name_en}
-                    onChange={(value) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", value)}
-                    onSelect={(result: IngredientSearchResult) => {
-                      const updates: Partial<import("@/lib/recipe-types").IngredientDraft> = {
-                        name_en: result.name_en,
-                        name_de: result.name_de,
-                        libraryId: result.id,
-                      };
-                      if (!ingredient.unit && result.default_unit) {
-                        updates.unit = result.default_unit;
-                      }
-                      props.onIngredientSelect(groupIndex, ingredientIndex, updates);
-                    }}
-                    style={{ paddingLeft: 22 }}
-                  />
-                </div>
+                {/* Library match dot — green = linked, gray = free text */}
+                <span
+                  title={ingredient.libraryId ? "Linked to ingredient library" : "Not linked — type to search"}
+                  style={{
+                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                    background: ingredient.libraryId ? "var(--olive)" : "var(--border)",
+                    alignSelf: "center",
+                  }}
+                />
+                <IngredientAutocomplete
+                  className="input"
+                  placeholder="Ingredient (EN)"
+                  value={ingredient.name_en}
+                  onChange={(value) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", value)}
+                  onSelect={(result: IngredientSearchResult) => {
+                    const updates: Partial<import("@/lib/recipe-types").IngredientDraft> = {
+                      name_en: result.name_en,
+                      name_de: result.name_de,
+                      libraryId: result.id,
+                    };
+                    if (!ingredient.unit && result.default_unit) {
+                      updates.unit = result.default_unit;
+                    }
+                    props.onIngredientSelect(groupIndex, ingredientIndex, updates);
+                  }}
+                />
                 <input
                   className="input"
                   placeholder="Ingredient (DE)"
