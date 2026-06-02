@@ -160,6 +160,16 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     window.localStorage.setItem(checkedStorageKey, JSON.stringify(checked));
   }, [checked, checkedStorageKey]);
 
+  // Hide the site header while cooking so the full screen is recipe content.
+  useEffect(() => {
+    if (isCookingMode) {
+      document.body.classList.add("cooking-mode");
+    } else {
+      document.body.classList.remove("cooking-mode");
+    }
+    return () => { document.body.classList.remove("cooking-mode"); };
+  }, [isCookingMode]);
+
   useEffect(() => {
     if (!timerRunning) return;
     const interval = window.setInterval(() => {
@@ -219,7 +229,14 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       <div className="recipe-detail-layout">
         {coverImage ? (
           <div className="card">
-            <Image src={coverImage} alt={`${recipeTitle} cover`} className="recipe-cover-photo" width={1600} height={1000} />
+            <Image
+              src={coverImage}
+              alt={`${recipeTitle} cover`}
+              className="recipe-cover-photo"
+              width={1600}
+              height={1000}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
           </div>
         ) : null}
 
@@ -350,26 +367,30 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </p>
       </div>
 
-      <div className="cooking-toolbar" aria-label="Cooking controls">
-        <button className="button" type="button" onClick={() => setActiveStep((current) => Math.max(0, current - 1))}>
-          Previous
-        </button>
-        <span className="toolbar-status">
-          Step {allSteps.length === 0 ? 0 : activeStep + 1} / {allSteps.length}
-        </span>
-        <button className="button" type="button" onClick={() => setActiveStep((current) => Math.min(Math.max(allSteps.length - 1, 0), current + 1))}>
-          Next
-        </button>
-        <button className="button button-soft" type="button" onClick={() => setTimerSeconds(300)}>
-          5 min
-        </button>
-        <button className="button button-soft" type="button" onClick={() => setTimerSeconds(600)}>
-          10 min
-        </button>
-        <button className="button" type="button" onClick={() => setTimerRunning((current) => !current)} disabled={timerSeconds === 0}>
-          {timerRunning ? "Pause" : "Start"} {timerLabel}
-        </button>
-      </div>
+      {isCookingMode && (
+        <div className="cooking-toolbar" aria-label="Cooking controls">
+          <button className="button" type="button" onClick={() => setActiveStep((current) => Math.max(0, current - 1))}>
+            Previous
+          </button>
+          <span className="toolbar-status">
+            Step {allSteps.length === 0 ? 0 : activeStep + 1} / {allSteps.length}
+          </span>
+          <button className="button" type="button" onClick={() => {
+            setActiveStep((current) => Math.min(Math.max(allSteps.length - 1, 0), current + 1));
+          }}>
+            Next
+          </button>
+          <button className="button button-soft" type="button" onClick={() => { setTimerSeconds(300); setTimerRunning(true); }}>
+            5 min
+          </button>
+          <button className="button button-soft" type="button" onClick={() => { setTimerSeconds(600); setTimerRunning(true); }}>
+            10 min
+          </button>
+          <button className="button" type="button" onClick={() => setTimerRunning((current) => !current)} disabled={timerSeconds === 0}>
+            {timerRunning ? "Pause" : "Start"} {timerLabel}
+          </button>
+        </div>
+      )}
 
       {isCookingMode && allSteps[activeStep] ? (
         <div className="card cooking-focus-card">
@@ -474,6 +495,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                           sizes="(max-width: 600px) 28vw, 110px"
                           style={{ objectFit: "cover" }}
                           unoptimized
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (
                         <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
@@ -562,6 +584,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   className="recipe-photo"
                   width={1200}
                   height={800}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                 />
                 <p style={{ marginTop: 8, marginBottom: 0 }}>
                   {item.step_number ? `${lang === "de" ? "Schritt" : "Step"} ${item.step_number}: ` : ""}
@@ -668,9 +691,18 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                   <div style={{ flex: 1 }}>
                     <p className="eyebrow">{lang === "de" ? "Pro Portion" : "Per serving"}</p>
                     <p style={{ marginBottom: 0 }}>
-                      {lang === "de"
-                        ? `Basierend auf ${recipe.servings || 1} Portion${recipe.servings === 1 ? "" : "en"}.`
-                        : `Based on ${recipe.servings || 1} serving${recipe.servings === 1 ? "" : "s"}.`}
+                      {(() => {
+                        const base = recipe.servings || 1;
+                        const scaled = Math.round(base * multiplier * 10) / 10;
+                        if (lang === "de") {
+                          return multiplier !== 1
+                            ? `Basierend auf ${scaled} Portion${scaled === 1 ? "" : "en"} (${multiplier}×).`
+                            : `Basierend auf ${base} Portion${base === 1 ? "" : "en"}.`;
+                        }
+                        return multiplier !== 1
+                          ? `Based on ${scaled} serving${scaled === 1 ? "" : "s"} (${multiplier}×).`
+                          : `Based on ${base} serving${base === 1 ? "" : "s"}.`;
+                      })()}
                     </p>
                     {nutritionHighlights.length > 0 ? (
                       <div className="nutrition-highlight-row">

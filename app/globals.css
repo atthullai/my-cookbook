@@ -123,6 +123,10 @@ body {
   transition: box-shadow 0.22s ease;
 }
 
+body.cooking-mode .site-shell {
+  display: none;
+}
+
 /* Shared top bar for brand plus navigation. */
 .site-topbar {
   max-width: 1080px;
@@ -1336,7 +1340,7 @@ ul {
 
 .cooking-toolbar {
   position: sticky;
-  top: 96px;
+  top: 8px;
   z-index: 10;
   display: flex;
   align-items: center;

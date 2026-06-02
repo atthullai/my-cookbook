@@ -31,16 +31,18 @@ import TagBadge from "@/components/TagBadge";
 import { calorieColor } from "@/lib/nutrition";
 
 interface RecipeCardProps {
-  recipe:    RecipeSummary;
-  onEdit?:   () => void;
-  onDelete?: () => void;
+  recipe:        RecipeSummary;
+  onEdit?:       () => void;
+  onDelete?:     () => void;
+  onFavourite?:  (id: string, next: boolean) => void;
 }
 
-export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps) {
+export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: RecipeCardProps) {
   const theme      = getCuisineTheme(recipe.cuisine);
   const cardTags   = getCardTags(recipe.tags);
   const totalMins  = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
   const [hovered, setHovered] = useState(false);
+  const [isFav, setIsFav] = useState(recipe.isFavourite);
 
   return (
     <motion.div
@@ -79,13 +81,18 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
         {/* Favourite heart */}
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); /* toggle handled by parent */ }}
+          onClick={(e) => {
+            e.preventDefault();
+            const next = !isFav;
+            setIsFav(next);
+            onFavourite?.(recipe.id, next);
+          }}
           className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white transition"
-          aria-label={recipe.isFavourite ? "Remove from favourites" : "Add to favourites"}
+          aria-label={isFav ? "Remove from favourites" : "Add to favourites"}
         >
           <Heart
             size={14}
-            className={recipe.isFavourite ? "fill-red-500 stroke-red-500" : "stroke-gray-400"}
+            className={isFav ? "fill-red-500 stroke-red-500" : "stroke-gray-400"}
           />
         </button>
       </Link>

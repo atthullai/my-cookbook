@@ -401,18 +401,32 @@ export default function ShoppingListPage() {
       // Always create a fresh pantry entry (never merge into existing)
       const isEggs = restockTarget.category === "eggs";
       const boughtToday = new Date().toISOString().split("T")[0];
+
+      // Try to link to the ingredient library by name so Suggest Recipes works
+      let ingredientLibraryId: string | null = null;
+      try {
+        const res = await fetch(`/api/ingredients/search?q=${encodeURIComponent(restockTarget.name)}&limit=3`);
+        if (res.ok) {
+          const hits = await res.json() as { id: string; name_en: string }[];
+          const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+          const exact = hits.find((h) => norm(h.name_en) === norm(restockTarget.name));
+          if (exact) ingredientLibraryId = exact.id;
+        }
+      } catch { /* non-critical — pantry item still saves without library link */ }
+
       await supabase.from("pantry_items").insert({
-        user_id:          user.id,
-        name:             restockTarget.name,
-        quantity:         qty,
-        unit:             restockTarget.unit || (isEggs ? "M" : ""),
-        category:         restockTarget.category,
-        storage_location: restockStorage,
-        is_homemade:      false,
-        is_frozen:        false,
-        made_on:          boughtToday,
-        expiry_date:      restockExpiry || null,
-        pfand_amount:     restockPfand,
+        user_id:               user.id,
+        name:                  restockTarget.name,
+        quantity:              qty,
+        unit:                  restockTarget.unit || (isEggs ? "M" : ""),
+        category:              restockTarget.category,
+        storage_location:      restockStorage,
+        is_homemade:           false,
+        is_frozen:             false,
+        made_on:               boughtToday,
+        expiry_date:           restockExpiry || null,
+        pfand_amount:          restockPfand,
+        ingredient_library_id: ingredientLibraryId,
       });
       toast.success(
         isEggs

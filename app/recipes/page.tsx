@@ -174,6 +174,16 @@ export default function RecipesPage() {
     }
   };
 
+  // ── Favourite toggle ─────────────────────────────────────────────────────
+  const handleFavourite = async (id: string, next: boolean) => {
+    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, isFavourite: next } : r));
+    const { error } = await supabase.from("recipes").update({ is_favourite: next }).eq("id", parseInt(id));
+    if (error) {
+      setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, isFavourite: !next } : r));
+      toast.error("Failed to update favourite");
+    }
+  };
+
   // ── Toggle helpers ────────────────────────────────────────────────────────
   const toggleCuisine = (c: CuisineOrigin) =>
     setCuisines((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
@@ -222,13 +232,24 @@ export default function RecipesPage() {
                   : "Your cookbook"}
               </p>
             </motion.div>
-            <Link
-              href="/add"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition"
-              style={{ background: "var(--accent)", color: "#fff" }}
-            >
-              <Plus size={16} /> Add Recipe
-            </Link>
+            <div className="flex items-center gap-2">
+              <a
+                href="/api/export"
+                download
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition border"
+                style={{ background: "var(--surface)", color: "var(--foreground)", borderColor: "var(--border)" }}
+                title="Download all recipes as JSON backup"
+              >
+                ⬇ Backup
+              </a>
+              <Link
+                href="/add"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition"
+                style={{ background: "var(--accent)", color: "#fff" }}
+              >
+                <Plus size={16} /> Add Recipe
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -540,6 +561,7 @@ export default function RecipesPage() {
                   recipe={recipe}
                   onEdit={() => window.location.assign(`/edit/${recipe.id}`)}
                   onDelete={() => setDeleteTarget(recipe)}
+                  onFavourite={handleFavourite}
                 />
               ))}
             </motion.div>
