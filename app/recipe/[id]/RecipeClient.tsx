@@ -307,17 +307,40 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Portionen" : "Servings"}</h3>
 
-        <div className="segmented-control" aria-label="Serving multiplier">
-          {[0.5, 1, 2].map((value) => (
-            <button
-              key={value}
-              className={multiplier === value ? "button active" : "button"}
-              type="button"
-              onClick={() => setMultiplier(value)}
-            >
-              {value}x
-            </button>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => setMultiplier((m) => Math.max(0.25, parseFloat((m - 0.25).toFixed(2))))}
+            aria-label="Decrease multiplier"
+            style={{ padding: "4px 10px", fontSize: 16, lineHeight: 1 }}
+          >−</button>
+          <input
+            type="number"
+            min={0.25}
+            max={10}
+            step={0.25}
+            value={multiplier}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v >= 0.25 && v <= 10) setMultiplier(v);
+            }}
+            aria-label="Serving multiplier"
+            style={{
+              width: 60, textAlign: "center", fontSize: 14,
+              border: "1px solid var(--border)", borderRadius: 8,
+              background: "var(--surface)", color: "var(--foreground)",
+              padding: "4px 6px",
+            }}
+          />
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>×</span>
+          <button
+            type="button"
+            className="button"
+            onClick={() => setMultiplier((m) => Math.min(10, parseFloat((m + 0.25).toFixed(2))))}
+            aria-label="Increase multiplier"
+            style={{ padding: "4px 10px", fontSize: 16, lineHeight: 1 }}
+          >+</button>
         </div>
         <p style={{ marginTop: 10, marginBottom: 0 }}>
           {lang === "de" ? "Mengen skalieren sauber von der Basisportion." : "Amounts scale cleanly from the base serving size."}

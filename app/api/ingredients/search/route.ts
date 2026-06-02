@@ -17,6 +17,12 @@ let cachedLibrary: LibraryRow[] | null = null;
 let cacheTime = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
+/** Call from POST /api/ingredients/cache-clear after library writes */
+export function bustCache() {
+  cachedLibrary = null;
+  cacheTime = 0;
+}
+
 async function getLibrary(): Promise<LibraryRow[]> {
   const now = Date.now();
   if (cachedLibrary && now - cacheTime < CACHE_TTL_MS) return cachedLibrary;

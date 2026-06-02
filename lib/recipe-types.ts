@@ -77,6 +77,7 @@ export type RecipeIngredient = {
   note?: string | null;
   isToTaste?: boolean;
   weightConfidence?: 'exact' | 'measured' | 'estimated' | 'unknown';
+  nutritionSource?: 'ifct' | 'usda' | null;
 };
 
 export type RecipeIngredientGroup = {
@@ -272,6 +273,9 @@ function normalizeIngredient(value: unknown): RecipeIngredient {
     weightConfidence: (["exact","measured","estimated","unknown"].includes(raw.weightConfidence as string)
       ? raw.weightConfidence as 'exact' | 'measured' | 'estimated' | 'unknown'
       : undefined),
+    nutritionSource: (["ifct","usda"].includes(raw.nutritionSource as string)
+      ? raw.nutritionSource as 'ifct' | 'usda'
+      : null),
   };
 }
 
@@ -826,6 +830,7 @@ export type IngredientDraft = {
   amount: string;
   unit: string;
   preparation?: string;
+  note?: string;
   optional?: boolean;
   garnish?: boolean;
   approximate?: boolean;
@@ -838,6 +843,7 @@ export const EMPTY_INGREDIENT: IngredientDraft = {
   amount: "",
   unit: "",
   preparation: "",
+  note: "",
   optional: false,
   garnish: false,
   approximate: false,

@@ -4,8 +4,9 @@
 // Modal shown when user clicks "Suggest Recipes" on the Pantry page.
 // Shows recipes ranked by pantry coverage — "Ready to cook" green, "Almost there" amber.
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useCallback, useState } from "react";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 import { suggestRecipes } from "@/lib/suggestRecipes";
 import type { RecipeMatch } from "@/lib/suggestRecipes";
 import type { RecipeRecord } from "@/lib/recipe-types";
@@ -22,6 +23,29 @@ type Props = {
 };
 
 export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, onView, singleItem }: Props) {
+  const [addingToList, setAddingToList] = useState<string | null>(null);
+
+  const addMissingToShoppingList = useCallback(async (missingIngredients: string[]) => {
+    const key = missingIngredients.join(",");
+    setAddingToList(key);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const rows = missingIngredients.map((name) => ({
+        user_id:  user.id,
+        name:     name,
+        quantity: 1,
+        unit:     null,
+        category: "other",
+        checked:  false,
+        source:   "pantry-suggest",
+      }));
+      await supabase.from("shopping_list").insert(rows);
+    } finally {
+      setAddingToList(null);
+    }
+  }, []);
+
   const matches = useMemo(
     () => singleItem
       ? suggestRecipes([singleItem], allRecipes, { minCoverage: 0, maxResults: 20 })
@@ -131,7 +155,7 @@ export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, 
           {canMakeNow.length > 0 && (
             <Section title="Ready to cook" accent="green">
               {canMakeNow.map((m) => (
-                <MatchRow key={m.recipe.id} match={m} onPlan={() => onPlan(m.recipe)} onView={() => onView(m.recipe)} />
+                <MatchRow key={m.recipe.id} match={m} onPlan={() => onPlan(m.recipe)} onView={() => onView(m.recipe)} onAddToList={addMissingToShoppingList} addingKey={addingToList} />
               ))}
             </Section>
           )}
@@ -139,7 +163,7 @@ export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, 
           {almostThere.length > 0 && (
             <Section title="Almost there" subtitle="a few more ingredients needed" accent="amber">
               {almostThere.map((m) => (
-                <MatchRow key={m.recipe.id} match={m} onPlan={() => onPlan(m.recipe)} onView={() => onView(m.recipe)} />
+                <MatchRow key={m.recipe.id} match={m} onPlan={() => onPlan(m.recipe)} onView={() => onView(m.recipe)} onAddToList={addMissingToShoppingList} addingKey={addingToList} />
               ))}
             </Section>
           )}
@@ -174,8 +198,16 @@ function Section({ title, subtitle, accent, children }: {
 
 // ─── Match row ────────────────────────────────────────────────────────────────
 
-function MatchRow({ match, onPlan, onView }: { match: RecipeMatch; onPlan: () => void; onView: () => void }) {
+function MatchRow({ match, onPlan, onView, onAddToList, addingKey }: {
+  match: RecipeMatch;
+  onPlan: () => void;
+  onView: () => void;
+  onAddToList: (missing: string[]) => void;
+  addingKey: string | null;
+}) {
   const { recipe, matchedCount, totalRequired, coveragePercent, missingIngredients, canMakeNow } = match;
+  const thisKey = missingIngredients.join(",");
+  const isAdding = addingKey === thisKey;
 
   const coverImage = Array.isArray(recipe.image_urls) && recipe.image_urls.length > 0
     ? recipe.image_urls[0]
@@ -241,7 +273,7 @@ function MatchRow({ match, onPlan, onView }: { match: RecipeMatch; onPlan: () =>
           </span>
         </div>
 
-        {/* Missing chips */}
+        {/* Missing chips + add to list */}
         {missingIngredients.length > 0 && (
           <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
             <span style={{ fontSize: 11, color: "var(--muted)" }}>Need:</span>
@@ -260,6 +292,18 @@ function MatchRow({ match, onPlan, onView }: { match: RecipeMatch; onPlan: () =>
                 +{missingIngredients.length - 4} more
               </span>
             )}
+            <button
+              onClick={() => onAddToList(missingIngredients)}
+              disabled={isAdding}
+              style={{
+                fontSize: 10, padding: "2px 7px", borderRadius: 4, cursor: "pointer",
+                background: "none", border: "1px solid var(--border)",
+                color: "var(--muted)", marginLeft: 2,
+              }}
+              title="Add all missing ingredients to shopping list"
+            >
+              {isAdding ? "Adding…" : "+ list"}
+            </button>
           </div>
         )}
       </div>

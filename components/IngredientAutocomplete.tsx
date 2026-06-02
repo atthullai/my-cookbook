@@ -9,9 +9,10 @@ type Props = {
   onSelect: (result: IngredientSearchResult) => void;
   placeholder?: string;
   className?: string;
+  style?: React.CSSProperties;
 };
 
-export default function IngredientAutocomplete({ value, onChange, onSelect, placeholder, className }: Props) {
+export default function IngredientAutocomplete({ value, onChange, onSelect, placeholder, className, style }: Props) {
   const [suggestions, setSuggestions] = useState<IngredientSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -81,6 +82,7 @@ export default function IngredientAutocomplete({ value, onChange, onSelect, plac
         onKeyDown={handleKeyDown}
         onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
         autoComplete="off"
+        style={style}
       />
       {open && (
         <ul

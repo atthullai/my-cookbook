@@ -7,9 +7,12 @@ export function deriveNutritionMeta(ingredients: RecipeIngredient[]): NutritionB
 
   const unmatched = ingredients.filter((i) => !i.libraryId).length;
 
-  // Source: if anything is matched to the library, treat as IFCT (primary source).
-  // A future nutritionSource field per ingredient would let us distinguish IFCT vs USDA precisely.
-  const source: NutritionSource = unmatched < total ? "ifct" : "unknown";
+  // Source: prefer IFCT, fall back to USDA, then estimated/unknown
+  const sources = ingredients.map((i) => i.nutritionSource).filter(Boolean);
+  const source: NutritionSource =
+    sources.includes("ifct") ? "ifct" :
+    sources.includes("usda") ? "usda" :
+    unmatched < total ? "ifct" : "unknown";
 
   const unmatchedRatio = unmatched / total;
   const confidence: NutritionConfidence =
