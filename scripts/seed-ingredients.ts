@@ -455,7 +455,11 @@ async function seed() {
   let total = 0;
 
   for (let i = 0; i < INGREDIENTS.length; i += batchSize) {
-    const batch = INGREDIENTS.slice(i, i + batchSize);
+    // Ensure edible_portion always has a value (DB has NOT NULL constraint, default 1.0)
+    const batch = INGREDIENTS.slice(i, i + batchSize).map(ing => ({
+      ...ing,
+      edible_portion: ing.edible_portion ?? 1.0,
+    }));
     const { error } = await supabase
       .from('ingredients')
       .upsert(batch, { onConflict: 'name_en' });
