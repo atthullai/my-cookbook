@@ -113,18 +113,33 @@ export default function ShoppingListPage() {
 
       if (error) throw error;
 
+      const normName = (n: string) => n.toLowerCase().trim().replace(/s$/, "").replace(/\s+/g, " ");
+      const seen = new Map<string, string>(); // normName → id (keep first/unchecked)
+      const rows = (data ?? []);
+      // prefer unchecked rows when deduplicating
+      const sorted = [...rows].sort((a, b) => (a.checked ? 1 : 0) - (b.checked ? 1 : 0));
+      const deduped = sorted.filter((row) => {
+        const key = normName(row.name);
+        if (seen.has(key)) return false;
+        seen.set(key, row.id);
+        return true;
+      });
       setItems(
-        (data ?? []).map((row) => ({
-          id:        row.id,
-          name:      row.name,
-          quantity:  parseFloat(row.quantity ?? "1") || 1,
-          unit:      row.unit ?? "",
-          category:  (row.category ?? "other") as ShoppingCategory,
-          checked:   Boolean(row.checked),
-          recipeIds: [],
-          notes:     row.notes ?? "",
-          source:    (row.source ?? "manual") as ShoppingItem["source"],
-        }))
+        deduped.map((row) => {
+          const storedCat = (row.category ?? "other") as ShoppingCategory;
+          const cat = storedCat === "other" ? guessCategory(normName(row.name)) : storedCat;
+          return {
+            id:        row.id,
+            name:      row.name,
+            quantity:  parseFloat(row.quantity ?? "1") || 1,
+            unit:      row.unit ?? "",
+            category:  cat,
+            checked:   Boolean(row.checked),
+            recipeIds: [],
+            notes:     row.notes ?? "",
+            source:    (row.source ?? "manual") as ShoppingItem["source"],
+          };
+        })
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load shopping list");
