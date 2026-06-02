@@ -53,7 +53,7 @@ export function SuggestRecipesModal({ pantryItems, allRecipes, onClose, onPlan, 
         .filter((m) => m.matchedCount > 0)
         .slice(0, 20);
     }
-    return suggestRecipes(pantryItems, allRecipes, { minCoverage: 40, maxResults: 20 });
+    return suggestRecipes(pantryItems, allRecipes, { minCoverage: 20, maxResults: 20 });
   }, [pantryItems, allRecipes, singleItem]);
 
   const canMakeNow  = matches.filter((m) => m.canMakeNow);
