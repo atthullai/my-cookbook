@@ -72,6 +72,16 @@ export interface NutritionInfo {
 
 export type NutritionStatus = "calculated" | "manual" | "pending" | "failed";
 
+export type NutritionSource = "ifct" | "usda" | "estimated" | "unknown";
+export type NutritionConfidence = "exact" | "approximate" | "estimate";
+
+export interface NutritionBadgeProps {
+  source: NutritionSource;
+  confidence: NutritionConfidence;
+  unmatchedCount?: number;
+  totalCount?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Recipe building blocks
 // ---------------------------------------------------------------------------

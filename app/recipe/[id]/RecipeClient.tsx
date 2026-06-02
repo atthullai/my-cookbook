@@ -36,6 +36,8 @@ import {
   parseInstructionSections,
 } from "@/lib/recipe-view";
 import { calculateHealthScore, normalizeRecipeIngredientOntology } from "@/lib/ingredient-ontology";
+import { NutritionBadge } from "@/components/NutritionBadge";
+import { deriveNutritionMeta } from "@/lib/nutrition-confidence";
 import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
 import { findEquipmentItem } from "@/lib/equipment-library";
 
@@ -135,6 +137,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const macroBalance = getMacroBalance(recipe);
   const nutritionHighlights = getNutritionHighlights(recipe, lang);
   const healthScore = calculateHealthScore(recipe.nutrition ?? null);
+  const allIngredientItems = (recipe.ingredients ?? []).flatMap((g) => g.items);
+  const nutritionMeta = deriveNutritionMeta(allIngredientItems);
   const allSteps = useMemo(
     () =>
       recipeSections.flatMap((section) =>
@@ -609,16 +613,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       ) : null}
 
-      {(() => {
-        const allIngredients = recipe.ingredients?.flatMap((g: { items: unknown[] }) => g.items as Array<{ weightConfidence?: string }>) ?? [];
-        const unknownCount = allIngredients.filter(i => !i.weightConfidence || i.weightConfidence === 'unknown').length;
-        if (unknownCount === 0) return null;
-        return (
-          <div className="rounded-xl px-3 py-2 text-xs mb-3" style={{ background: 'var(--saffron-soft)', border: '1px solid var(--saffron)', color: 'var(--saffron)' }}>
-            ⚠️ {unknownCount} ingredient{unknownCount > 1 ? 's' : ''} unmatched — nutrition estimate may be inaccurate
-          </div>
-        );
-      })()}
 
       <div className="card nutrition-panel" style={{ marginTop: 20 }}>
         <div className="nutrition-panel-header">
@@ -645,7 +639,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                     <span>{recipe.nutrition.calories_kcal || "--"}</span>
                     <small>kcal</small>
                   </div>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <p className="eyebrow">{lang === "de" ? "Pro Portion" : "Per serving"}</p>
                     <p style={{ marginBottom: 0 }}>
                       {lang === "de"
@@ -663,6 +657,12 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                       </div>
                     ) : null}
                   </div>
+                  <NutritionBadge
+                    source={nutritionMeta.source}
+                    confidence={nutritionMeta.confidence}
+                    unmatchedCount={nutritionMeta.unmatchedCount}
+                    totalCount={nutritionMeta.totalCount}
+                  />
                 </div>
 
                 {macroBalance.length > 0 ? (
