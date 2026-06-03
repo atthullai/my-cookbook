@@ -716,13 +716,18 @@ export default function ShoppingListPage() {
                               )}
                             </div>
 
-                            {/* Name */}
+                            {/* Name + quantity */}
                             <motion.span
                               animate={{ opacity: item.checked ? 0.45 : 1 }}
                               className={`flex-1 text-sm ${item.checked ? "line-through" : ""}`}
                               style={{ color: "var(--foreground)" }}
                             >
                               {item.name}
+                              {(item.quantity > 1 || item.unit) && (
+                                <span className="ml-1.5 text-xs font-medium" style={{ color: "var(--muted)" }}>
+                                  {item.quantity > 1 ? item.quantity : ""}{item.unit ? ` ${item.unit}` : ""}
+                                </span>
+                              )}
                             </motion.span>
 
                             {/* Source tag */}

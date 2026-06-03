@@ -53,7 +53,8 @@ export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: Re
       transition={{ duration: 0.2 }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
-      className="rounded-2xl overflow-hidden shadow-md border border-gray-100 bg-white flex flex-col"
+      className="rounded-2xl overflow-hidden shadow-md flex flex-col"
+      style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
     >
       {/* ── Gradient header ─────────────────────────────────────────── */}
       <Link href={`/recipe/${recipe.id}`} className="block relative">
@@ -87,7 +88,8 @@ export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: Re
             setIsFav(next);
             onFavourite?.(recipe.id, next);
           }}
-          className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white transition"
+          className="absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition"
+          style={{ background: "rgba(255,255,255,0.80)" }}
           aria-label={isFav ? "Remove from favourites" : "Add to favourites"}
         >
           <Heart
@@ -101,7 +103,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: Re
       <div className="p-3 flex flex-col flex-1 gap-2">
         {/* Title */}
         <Link href={`/recipe/${recipe.id}`}>
-          <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 hover:text-indigo-700 transition-colors">
+          <h3 className="font-semibold text-sm leading-snug line-clamp-2 transition-colors" style={{ color: "var(--foreground)" }}>
             {recipe.title}
           </h3>
         </Link>
@@ -116,7 +118,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: Re
         )}
 
         {/* Meta strip */}
-        <div className="flex items-center gap-3 text-xs text-gray-500 mt-auto pt-2 border-t border-gray-50">
+        <div className="flex items-center gap-3 text-xs mt-auto pt-2 border-t" style={{ color: "var(--muted)", borderColor: "var(--border)" }}>
           {totalMins > 0 && (
             <span className="flex items-center gap-1">
               <span aria-hidden="true">🕐</span>
@@ -132,7 +134,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: Re
           {recipe.nutrition && (
             <span className={`flex items-center gap-1 font-medium ${calorieColor(recipe.nutrition.calories)}`}>
               <span aria-hidden="true">🔥</span>
-              {recipe.nutrition.calories} kcal
+              {Math.round(recipe.nutrition.calories)} kcal
             </span>
           )}
         </div>
@@ -149,7 +151,8 @@ export default function RecipeCard({ recipe, onEdit, onDelete, onFavourite }: Re
               <button
                 type="button"
                 onClick={onEdit}
-                className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs rounded-lg border transition"
+                style={{ borderColor: "var(--border)", color: "var(--muted)" }}
               >
                 <Pencil size={11} /> Edit
               </button>

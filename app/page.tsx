@@ -251,8 +251,8 @@ export default function Home() {
                   {[
                     { value: records.length, label: "recipes" },
                     { value: new Set(records.map((r) => r.cuisine).filter(Boolean)).size, label: "cuisines" },
-                    { value: new Set(records.flatMap((r) => r.badges)).size, label: "tags" },
-                    { value: new Set(records.map((r) => r.cuisine).filter(Boolean)).size, label: "origins" },
+                    { value: new Set(records.flatMap((r) => r.badges)).size, label: "badges" },
+                    { value: new Set(records.flatMap((r) => r.tags ?? [])).size, label: "tags" },
                   ].map(({ value, label }) => (
                     <div key={label} className="text-center lg:text-left">
                       <p
@@ -335,7 +335,7 @@ export default function Home() {
                   {todayPick.title}
                 </h2>
                 <p className="text-sm" style={{ opacity: 0.75 }}>
-                  {getCuisineTheme(todayPick.cuisine)?.label ?? todayPick.cuisine} · {todayPick.prepTimeMinutes + todayPick.cookTimeMinutes} min · serves {todayPick.servings}
+                  {getCuisineTheme(todayPick.cuisine)?.label ?? todayPick.cuisine}{(todayPick.prepTimeMinutes + todayPick.cookTimeMinutes) > 0 ? ` · ${todayPick.prepTimeMinutes + todayPick.cookTimeMinutes} min` : ""} · serves {todayPick.servings}
                 </p>
               </div>
               <Link

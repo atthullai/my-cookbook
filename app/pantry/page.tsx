@@ -181,12 +181,10 @@ export default function PantryPage() {
   const [allRecipes, setAllRecipes]   = useState<RecipeRecord[]>([]);
   const [alertsExpanded, setAlertsExpanded]   = useState(true);
   const [expandedGroups, setExpandedGroups]   = useState<Set<string>>(new Set());
-  const [groupedView, setGroupedView]         = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("pantry-grouped-view") !== "false";
-    }
-    return true;
-  });
+  const [groupedView, setGroupedView]         = useState(true);
+  useEffect(() => {
+    if (localStorage.getItem("pantry-grouped-view") === "false") setGroupedView(false);
+  }, []);
   const [showScanner, setShowScanner] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
 
@@ -879,6 +877,7 @@ export default function PantryPage() {
                   if (typeof window !== "undefined") localStorage.setItem("pantry-grouped-view", String(grouped));
                 }}
                 className="px-3 py-1.5 text-xs font-medium transition"
+                suppressHydrationWarning
                 style={{
                   background: (v === "Grouped") === groupedView ? "var(--accent)" : "var(--surface)",
                   color: (v === "Grouped") === groupedView ? "#fff" : "var(--foreground)",

@@ -15,7 +15,7 @@ const navItems = [
   { href: "/",        label: "Home",       icon: "home"   as const, emoji: "🏠" },
   { href: "/recipes", label: "Recipes",    icon: "book"   as const, emoji: "📖" },
   { href: "/planner", label: "Planner",    icon: "quick"  as const, emoji: "📅" },
-  { href: "/pantry",  label: "Pantry",     icon: "onepot" as const, emoji: "🛒" },
+  { href: "/pantry",  label: "Pantry",     icon: "onepot" as const, emoji: "🥫" },
   { href: "/pfand",   label: "Pfand",      icon: "about"  as const, emoji: "♻️" },
   { href: "/about",   label: "About Me",   icon: "about"  as const, emoji: "👤" },
   { href: "/add",     label: "Add Recipe", icon: "add"    as const, emoji: "+"  },
@@ -26,7 +26,7 @@ const bottomTabs = [
   { href: "/",        label: "Home",    emoji: "🏠" },
   { href: "/recipes", label: "Recipes", emoji: "📖" },
   { href: "/planner", label: "Planner", emoji: "📅" },
-  { href: "/pantry",  label: "Pantry",  emoji: "🛒" },
+  { href: "/pantry",  label: "Pantry",  emoji: "🥫" },
   { href: "/add",     label: "Add",     emoji: "+" },
 ];
 
