@@ -1326,7 +1326,7 @@ export default function PantryPage() {
                             )}
                           </p>
                           <p className="text-xs flex items-center gap-1.5 flex-wrap" style={{ color: "var(--muted)" }}>
-                            {totalQty} {unit} total
+                            {totalQty}{unit !== "whole" ? ` ${unit}` : ""} total
                             {(() => {
                               const storages = [...new Set(groupItems.map((i) => i.storage))];
                               const label = storages.length === 1
