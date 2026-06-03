@@ -85,7 +85,11 @@ function DropdownMenu({
   );
 
   return (
-    <div className="nav-dropdown-root" ref={ref}>
+    <div
+      className="nav-dropdown-root"
+      ref={ref}
+      onMouseLeave={() => setOpen(false)}
+    >
       <div className={`site-nav-link nav-dropdown-trigger${isActive ? " active" : ""}`}>
         <Link href={item.href} style={{ flex: 1 }}>{item.label}</Link>
         <button
@@ -93,6 +97,7 @@ function DropdownMenu({
           className="nav-chevron-btn"
           aria-haspopup="true"
           aria-expanded={open}
+          onMouseEnter={() => setOpen(true)}
           onClick={() => setOpen((v) => !v)}
           onKeyDown={onKeyDown}
           type="button"

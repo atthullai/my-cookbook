@@ -203,7 +203,7 @@ body.cooking-mode .site-shell {
 
 .site-nav-link.active {
   color: var(--accent-strong);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 /* Dropdown nav */
@@ -314,24 +314,32 @@ body.cooking-mode .site-shell {
   cursor: pointer;
   background: none;
   border: none;
-  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
   color: var(--muted);
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.nav-user-btn:hover,
+.nav-user-btn:hover {
+  background: rgba(132, 58, 33, 0.1);
+  color: var(--accent-strong);
+}
+
 .nav-user-btn.active {
   color: var(--accent-strong);
 }
 
 .nav-user-avatar {
-  font-size: 1.1rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
 .nav-user-name {
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Notification bell */
