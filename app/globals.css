@@ -212,20 +212,24 @@ body.cooking-mode .site-shell {
 }
 
 .nav-dropdown-trigger {
-  cursor: pointer;
-  background: none;
-  border: 1px solid var(--border);
-  font: inherit;
-  color: inherit;
-}
-
-.nav-dropdown-trigger {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
+  background: none;
+  border: none;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nav-dropdown-trigger a,
+.nav-dropdown-trigger a:visited {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: inherit;
 }
 
 .nav-chevron-btn {
