@@ -170,7 +170,7 @@ function UserMenu() {
         type="button"
       >
         <span className="nav-user-avatar">👤</span>
-        <span className="nav-user-name">Subhash</span>
+        <span className="nav-user-name">Atthullai</span>
         <span className={`nav-chevron${open ? " open" : ""}`}>▾</span>
       </button>
 
@@ -180,7 +180,7 @@ function UserMenu() {
           <div className="nav-user-card">
             <span className="nav-user-card-avatar">👤</span>
             <div>
-              <div className="nav-user-card-name">Subhash</div>
+              <div className="nav-user-card-name">Atthullai</div>
               <div className="nav-user-card-role">Chef &amp; Developer</div>
             </div>
           </div>
@@ -278,9 +278,6 @@ export default function SiteHeader() {
 
           {/* Right-side icons */}
           <div className="site-nav site-nav-right">
-            <Link href="/add" className={`site-nav-link nav-icon-btn nav-add-btn${pathname === "/add" ? " active" : ""}`} aria-label="Add Recipe">
-              <span className="nav-add-icon">+</span>
-            </Link>
             <NotificationBell />
             <UserMenu />
           </div>
