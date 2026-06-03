@@ -22,8 +22,6 @@ import type {
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
 import EquipmentPicker from "@/components/EquipmentPicker";
-import IngredientAutocomplete from "@/components/IngredientAutocomplete";
-import type { IngredientSearchResult } from "@/app/api/ingredients/search/route";
 import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
@@ -44,23 +42,6 @@ const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring
 };
 
 // ── Unit options ───────────────────────────────────────────────────────────────
-const UNIT_OPTIONS = [
-  "",
-  // Volume
-  "ml", "L", "tsp", "tbsp", "cup", "fl oz",
-  // Weight
-  "g", "kg", "oz", "lb",
-  // Count / whole item
-  "whole", "bunch", "handful",
-  // Whole-piece descriptors
-  "head", "stalk", "inch", "stick",
-  // Small / leaf
-  "leaf", "sprig", "sheet", "dash",
-  // Packaged
-  "can", "packet", "sachet",
-  // Pinch
-  "pinch",
-];
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
 // while the pages decide how data is loaded, translated, validated, and saved.
@@ -165,19 +146,15 @@ type RecipeFormProps = {
   onUseSourceCoverPhoto: () => void;
 };
 
-import type { ParsedEntry } from "@/lib/ingredient-resolver";
 
 export default function RecipeForm(props: RecipeFormProps) {
-  // Ingredient edit state: which rows are expanded for inline editing.
-  const [expandedIngredients, setExpandedIngredients] = useState<Set<string>>(new Set());
-  // Quick-paste state: one textarea + parse result per ingredient section.
-  const [pasteText, setPasteText] = useState<Record<number, string>>({});
+  // Per-section input text (the "Add one or paste multiple items" field)
+  const [inputText, setInputText] = useState<Record<number, string>>({});
   const [parsePending, setParsePending] = useState<Record<number, boolean>>({});
-  const [parsePreview, setParsePreview] = useState<Record<number, ParsedEntry[]>>({});
 
-  const handleParse = useCallback(async (groupIndex: number) => {
-    const text = pasteText[groupIndex]?.trim();
-    if (!text) return;
+  // Parse text and immediately add — no preview step, no Parse button.
+  const handleAddIngredients = useCallback(async (groupIndex: number, text: string) => {
+    if (!text.trim()) return;
     setParsePending((p) => ({ ...p, [groupIndex]: true }));
     try {
       const res = await fetch("/api/ingredients/parse", {
@@ -186,34 +163,26 @@ export default function RecipeForm(props: RecipeFormProps) {
         body: JSON.stringify({ text }),
       });
       if (res.ok) {
-        const entries: ParsedEntry[] = await res.json();
-        setParsePreview((p) => ({ ...p, [groupIndex]: entries }));
+        const entries: import("@/lib/ingredient-resolver").ParsedEntry[] = await res.json();
+        const items: import("@/lib/recipe-types").IngredientDraft[] = entries.map((e) => ({
+          name_en: e.ingredient,
+          name_de: e.nameDe ?? "",
+          amount: e.quantity ?? "",
+          unit: e.unit ?? "",
+          preparation: "",
+          note: e.note || "",
+          optional: e.optional,
+          garnish: e.garnish,
+          approximate: e.approximate,
+          libraryId: e.libraryId ?? null,
+        }));
+        props.onIngredientBulkAdd(groupIndex, items);
+        setInputText((p) => ({ ...p, [groupIndex]: "" }));
       }
     } finally {
       setParsePending((p) => ({ ...p, [groupIndex]: false }));
     }
-  }, [pasteText]);
-
-  const handleBulkAdd = useCallback((groupIndex: number) => {
-    const entries = parsePreview[groupIndex];
-    if (!entries?.length) return;
-    const items: import("@/lib/recipe-types").IngredientDraft[] = entries.map((e) => ({
-      name_en: e.ingredient,
-      name_de: e.nameDe ?? "",
-      amount: e.quantity ?? "",
-      unit: e.unit ?? "",
-      preparation: "",
-      note: e.note || "",
-      optional: e.optional,
-      garnish: e.garnish,
-      approximate: e.approximate,
-      libraryId: e.libraryId ?? null,
-    }));
-    props.onIngredientBulkAdd(groupIndex, items);
-    // reset paste UI for this group
-    setPasteText((p) => ({ ...p, [groupIndex]: "" }));
-    setParsePreview((p) => ({ ...p, [groupIndex]: [] }));
-  }, [parsePreview, props]);
+  }, [props]);
 
   return (
     <form onSubmit={props.onSubmit} className="recipe-form">
@@ -387,177 +356,72 @@ export default function RecipeForm(props: RecipeFormProps) {
               </button>
             </div>
 
-            {/* ── Compact ingredient list ── */}
-            {group.items.filter(ing => ing.name_en.trim() || ing.amount.trim()).length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+            {/* ── Ingredient list — compact rows, × to remove ── */}
+            {group.items.some(ing => ing.name_en.trim() || ing.amount.trim()) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {group.items.map((ingredient, ingredientIndex) => {
                   if (!ingredient.name_en.trim() && !ingredient.amount.trim()) return null;
-                  const editKey = `${groupIndex}-${ingredientIndex}`;
-                  const isExpanded = expandedIngredients.has(editKey);
                   return (
-                    <div key={`ing-${groupIndex}-${ingredientIndex}`}>
-                      {isExpanded ? (
-                        /* ── Inline edit form ── */
-                        <div style={{ padding: "10px 12px", borderRadius: 8, background: "var(--surface-strong)", border: "1px solid var(--border)" }}>
-                          <div className="ingredient-row" style={{ marginBottom: 6 }}>
-                            <input className="input" placeholder="Amount" value={ingredient.amount}
-                              onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "amount", e.target.value)} />
-                            <select className="input" value={ingredient.unit} title="Unit"
-                              onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "unit", e.target.value)}>
-                              {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u || "— unit —"}</option>)}
-                            </select>
-                            <div style={{ position: "relative", display: "flex" }}>
-                              <span title={ingredient.libraryId ? "Linked" : "Not linked"} style={{
-                                position: "absolute", top: 6, right: 6, zIndex: 1,
-                                width: 7, height: 7, borderRadius: "50%", pointerEvents: "none",
-                                background: ingredient.libraryId ? "var(--olive)" : "var(--border)",
-                              }} />
-                              <IngredientAutocomplete className="input" placeholder="Ingredient (EN)"
-                                value={ingredient.name_en}
-                                onChange={(v) => props.onIngredientChange(groupIndex, ingredientIndex, "name_en", v)}
-                                onSelect={(result: IngredientSearchResult) => {
-                                  const updates: Partial<import("@/lib/recipe-types").IngredientDraft> = { name_en: result.name_en, name_de: result.name_de, libraryId: result.id };
-                                  if (!ingredient.unit && result.default_unit) updates.unit = result.default_unit;
-                                  props.onIngredientSelect(groupIndex, ingredientIndex, updates);
-                                }} />
-                            </div>
-                            <input className="input" placeholder="(DE)" value={ingredient.name_de}
-                              onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "name_de", e.target.value)} />
-                          </div>
-                          <div className="ingredient-row-aux">
-                            <input className="input" placeholder="Preparation" value={ingredient.preparation ?? ""}
-                              onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "preparation", e.target.value)}
-                              style={{ flex: "1 1 130px", minWidth: 0, maxWidth: 200 }} />
-                            <input className="input" placeholder="Note" value={ingredient.note ?? ""}
-                              onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "note", e.target.value)}
-                              style={{ flex: "1 1 130px", minWidth: 0, maxWidth: 200 }} />
-                            <label className="mini-check">
-                              <input type="checkbox" checked={Boolean(ingredient.approximate)}
-                                onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "approximate", e.target.checked)} /> Approx
-                            </label>
-                            <label className="mini-check">
-                              <input type="checkbox" checked={Boolean(ingredient.optional)}
-                                onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "optional", e.target.checked)} /> Optional
-                            </label>
-                            <label className="mini-check">
-                              <input type="checkbox" checked={Boolean(ingredient.garnish)}
-                                onChange={(e) => props.onIngredientChange(groupIndex, ingredientIndex, "garnish", e.target.checked)} /> Garnish
-                            </label>
-                            <button className="button" type="button"
-                              onClick={() => setExpandedIngredients((s) => { const n = new Set(s); n.delete(editKey); return n; })}>
-                              Done ✓
-                            </button>
-                            <button className="button" type="button"
-                              onClick={() => { props.onIngredientRemove(groupIndex, ingredientIndex); setExpandedIngredients((s) => { const n = new Set(s); n.delete(editKey); return n; }); }}>
-                              <AppIcon name="delete" size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* ── Compact display row ── */
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)" }}>
-                          <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-                            background: ingredient.libraryId ? "var(--olive)" : "var(--border)" }}
-                            title={ingredient.libraryId ? "Linked to library" : "Not linked"} />
-                          <span style={{ flex: 1, fontSize: "0.88rem", color: "var(--foreground)" }}>
-                            {(ingredient.amount || ingredient.unit) && (
-                              <strong>
-                                {ingredient.amount}
-                                {ingredient.unit && ingredient.unit !== "whole" ? ` ${ingredient.unit}` : ""}
-                                {" "}
-                              </strong>
-                            )}
-                            {ingredient.name_en}
-                            {ingredient.preparation && <span style={{ color: "var(--muted)" }}>, {ingredient.preparation}</span>}
-                            {ingredient.note && <span style={{ color: "var(--muted)" }}> · {ingredient.note}</span>}
-                            {ingredient.garnish && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 5 }}>garnish</span>}
-                            {ingredient.optional && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 5 }}>optional</span>}
-                            {ingredient.approximate && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 5 }}>approx</span>}
-                          </span>
-                          <button type="button" onClick={() => setExpandedIngredients((s) => new Set([...s, editKey]))}
-                            style={{ padding: "2px 8px", fontSize: "0.78rem", borderRadius: 6, background: "var(--surface-strong)", border: "1px solid var(--border)", color: "var(--muted)", cursor: "pointer" }}>
-                            ✎ Edit
-                          </button>
-                          <button type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}
-                            style={{ padding: "2px 7px", fontSize: "0.9rem", borderRadius: 6, background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", cursor: "pointer" }}>
-                            ×
-                          </button>
-                        </div>
-                      )}
+                    <div key={`ing-${groupIndex}-${ingredientIndex}`}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                        background: ingredient.libraryId ? "var(--olive)" : "var(--border)" }}
+                        title={ingredient.libraryId ? "Linked to library" : "Not linked"} />
+                      <span style={{ flex: 1, fontSize: "0.9rem", color: "var(--foreground)" }}>
+                        {(ingredient.amount || (ingredient.unit && ingredient.unit !== "whole")) && (
+                          <strong>
+                            {ingredient.amount}
+                            {ingredient.unit && ingredient.unit !== "whole" ? ` ${ingredient.unit}` : ""}
+                            {" "}
+                          </strong>
+                        )}
+                        {ingredient.name_en}
+                        {ingredient.preparation && <span style={{ color: "var(--muted)", fontStyle: "italic" }}>, {ingredient.preparation}</span>}
+                        {ingredient.note && <span style={{ color: "var(--muted)" }}> · {ingredient.note}</span>}
+                        {ingredient.garnish && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>garnish</span>}
+                        {ingredient.optional && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>optional</span>}
+                        {ingredient.approximate && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>approx</span>}
+                      </span>
+                      <button type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}
+                        style={{ padding: "2px 8px", fontSize: "1rem", lineHeight: 1, borderRadius: 6, background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", cursor: "pointer", flexShrink: 0 }}>
+                        ×
+                      </button>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* ── Quick paste — primary input, always visible ── */}
-            <div style={{ padding: 12, borderRadius: 10, background: "var(--surface)", border: "1px dashed var(--border)" }}>
-              <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: 6 }}>
-                Type or paste ingredients — one per line, or comma/semicolon-separated.
-                <span style={{ opacity: 0.65 }}> e.g. <em>200g flour, 2 eggs, 1 tsp salt, 3 garlic cloves finely chopped</em></span>
-              </p>
-              <textarea
+            {/* ── Add ingredient input — type one or paste many, Enter to add ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <input
                 className="input"
-                rows={3}
-                placeholder={"200g flour\n2 eggs, 1 tsp salt\n3 garlic cloves finely chopped"}
-                value={pasteText[groupIndex] ?? ""}
-                onChange={(e) => {
-                  setPasteText((p) => ({ ...p, [groupIndex]: e.target.value }));
-                  setParsePreview((p) => ({ ...p, [groupIndex]: [] }));
+                style={{ flex: 1, border: "none", background: "transparent", outline: "none", boxShadow: "none", padding: 0, fontSize: "0.95rem" }}
+                placeholder={parsePending[groupIndex] ? "Adding…" : "Add one or paste multiple items"}
+                value={inputText[groupIndex] ?? ""}
+                disabled={parsePending[groupIndex]}
+                onChange={(e) => setInputText((p) => ({ ...p, [groupIndex]: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddIngredients(groupIndex, inputText[groupIndex] ?? "");
+                  }
                 }}
-                style={{ width: "100%", fontFamily: "inherit", resize: "vertical", marginBottom: 8 }}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData("text");
+                  if (pasted.includes("\n") || (pasted.match(/[,;]/g) ?? []).length > 1) {
+                    e.preventDefault();
+                    handleAddIngredients(groupIndex, pasted);
+                  }
+                }}
               />
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <button className="button" type="button"
-                  disabled={parsePending[groupIndex] || !pasteText[groupIndex]?.trim()}
-                  onClick={() => handleParse(groupIndex)}>
-                  {parsePending[groupIndex] ? "Parsing…" : "Parse"}
+              {inputText[groupIndex]?.trim() && !parsePending[groupIndex] && (
+                <button type="button" onClick={() => handleAddIngredients(groupIndex, inputText[groupIndex] ?? "")}
+                  style={{ padding: "3px 10px", borderRadius: 6, background: "var(--accent)", color: "#fff", border: "none", cursor: "pointer", fontSize: "0.85rem", flexShrink: 0 }}>
+                  Add
                 </button>
-                {parsePreview[groupIndex]?.length > 0 && (
-                  <button className="button" type="button" onClick={() => handleBulkAdd(groupIndex)}
-                    style={{ background: "var(--olive)", color: "#fff" }}>
-                    ✓ Add {parsePreview[groupIndex].length} ingredient{parsePreview[groupIndex].length !== 1 ? "s" : ""}
-                  </button>
-                )}
-                <button className="button" type="button"
-                  style={{ marginLeft: "auto" }}
-                  onClick={() => {
-                    props.onIngredientAdd(groupIndex);
-                    // auto-expand the new blank row
-                    const newIdx = group.items.length;
-                    setExpandedIngredients((s) => new Set([...s, `${groupIndex}-${newIdx}`]));
-                  }}>
-                  <AppIcon name="add" size={14} /> Add blank row
-                </button>
-              </div>
-
-              {parsePreview[groupIndex]?.length > 0 && (
-                <ul style={{ listStyle: "none", padding: 0, margin: "10px 0 0", display: "flex", flexDirection: "column", gap: 3 }}>
-                  {parsePreview[groupIndex].map((entry, i) => (
-                    <li key={i} style={{
-                      display: "flex", alignItems: "center", gap: 8, padding: "4px 8px",
-                      borderRadius: 6, fontSize: "0.82rem",
-                      background: "var(--surface-strong)", border: "1px solid var(--border)",
-                    }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-                        background: entry.match === "exact" ? "var(--olive)" : entry.match === "fuzzy" ? "var(--accent)" : "var(--border)" }}
-                        title={entry.match === "exact" ? "Matched in library" : entry.match === "fuzzy" ? "Fuzzy match" : "No match — saved as typed"} />
-                      <span style={{ flex: 1 }}>
-                        {entry.quantity && <strong>{entry.quantity}{entry.unit && entry.unit !== "whole" ? ` ${entry.unit}` : ""} </strong>}
-                        {entry.ingredient}
-                        {entry.note && <span style={{ color: "var(--muted)" }}>, {entry.note}</span>}
-                        {entry.garnish && <span style={{ color: "var(--muted)", fontStyle: "italic" }}> · garnish</span>}
-                        {entry.optional && <span style={{ color: "var(--muted)", fontStyle: "italic" }}> · optional</span>}
-                      </span>
-                      {entry.match === "none" && entry.suggestions.length > 0 && (
-                        <span style={{ color: "var(--accent)", fontSize: "0.72rem", flexShrink: 0 }}>
-                          → {entry.suggestions.slice(0, 2).join(", ")}?
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
               )}
+              <span title={"Type one ingredient and press Enter, or paste a comma/semicolon/newline-separated list.\nExamples:\n  200g flour\n  2 eggs, 1 tsp salt\n  3 garlic cloves finely chopped, optional coriander"} style={{ color: "var(--muted)", cursor: "help", flexShrink: 0, fontSize: "1rem" }}>ⓘ</span>
             </div>
           </div>
         ))}
