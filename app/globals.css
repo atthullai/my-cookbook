@@ -208,6 +208,184 @@ body.cooking-mode .site-shell {
   box-shadow: inset 0 -3px 0 var(--accent);
 }
 
+/* Dropdown nav */
+.nav-dropdown-root {
+  position: relative;
+}
+
+.nav-dropdown-trigger {
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--border);
+  font: inherit;
+  color: inherit;
+}
+
+.nav-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-chevron-btn {
+  background: none;
+  border: none;
+  padding: 0 0 0 2px;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.nav-chevron {
+  display: inline-block;
+  font-size: 0.75rem;
+  margin-left: 2px;
+  transition: transform 0.18s ease;
+  line-height: 1;
+}
+
+.nav-chevron.open {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 160px;
+  background: var(--surface);
+  border: 1px solid rgba(89, 58, 34, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+  z-index: 100;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.nav-dropdown-panel--right {
+  left: auto;
+  right: 0;
+}
+
+.nav-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: inherit;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-dropdown-item:hover,
+.nav-dropdown-item.active {
+  background: linear-gradient(135deg, var(--accent-soft), var(--saffron-soft));
+  color: var(--accent-strong);
+}
+
+.nav-dropdown-item--danger {
+  color: #c0392b;
+}
+
+.nav-dropdown-item--danger:hover {
+  background: rgba(192, 57, 43, 0.08);
+  color: #c0392b;
+}
+
+.nav-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 10px;
+}
+
+/* User menu button */
+.nav-user-root { position: relative; }
+
+.nav-user-btn {
+  gap: 6px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--border);
+  font: inherit;
+  color: inherit;
+}
+
+.nav-user-avatar {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.nav-user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Notification bell */
+.nav-icon-btn {
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--border);
+  font: inherit;
+  color: inherit;
+  padding: 0 12px;
+}
+
+.nav-bell {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+/* Right cluster */
+.site-nav-right {
+  flex-wrap: nowrap;
+  margin-left: auto;
+}
+
+/* Add recipe button */
+.nav-add-btn {
+  font-size: 1.25rem;
+  font-weight: 300;
+  padding: 0 14px;
+  color: var(--accent-strong);
+  border-color: rgba(132, 58, 33, 0.3);
+}
+
+.nav-add-icon {
+  line-height: 1;
+}
+
+/* User profile card inside dropdown */
+.nav-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 8px;
+}
+
+.nav-user-card-avatar {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.nav-user-card-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.nav-user-card-role {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
 /* Links inherit local text color unless a component styles them differently. */
 a {
   color: inherit;
