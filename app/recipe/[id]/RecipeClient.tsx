@@ -423,7 +423,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                       <span className={isChecked ? "checkmark-box checked" : "checkmark-box"}>{isChecked ? "✓" : ""}</span>
                       <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
                         {amountLabel}
-                        {ingredient.unit && ingredient.unit !== "whole" ? ` ${ingredient.unit}` : ""}
+                        {ingredient.unit && ingredient.unit !== "whole" && ingredient.unit !== "clove" ? ` ${ingredient.unit === "ml" ? "mL" : ingredient.unit === "l" ? "L" : ingredient.unit}` : ""}
                         {getIngredientLabel(ingredient, lang) ? ` ${getIngredientLabel(ingredient, lang)}` : ""}
                         {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
                         {ingredient.optional ? " (optional)" : ""}

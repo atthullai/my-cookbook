@@ -151,7 +151,8 @@ type RecipeFormProps = {
 function draftToText(ing: import("@/lib/recipe-types").IngredientDraft): string {
   const parts: string[] = [];
   if (ing.amount) parts.push(ing.amount);
-  if (ing.unit && ing.unit !== "whole" && ing.unit !== "clove") parts.push(ing.unit);
+  const displayUnit = ing.unit === "ml" ? "mL" : ing.unit === "l" ? "L" : ing.unit;
+  if (displayUnit && displayUnit !== "whole" && displayUnit !== "clove") parts.push(displayUnit);
   parts.push(ing.name_en);
   if (ing.preparation) parts.push(ing.preparation);
   if (ing.note) parts.push(ing.note);
@@ -432,13 +433,15 @@ export default function RecipeForm(props: RecipeFormProps) {
                       ) : (
                         <span style={{ flex: 1, fontSize: "0.9rem", color: "var(--foreground)", cursor: "text" }}
                           onClick={() => setEditingRow({ gi: groupIndex, ii: ingredientIndex, text: draftToText(ingredient) })}>
-                          {(ingredient.amount || (ingredient.unit && ingredient.unit !== "whole" && ingredient.unit !== "clove")) && (
-                            <strong style={{ fontWeight: 800 }}>
-                              {ingredient.amount}
-                              {ingredient.unit && ingredient.unit !== "whole" && ingredient.unit !== "clove" ? ` ${ingredient.unit}` : ""}
-                              {" "}
-                            </strong>
-                          )}
+                          {(() => {
+                            const du = ingredient.unit === "ml" ? "mL" : ingredient.unit === "l" ? "L" : ingredient.unit;
+                            const showUnit = du && du !== "whole" && du !== "clove";
+                            return (ingredient.amount || showUnit) ? (
+                              <strong style={{ fontWeight: 800 }}>
+                                {ingredient.amount}{showUnit ? ` ${du}` : ""}{" "}
+                              </strong>
+                            ) : null;
+                          })()}
                           {ingredient.name_en}
                           {ingredient.preparation && <span style={{ color: "var(--muted)", fontStyle: "italic" }}>, {ingredient.preparation}</span>}
                           {ingredient.note && <span style={{ color: "var(--muted)" }}> · {ingredient.note}</span>}

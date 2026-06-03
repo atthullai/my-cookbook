@@ -89,7 +89,7 @@ const SIZE_WORDS = new Set(["small", "medium", "large", "big", "tiny", "huge", "
 // ── Note/flag phrases ────────────────────────────────────────────────────────
 const GARNISH_PHRASES    = ["for garnish", "to garnish", "as garnish", "garnish"];
 const OPTIONAL_PHRASES   = ["optional", "if available", "if needed", "if required"];
-const APPROXIMATE_PHRASES= ["approx", "approximate", "approximately", "about", "around"];
+const APPROXIMATE_PHRASES= ["approx", "approximate", "approximately", "about", "around", "a few", "few", "some", "a little", "a bit of", "a bit"];
 const NOTE_PHRASES = [
   ...GARNISH_PHRASES,
   ...OPTIONAL_PHRASES,
