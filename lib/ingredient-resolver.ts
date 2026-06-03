@@ -89,11 +89,14 @@ const SIZE_WORDS = new Set(["small", "medium", "large", "big", "tiny", "huge", "
 // ── Note/flag phrases ────────────────────────────────────────────────────────
 const GARNISH_PHRASES    = ["for garnish", "to garnish", "as garnish", "garnish"];
 const OPTIONAL_PHRASES   = ["optional", "if available", "if needed", "if required"];
-const APPROXIMATE_PHRASES= ["approx", "approximate", "approximately", "about", "around", "a few", "few", "some", "a little", "a bit of", "a bit"];
+const APPROXIMATE_PHRASES= ["approx", "approximate", "approximately", "about", "around"];
+// Vague-quantity words — stripped and kept as a note, but do NOT set approximate flag.
+const VAGUE_QTY_PHRASES  = ["a few", "few", "some", "a little", "a bit of", "a bit"];
 const NOTE_PHRASES = [
   ...GARNISH_PHRASES,
   ...OPTIONAL_PHRASES,
   ...APPROXIMATE_PHRASES,
+  ...VAGUE_QTY_PHRASES,
   "to taste", "to serve", "for serving", "as required", "as needed",
   "finely chopped", "roughly chopped", "thinly sliced", "coarsely ground",
   "required",
@@ -275,6 +278,7 @@ export function parseSegment(text: string, index: ResolverIndex): ParsedEntry {
       if (GARNISH_PHRASES.some((g) => p.startsWith(g))) garnish = true;
       if (OPTIONAL_PHRASES.includes(p)) optional = true;
       if (APPROXIMATE_PHRASES.includes(p)) approximate = true;
+      // VAGUE_QTY_PHRASES only add to notes — no flag set
       notes.push(p);
       work = work.replace(re, " ");
     }
