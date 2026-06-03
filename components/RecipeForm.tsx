@@ -6,6 +6,7 @@
 // Think of this as the visible form, and app/add + app/edit as the brains that save/load data.
 
 import Image from "next/image";
+import { useState, useCallback } from "react";
 import type { FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
@@ -131,6 +132,7 @@ type RecipeFormProps = {
   onIngredientRemove: (groupIndex: number, ingredientIndex: number) => void;
   onIngredientChange: (groupIndex: number, ingredientIndex: number, field: keyof IngredientDraft, value: string | boolean) => void;
   onIngredientSelect: (groupIndex: number, ingredientIndex: number, updates: Partial<IngredientDraft>) => void;
+  onIngredientBulkAdd: (groupIndex: number, items: IngredientDraft[]) => void;
   onInstructionSectionAdd: () => void;
   onInstructionSectionRemove: (index: number) => void;
   onInstructionSectionChange: (index: number, field: keyof InstructionSectionDraft, value: string) => void;
@@ -163,9 +165,56 @@ type RecipeFormProps = {
   onUseSourceCoverPhoto: () => void;
 };
 
+import type { ParsedEntry } from "@/lib/ingredient-resolver";
+
 export default function RecipeForm(props: RecipeFormProps) {
-  // props.title, props.ingredients, etc. are the current form values.
-  // props.onTitleChange, props.onIngredientAdd, etc. are callbacks that update the parent page state.
+  // Quick-paste state: one textarea + parse result per ingredient section.
+  const [pasteOpen, setPasteOpen] = useState<Record<number, boolean>>({});
+  const [pasteText, setPasteText] = useState<Record<number, string>>({});
+  const [parsePending, setParsePending] = useState<Record<number, boolean>>({});
+  const [parsePreview, setParsePreview] = useState<Record<number, ParsedEntry[]>>({});
+
+  const handleParse = useCallback(async (groupIndex: number) => {
+    const text = pasteText[groupIndex]?.trim();
+    if (!text) return;
+    setParsePending((p) => ({ ...p, [groupIndex]: true }));
+    try {
+      const res = await fetch("/api/ingredients/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) {
+        const entries: ParsedEntry[] = await res.json();
+        setParsePreview((p) => ({ ...p, [groupIndex]: entries }));
+      }
+    } finally {
+      setParsePending((p) => ({ ...p, [groupIndex]: false }));
+    }
+  }, [pasteText]);
+
+  const handleBulkAdd = useCallback((groupIndex: number) => {
+    const entries = parsePreview[groupIndex];
+    if (!entries?.length) return;
+    const items: import("@/lib/recipe-types").IngredientDraft[] = entries.map((e) => ({
+      name_en: e.ingredient,
+      name_de: e.nameDe ?? "",
+      amount: e.quantity ?? "",
+      unit: e.unit ?? "",
+      preparation: "",
+      note: e.note || "",
+      optional: e.optional,
+      garnish: e.garnish,
+      approximate: e.approximate,
+      libraryId: e.libraryId ?? null,
+    }));
+    props.onIngredientBulkAdd(groupIndex, items);
+    // reset paste UI for this group
+    setPasteOpen((p) => ({ ...p, [groupIndex]: false }));
+    setPasteText((p) => ({ ...p, [groupIndex]: "" }));
+    setParsePreview((p) => ({ ...p, [groupIndex]: [] }));
+  }, [parsePreview, props]);
+
   return (
     <form onSubmit={props.onSubmit} className="recipe-form">
       {/* Recipe identity and ownership fields sit first because they shape the whole record. */}
@@ -433,10 +482,89 @@ export default function RecipeForm(props: RecipeFormProps) {
               </div>
             ))}
 
-            <button className="button" type="button" onClick={() => props.onIngredientAdd(groupIndex)}>
-              <AppIcon name="add" size={16} />
-              Add Ingredient
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <button className="button" type="button" onClick={() => props.onIngredientAdd(groupIndex)}>
+                <AppIcon name="add" size={16} />
+                Add Ingredient
+              </button>
+              <button
+                className="button"
+                type="button"
+                onClick={() => {
+                  setPasteOpen((p) => ({ ...p, [groupIndex]: !p[groupIndex] }));
+                  setParsePreview((p) => ({ ...p, [groupIndex]: [] }));
+                }}
+                style={{ background: pasteOpen[groupIndex] ? "var(--accent)" : undefined, color: pasteOpen[groupIndex] ? "#fff" : undefined }}
+              >
+                ✦ Quick paste
+              </button>
+            </div>
+
+            {pasteOpen[groupIndex] && (
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 8 }}>
+                  Type or paste ingredients — one per line, or separated by commas/semicolons.<br />
+                  <span style={{ opacity: 0.7 }}>e.g. <em>200g flour, 2 eggs, 1 tsp salt, 3 garlic cloves finely chopped</em></span>
+                </p>
+                <textarea
+                  className="input"
+                  rows={4}
+                  placeholder={"200g flour\n2 eggs\n1 tsp salt\n3 garlic cloves, finely chopped"}
+                  value={pasteText[groupIndex] ?? ""}
+                  onChange={(e) => {
+                    setPasteText((p) => ({ ...p, [groupIndex]: e.target.value }));
+                    setParsePreview((p) => ({ ...p, [groupIndex]: [] }));
+                  }}
+                  style={{ width: "100%", fontFamily: "inherit", resize: "vertical", marginBottom: 8 }}
+                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: parsePreview[groupIndex]?.length ? 10 : 0 }}>
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={parsePending[groupIndex] || !pasteText[groupIndex]?.trim()}
+                    onClick={() => handleParse(groupIndex)}
+                  >
+                    {parsePending[groupIndex] ? "Parsing…" : "Parse"}
+                  </button>
+                  {parsePreview[groupIndex]?.length > 0 && (
+                    <button className="button" type="button" onClick={() => handleBulkAdd(groupIndex)}
+                      style={{ background: "var(--olive)", color: "#fff" }}>
+                      ✓ Add {parsePreview[groupIndex].length} ingredient{parsePreview[groupIndex].length !== 1 ? "s" : ""}
+                    </button>
+                  )}
+                </div>
+
+                {parsePreview[groupIndex]?.length > 0 && (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {parsePreview[groupIndex].map((entry, i) => (
+                      <li key={i} style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "5px 8px",
+                        borderRadius: 6, fontSize: "0.82rem",
+                        background: entry.match === "none" ? "var(--surface-strong)" : "var(--surface)",
+                        border: "1px solid var(--border)",
+                      }}>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                          background: entry.match === "exact" ? "var(--olive)" : entry.match === "fuzzy" ? "var(--accent)" : "var(--border)" }}
+                          title={entry.match === "exact" ? "Matched" : entry.match === "fuzzy" ? "Fuzzy match" : "No match — will save as typed"}
+                        />
+                        <span style={{ fontWeight: 600, color: "var(--foreground)", minWidth: 120 }}>
+                          {entry.quantity && `${entry.quantity}${entry.unit && entry.unit !== "whole" ? ` ${entry.unit}` : ""} `}
+                          {entry.ingredient}
+                        </span>
+                        {entry.note && <span style={{ color: "var(--muted)" }}>{entry.note}</span>}
+                        {entry.garnish && <span style={{ color: "var(--muted)", fontStyle: "italic" }}>garnish</span>}
+                        {entry.optional && <span style={{ color: "var(--muted)", fontStyle: "italic" }}>optional</span>}
+                        {entry.match === "none" && entry.suggestions.length > 0 && (
+                          <span style={{ color: "var(--accent)", fontSize: "0.75rem" }}>
+                            Did you mean: {entry.suggestions.slice(0, 2).join(", ")}?
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

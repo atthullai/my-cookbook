@@ -549,6 +549,11 @@ export default function AddRecipe() {
           }
           onIngredientChange={updateIngredient}
           onIngredientSelect={selectIngredient}
+          onIngredientBulkAdd={(gi, items) =>
+            setIngredientGroups((cur) =>
+              cur.map((g, i) => (i === gi ? { ...g, items: [...g.items.filter((it) => it.name_en.trim() || it.amount.trim()), ...items] } : g))
+            )
+          }
           onInstructionSectionAdd={() =>
             setInstructionSections((cur) => [...cur, { ...EMPTY_INSTRUCTION_SECTION, title_en: "", title_de: "" }])
           }
