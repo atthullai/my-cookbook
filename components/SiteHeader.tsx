@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
-import AppIcon from "@/components/AppIcon";
 
 // ---------------------------------------------------------------------------
 // Nav structure
@@ -238,9 +237,6 @@ export default function SiteHeader() {
         <div className="site-topbar">
           {/* Brand */}
           <Link href="/" className="site-brand">
-            <span className="site-brand-mark">
-              <AppIcon name="book" size={18} />
-            </span>
             <span>
               <strong>Atthuzhai&apos;s Cookbook</strong>
               <small>Private bilingual family recipes</small>
