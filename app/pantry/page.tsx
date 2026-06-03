@@ -138,21 +138,21 @@ type SortOption = "expiry" | "name" | "category";
 const today = () => new Date().toISOString().split("T")[0];
 
 const EMPTY_FORM = {
-  name: "", quantity: "1", unit: "no.",
+  name: "", quantity: "1", unit: "whole",
   category: "other" as ShoppingCategory,
   storage: "room-temp" as StorageLocation,
-  expiryDate: "", lowStockThreshold: "3",   // default for "no."
+  expiryDate: "", lowStockThreshold: "3",
   brand: "", isHomemade: false, madeOn: today(),
   isOpened: false,
 };
 
-const UNIT_OPTIONS = ["no.", "g", "mL", "kg", "L"];
+const UNIT_OPTIONS = ["whole", "g", "mL", "kg", "L"];
 const DEFAULT_THRESHOLD: Record<string, number> = {
-  "kg":  0.5,
-  "g":   100,
-  "mL":  100,
-  "L":   0.5,
-  "no.": 3,
+  "kg":    0.5,
+  "g":     100,
+  "mL":    100,
+  "L":     0.5,
+  "whole": 3,
 };
 const EGG_SIZES = ["S", "M", "L", "XL"] as const;
 const EGG_DAYS_BEFORE_EXPIRY_TO_FRIDGE = 7; // move to fridge 1 week before expiry
@@ -218,7 +218,7 @@ export default function PantryPage() {
           id:                 row.id,
           name:               row.name,
           quantity:           Number(row.quantity) || 0,
-          unit:               UNIT_OPTIONS.includes(row.unit ?? "") ? (row.unit ?? "no.") : "no.",
+          unit:               (() => { const u = row.unit === "no." ? "whole" : (row.unit ?? "whole"); return UNIT_OPTIONS.includes(u) ? u : "whole"; })(),
           category:           (row.category ?? "other") as ShoppingCategory,
           storage:            (row.storage_location ?? DEFAULT_STORAGE[row.category as ShoppingCategory] ?? "room-temp") as StorageLocation,
           expiryDate:         row.expiry_date ?? undefined,
@@ -980,7 +980,7 @@ export default function PantryPage() {
                     <select
                       value={(() => {
                         const valid = suggestedUnitsForCategory(form.category) as string[];
-                        return valid.includes(form.unit) ? form.unit : (valid[0] ?? "no.");
+                        return valid.includes(form.unit) ? form.unit : (valid[0] ?? "whole");
                       })()}
                       onChange={(e) => {
                         const u = e.target.value;
@@ -1048,7 +1048,7 @@ export default function PantryPage() {
                           ...f,
                           category: cat,
                           storage: DEFAULT_STORAGE[cat],
-                          unit: f.unit === "M" || f.unit === "S" || f.unit === "L" || f.unit === "XL" ? "no." : f.unit,
+                          unit: f.unit === "M" || f.unit === "S" || f.unit === "L" || f.unit === "XL" ? "whole" : f.unit,
                         }));
                       }
                     }}
@@ -1509,7 +1509,7 @@ export default function PantryPage() {
                         aria-label="Decrease quantity"
                       >−</button>
                       <span className="px-2 text-xs font-semibold tabular-nums" style={{ color: "var(--foreground)", minWidth: 48, textAlign: "center" }}>
-                        {item.quantity} {item.unit}
+                        {item.quantity}{item.unit !== "whole" ? ` ${item.unit}` : ""}
                       </span>
                       <button
                         type="button"
@@ -1791,7 +1791,7 @@ export default function PantryPage() {
                         className="px-2 py-1 text-sm font-bold disabled:opacity-30 transition"
                         style={{ background: "var(--surface)", color: "var(--foreground)" }}>−</button>
                       <span className="px-2 text-xs font-semibold tabular-nums" style={{ color: "var(--foreground)", minWidth: 48, textAlign: "center" }}>
-                        {item.quantity} {item.unit}
+                        {item.quantity}{item.unit !== "whole" ? ` ${item.unit}` : ""}
                       </span>
                       <button type="button" onClick={() => adjustQuantity(item, 1)}
                         className="px-2 py-1 text-sm font-bold transition"

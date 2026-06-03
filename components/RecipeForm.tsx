@@ -50,9 +50,9 @@ const UNIT_OPTIONS = [
   // Weight
   "g", "kg", "oz", "lb",
   // Count / whole item
-  "no.", "whole", "bunch", "handful",
+  "whole", "bunch", "handful",
   // Whole-piece descriptors
-  "head", "clove", "stalk", "inch", "stick",
+  "head", "stalk", "inch", "stick",
   // Small / leaf
   "leaf", "sprig", "sheet", "dash",
   // Packaged

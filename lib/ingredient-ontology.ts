@@ -137,9 +137,9 @@ const UNIT_ALIASES: Record<string, MeasurementUnit | string> = {
   inches: "inch",
   sticks: "stick",
   sheets: "sheet",
-  "no.": "no.",
-  no: "no.",
-  nos: "no.",
+  "no.": "whole",
+  no: "whole",
+  nos: "whole",
 };
 
 const GENERIC_GRAMS: Record<string, number> = {
@@ -158,7 +158,6 @@ const GENERIC_GRAMS: Record<string, number> = {
   clove: 3,
   piece: 50,
   whole: 100,
-  "no.": 100,
   bunch: 30,
   head: 300,
   stalk: 30,
@@ -243,8 +242,8 @@ function ingredientSpecificUnitGrams(name: string, unit: string): number | null 
   if (unit === "piece" && /onion/.test(name)) return 110;
   if (unit === "piece" && /tomato/.test(name)) return 120;
 
-  // Per-count (no.) weights for common items — overrides the generic 100g default
-  if (unit === "no.") {
+  // Per-count (whole) weights for common items — overrides the generic 100g default
+  if (unit === "whole") {
     if (/chilli|chili|green chilli|red chilli/.test(name)) return 12;
     if (/tomato/.test(name)) return 120;
     if (/onion/.test(name)) return 110;

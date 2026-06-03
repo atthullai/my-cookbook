@@ -72,7 +72,7 @@ function guessCategory(name: string): ShoppingCategory {
 const EMPTY_ADD_FORM = {
   name: "",
   quantity: "1",
-  unit: "no.",
+  unit: "whole",
   category: "other" as ShoppingCategory,
 };
 
@@ -488,7 +488,7 @@ export default function ShoppingListPage() {
         const group = items.filter((i) => i.category === cat && !i.checked);
         if (group.length === 0) return "";
         const { label, icon } = CATEGORY_META[cat];
-        return `${icon} ${label}\n` + group.map((i) => `  • ${i.quantity > 0 ? i.quantity : ""} ${i.unit} ${i.name}`.trim()).join("\n");
+        return `${icon} ${label}\n` + group.map((i) => `  • ${i.quantity > 0 ? i.quantity : ""} ${i.unit !== "whole" ? i.unit : ""} ${i.name}`.trim()).join("\n");
       })
       .filter(Boolean)
       .join("\n\n");
@@ -725,7 +725,7 @@ export default function ShoppingListPage() {
                               {item.name}
                               {(item.quantity > 1 || item.unit) && (
                                 <span className="ml-1.5 text-xs font-medium" style={{ color: "var(--muted)" }}>
-                                  {item.quantity > 1 ? item.quantity : ""}{item.unit ? ` ${item.unit}` : ""}
+                                  {item.quantity > 1 ? item.quantity : ""}{item.unit && item.unit !== "whole" ? ` ${item.unit}` : ""}
                                 </span>
                               )}
                             </motion.span>

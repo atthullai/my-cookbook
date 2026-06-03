@@ -8,7 +8,7 @@
 
 // ── Tier 1 — exact ────────────────────────────────────────────────────────────
 
-const TIER1: Record<string, { factor: number; to: "g" | "ml" | "no." }> = {
+const TIER1: Record<string, { factor: number; to: "g" | "ml" | "whole" }> = {
   tsp:    { factor: 5,      to: "ml"  },
   tbsp:   { factor: 15,     to: "ml"  },
   cup:    { factor: 240,    to: "ml"  },
@@ -21,12 +21,13 @@ const TIER1: Record<string, { factor: number; to: "g" | "ml" | "no." }> = {
   g:      { factor: 1,      to: "g"   },
   ml:     { factor: 1,      to: "ml"  },
   mL:     { factor: 1,      to: "ml"  },
-  "no.":  { factor: 1,      to: "no." },
+  "no.":  { factor: 1,      to: "whole" },
+  whole:  { factor: 1,      to: "whole" },
 };
 
 // ── Tier 2 — approximate ──────────────────────────────────────────────────────
 
-const TIER2: Record<string, { to: "g" | "ml" | "no."; val: number }> = {
+const TIER2: Record<string, { to: "g" | "ml" | "whole"; val: number }> = {
   // Alliums
   "garlic clove":  { to: "g",   val: 5   },
   "garlic cloves": { to: "g",   val: 5   },
@@ -67,10 +68,10 @@ const TIER2: Record<string, { to: "g" | "ml" | "no."; val: number }> = {
   "apple":         { to: "g",   val: 180 },
   "avocado":       { to: "g",   val: 170 },
   // Eggs & dairy
-  "egg":           { to: "no.", val: 1   },
-  "whole egg":     { to: "no.", val: 1   },
-  "large egg":     { to: "no.", val: 1   },
-  "medium egg":    { to: "no.", val: 1   },
+  "egg":           { to: "whole", val: 1   },
+  "whole egg":     { to: "whole", val: 1   },
+  "large egg":     { to: "whole", val: 1   },
+  "medium egg":    { to: "whole", val: 1   },
   "stick butter":  { to: "g",   val: 113 },
   "stick of butter":{ to: "g",  val: 113 },
   // Herbs
@@ -78,11 +79,11 @@ const TIER2: Record<string, { to: "g" | "ml" | "no."; val: number }> = {
   "handful":       { to: "g",   val: 15  },
   "sprig":         { to: "g",   val: 2   },
   "stalk":         { to: "g",   val: 5   },
-  "leaf":          { to: "no.", val: 1   },
-  "leaves":        { to: "no.", val: 3   },
+  "leaf":          { to: "whole", val: 1   },
+  "leaves":        { to: "whole", val: 3   },
   // Pantry
-  "can":           { to: "no.", val: 1   },
-  "tin":           { to: "no.", val: 1   },
+  "can":           { to: "whole", val: 1   },
+  "tin":           { to: "whole", val: 1   },
   "pinch":         { to: "g",   val: 0.3 },
   "dash":          { to: "ml",  val: 1   },
   // Grains (cup-based for tier2 fallback)
@@ -104,7 +105,7 @@ const TIER3 = new Set([
 
 export type ConvertResult = {
   base:     number;
-  baseUnit: "g" | "ml" | "no.";
+  baseUnit: "g" | "ml" | "whole";
   tier:     1 | 2 | 3;
 };
 
@@ -164,8 +165,8 @@ export function convertToBase(
 
 // ── Gap formatting ────────────────────────────────────────────────────────────
 
-export function formatGap(base: number, unit: "g" | "ml" | "no."): string {
-  if (unit === "no.") return `${Math.ceil(base)}`;
+export function formatGap(base: number, unit: "g" | "ml" | "whole"): string {
+  if (unit === "whole") return `${Math.ceil(base)}`;
   if (unit === "g")   return base >= 1000 ? `${(base / 1000).toFixed(1)}kg` : `${Math.round(base)}g`;
   if (unit === "ml")  return base >= 1000 ? `${(base / 1000).toFixed(1)}L`  : `${Math.round(base)}ml`;
   return `${base}`;

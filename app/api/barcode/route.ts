@@ -130,7 +130,7 @@ function parseQuantity(raw: string | undefined): { quantity: number; unit: strin
   const qty = parseFloat(m[1].replace(",", "."));
   return {
     quantity: isNaN(qty) ? 1 : qty,
-    unit: (m[2] ?? "no.").toLowerCase().replace("cl", "ml"),
+    unit: (m[2] ?? "whole").toLowerCase().replace("cl", "ml"),
   };
 }
 
@@ -184,7 +184,7 @@ export async function GET(req: NextRequest) {
       brand,
       category,
       quantity: qtyParsed?.quantity ?? 1,
-      unit:     qtyParsed?.unit     ?? "no.",
+      unit:     qtyParsed?.unit     ?? "whole",
       imageUrl: p.image_front_url   ?? null,
     });
   } catch (err) {
