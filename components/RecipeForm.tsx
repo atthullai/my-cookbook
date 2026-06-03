@@ -57,8 +57,8 @@ const UNIT_OPTIONS = [
   "leaf", "sprig", "sheet", "dash",
   // Packaged
   "can", "packet", "sachet",
-  // Pinch / taste
-  "pinch", "to taste",
+  // Pinch
+  "pinch",
 ];
 
 // This component is intentionally "dumb": it renders the full recipe editor UI,
