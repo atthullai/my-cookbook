@@ -238,8 +238,8 @@ const UNIT_ALIASES: Record<string, MeasurementUnit | string> = {
 const GENERIC_GRAMS: Record<string, number> = {
   g: 1,
   kg: 1000,
-  ml: 1,
-  l: 1000,
+  ml: 1, mL: 1,
+  l: 1000, L: 1000,
   tsp: 5,
   tbsp: 15,
   cup: 240,
@@ -317,7 +317,8 @@ export function estimateIngredientWeightGrams(ingredient: RecipeIngredient): num
   }
 
   const effectiveQuantity = quantity ?? 1;
-  const specific = ingredientSpecificUnitGrams(entity?.canonicalName ?? ingredient.name_en, unit);
+  const size = (ingredient as { size?: string | null }).size ?? null;
+  const specific = ingredientSpecificUnitGrams(entity?.canonicalName ?? ingredient.name_en, unit, size);
   const base = specific ?? GENERIC_GRAMS[unit] ?? GENERIC_GRAMS[entity?.defaultUnit ?? "piece"] ?? 100;
   const edible = entity?.ediblePortion ?? 1;
   const density = unit === "ml" || unit === "l" ? entity?.density ?? 1 : 1;
@@ -326,7 +327,39 @@ export function estimateIngredientWeightGrams(ingredient: RecipeIngredient): num
   return Number((effectiveQuantity * base * edible * density * garnishFactor).toFixed(2));
 }
 
-function ingredientSpecificUnitGrams(name: string, unit: string): number | null {
+// Size-based default gram weights for common whole ingredients.
+const SIZE_GRAM_WEIGHTS: Record<string, Record<string, number>> = {
+  onion:        { small: 70,  medium: 110, large: 150, big: 150 },
+  tomato:       { small: 80,  medium: 120, large: 160, big: 160 },
+  egg:          { small: 45,  medium: 55,  large: 65,  xl: 75,  huge: 75 },
+  potato:       { small: 100, medium: 170, large: 250, big: 250 },
+  "sweet potato":{ small: 100, medium: 180, large: 280 },
+  carrot:       { small: 50,  medium: 80,  large: 120 },
+  lemon:        { small: 80,  medium: 100, large: 130 },
+  lime:         { small: 50,  medium: 67,  large: 90  },
+  apple:        { small: 130, medium: 180, large: 240 },
+  banana:       { small: 90,  medium: 120, large: 150 },
+  mango:        { small: 200, medium: 320, large: 450 },
+  avocado:      { small: 120, medium: 170, large: 220 },
+  garlic:       { small: 3,   medium: 5,   large: 7   },
+  cucumber:     { small: 200, medium: 300, large: 400 },
+  eggplant:     { small: 200, medium: 350, large: 500 },
+  zucchini:     { small: 150, medium: 200, large: 300 },
+  "bell pepper":{ small: 110, medium: 160, large: 220 },
+};
+
+function ingredientSpecificUnitGrams(name: string, unit: string, size?: string | null): number | null {
+  // Size-aware weights (small/medium/large)
+  if (size) {
+    const lname = name.toLowerCase();
+    const lsize = size.toLowerCase();
+    for (const [key, weights] of Object.entries(SIZE_GRAM_WEIGHTS)) {
+      if (lname.includes(key)) {
+        const w = weights[lsize];
+        if (w) return w;
+      }
+    }
+  }
   if (unit === "leaf" && /coriander|cilantro/.test(name)) return 0.12;
   if (unit === "handful" && /coriander|cilantro|herb/.test(name)) return 8;
   if (unit === "pinch" && /salt/.test(name)) return 0.36;

@@ -147,10 +147,25 @@ type RecipeFormProps = {
 };
 
 
+/** Reconstruct editable text from a saved IngredientDraft for tap-to-edit. */
+function draftToText(ing: import("@/lib/recipe-types").IngredientDraft): string {
+  const parts: string[] = [];
+  if (ing.amount) parts.push(ing.amount);
+  if (ing.unit && ing.unit !== "whole" && ing.unit !== "clove") parts.push(ing.unit);
+  parts.push(ing.name_en);
+  if (ing.preparation) parts.push(ing.preparation);
+  if (ing.note) parts.push(ing.note);
+  if (ing.garnish) parts.push("for garnish");
+  if (ing.optional) parts.push("optional");
+  return parts.join(" ");
+}
+
 export default function RecipeForm(props: RecipeFormProps) {
   // Per-section input text (the "Add one or paste multiple items" field)
   const [inputText, setInputText] = useState<Record<number, string>>({});
   const [parsePending, setParsePending] = useState<Record<number, boolean>>({});
+  // Tap-to-edit: which row is being edited and its current text
+  const [editingRow, setEditingRow] = useState<{ gi: number; ii: number; text: string } | null>(null);
 
   // Parse text and immediately add — no preview step, no Parse button.
   const handleAddIngredients = useCallback(async (groupIndex: number, text: string) => {
@@ -181,6 +196,39 @@ export default function RecipeForm(props: RecipeFormProps) {
       }
     } finally {
       setParsePending((p) => ({ ...p, [groupIndex]: false }));
+    }
+  }, [props]);
+
+  // Save an edited row: re-parse the text and update the ingredient in place.
+  const handleRowSave = useCallback(async (gi: number, ii: number, text: string) => {
+    if (!text.trim()) { props.onIngredientRemove(gi, ii); setEditingRow(null); return; }
+    setParsePending((p) => ({ ...p, [gi]: true }));
+    try {
+      const res = await fetch("/api/ingredients/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) {
+        const entries: import("@/lib/ingredient-resolver").ParsedEntry[] = await res.json();
+        if (entries.length > 0) {
+          const e = entries[0];
+          props.onIngredientSelect(gi, ii, {
+            name_en: e.ingredient,
+            name_de: e.nameDe ?? "",
+            amount: e.quantity ?? "",
+            unit: e.unit ?? "",
+            note: [e.size, e.note].filter(Boolean).join(", "),
+            optional: e.optional,
+            garnish: e.garnish,
+            approximate: e.approximate,
+            libraryId: e.libraryId ?? null,
+          });
+        }
+      }
+    } finally {
+      setParsePending((p) => ({ ...p, [gi]: false }));
+      setEditingRow(null);
     }
   }, [props]);
 
@@ -356,32 +404,49 @@ export default function RecipeForm(props: RecipeFormProps) {
               </button>
             </div>
 
-            {/* ── Ingredient list — compact rows, × to remove ── */}
+            {/* ── Ingredient list — tap to edit, × to remove ── */}
             {group.items.some(ing => ing.name_en.trim() || ing.amount.trim()) && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {group.items.map((ingredient, ingredientIndex) => {
                   if (!ingredient.name_en.trim() && !ingredient.amount.trim()) return null;
+                  const isEditing = editingRow?.gi === groupIndex && editingRow?.ii === ingredientIndex;
                   return (
                     <div key={`ing-${groupIndex}-${ingredientIndex}`}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderRadius: 8, background: "var(--surface)", border: `1px solid ${isEditing ? "var(--accent)" : "var(--border)"}` }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
                         background: ingredient.libraryId ? "var(--olive)" : "var(--border)" }}
                         title={ingredient.libraryId ? "Linked to library" : "Not linked"} />
-                      <span style={{ flex: 1, fontSize: "0.9rem", color: "var(--foreground)" }}>
-                        {(ingredient.amount || (ingredient.unit && ingredient.unit !== "whole")) && (
-                          <strong>
-                            {ingredient.amount}
-                            {ingredient.unit && ingredient.unit !== "whole" ? ` ${ingredient.unit}` : ""}
-                            {" "}
-                          </strong>
-                        )}
-                        {ingredient.name_en}
-                        {ingredient.preparation && <span style={{ color: "var(--muted)", fontStyle: "italic" }}>, {ingredient.preparation}</span>}
-                        {ingredient.note && <span style={{ color: "var(--muted)" }}> · {ingredient.note}</span>}
-                        {ingredient.garnish && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>garnish</span>}
-                        {ingredient.optional && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>optional</span>}
-                        {ingredient.approximate && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>approx</span>}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          autoFocus
+                          className="input"
+                          style={{ flex: 1, border: "none", background: "transparent", outline: "none", boxShadow: "none", padding: 0, fontSize: "0.9rem" }}
+                          value={editingRow.text}
+                          onChange={(e) => setEditingRow({ ...editingRow, text: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") { e.preventDefault(); handleRowSave(groupIndex, ingredientIndex, editingRow.text); }
+                            if (e.key === "Escape") setEditingRow(null);
+                          }}
+                          onBlur={() => handleRowSave(groupIndex, ingredientIndex, editingRow.text)}
+                        />
+                      ) : (
+                        <span style={{ flex: 1, fontSize: "0.9rem", color: "var(--foreground)", cursor: "text" }}
+                          onClick={() => setEditingRow({ gi: groupIndex, ii: ingredientIndex, text: draftToText(ingredient) })}>
+                          {(ingredient.amount || (ingredient.unit && ingredient.unit !== "whole" && ingredient.unit !== "clove")) && (
+                            <strong style={{ fontWeight: 800 }}>
+                              {ingredient.amount}
+                              {ingredient.unit && ingredient.unit !== "whole" && ingredient.unit !== "clove" ? ` ${ingredient.unit}` : ""}
+                              {" "}
+                            </strong>
+                          )}
+                          {ingredient.name_en}
+                          {ingredient.preparation && <span style={{ color: "var(--muted)", fontStyle: "italic" }}>, {ingredient.preparation}</span>}
+                          {ingredient.note && <span style={{ color: "var(--muted)" }}> · {ingredient.note}</span>}
+                          {ingredient.garnish && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>garnish</span>}
+                          {ingredient.optional && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>optional</span>}
+                          {ingredient.approximate && <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginLeft: 6 }}>approx</span>}
+                        </span>
+                      )}
                       <button type="button" onClick={() => props.onIngredientRemove(groupIndex, ingredientIndex)}
                         style={{ padding: "2px 8px", fontSize: "1rem", lineHeight: 1, borderRadius: 6, background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", cursor: "pointer", flexShrink: 0 }}>
                         ×
