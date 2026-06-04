@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
@@ -8,6 +9,8 @@ import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { useRecipeSearch } from "@/hooks/useRecipeSearch";
 import RecipeCard from "@/components/RecipeCard";
 import { RecipeSearchBar } from "@/components/RecipeSearchBar";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { isCreator } from "@/lib/creator";
 import type { RecipeSummary } from "@/types";
 
 const gridVariants = {
@@ -16,8 +19,11 @@ const gridVariants = {
 };
 
 export default function DiscoverPage() {
-  const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [recipes, setRecipes]           = useState<RecipeSummary[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<RecipeSummary | null>(null);
 
   const {
     setTitleQuery,
@@ -30,6 +36,10 @@ export default function DiscoverPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
+      // Get current user (may be null if not logged in)
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id ?? null);
+
       const { data } = await supabase
         .from("recipes")
         .select("*")
@@ -42,6 +52,14 @@ export default function DiscoverPage() {
       setLoading(false);
     })();
   }, []);
+
+  async function handleDelete(recipe: RecipeSummary) {
+    await supabase.from("recipes").delete().eq("id", parseInt(recipe.id));
+    setRecipes((prev) => prev.filter((r) => r.id !== recipe.id));
+    setPendingDelete(null);
+  }
+
+  const creatorLoggedIn = isCreator(currentUserId);
 
   const displayed = isFiltering ? filteredRecipes : recipes;
 
@@ -78,9 +96,24 @@ export default function DiscoverPage() {
           animate="visible"
         >
           {displayed.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} />
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              onEdit={creatorLoggedIn ? () => router.push(`/edit/${recipe.id}`) : undefined}
+              onDelete={creatorLoggedIn ? () => setPendingDelete(recipe) : undefined}
+            />
           ))}
         </motion.div>
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          open={true}
+          title="Delete recipe?"
+          message={`"${pendingDelete.title}" will be permanently removed from Discover.`}
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </main>
   );

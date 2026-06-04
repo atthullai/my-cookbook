@@ -13,6 +13,7 @@ import { useToast } from "@/components/ToastProvider";
 import { apiRequest } from "@/lib/api-client";
 import { buildRecipePayload } from "@/lib/recipe-db";
 import { saveRecipe as saveToLibrary } from "@/lib/library";
+import { isCreator } from "@/lib/creator";
 import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import type {
   AppUser,
@@ -267,9 +268,11 @@ export default function AddRecipe() {
       coverImageUrl,
     });
 
+    const creatorAdding = isCreator(user.id);
+
     const { data, error } = await supabase
       .from("recipes")
-      .insert([{ user_id: user.id, is_public: false, ...payload }])
+      .insert([{ user_id: user.id, is_public: creatorAdding, ...payload }])
       .select("id")
       .single();
 
@@ -280,10 +283,14 @@ export default function AddRecipe() {
       return;
     }
 
-    // Auto-save to Library so the user can find it there
-    saveToLibrary(String(data.id));
+    if (!creatorAdding) {
+      // Regular user → auto-save to Library
+      saveToLibrary(String(data.id));
+      notify({ tone: "success", title: "Recipe saved to your Library!", message: "Find it under Library → My Recipes." });
+    } else {
+      notify({ tone: "success", title: "Recipe published!", message: "It is now live on Discover." });
+    }
 
-    notify({ tone: "success", title: "Recipe saved to your Library!", message: "Find it under Library → My Recipes." });
     setTadkaBurst(true);
     setTimeout(() => router.push(`/recipe/${data.id}`), 950);
   };
