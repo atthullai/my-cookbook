@@ -304,16 +304,14 @@ body.cooking-mode .site-shell {
 }
 
 .nav-dropdown-item:hover {
-  background: linear-gradient(135deg, var(--accent-soft), var(--saffron-soft));
-  color: var(--accent-strong);
+  background: none;
+  color: var(--text);
 }
 
 .nav-dropdown-item.active {
-  background: linear-gradient(135deg, var(--accent-soft), var(--saffron-soft));
+  background: none;
   color: var(--accent-strong);
-  font-weight: 600;
-  border-left: 3px solid var(--accent);
-  padding-left: 11px;
+  font-weight: 500;
 }
 
 .nav-dropdown-item--danger {
