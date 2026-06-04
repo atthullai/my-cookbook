@@ -25,15 +25,16 @@ const SYSTEM_COLLECTIONS = [
 
 export default function LibraryPage() {
   const router = useRouter();
-  const { savedIds, collections, deleteCollection } = useLibrary();
+  const { savedIds, collections, deleteCollection, unsave } = useLibrary();
   const addMenuRef = useRef<HTMLDivElement>(null);
 
-  const [allRecipes, setAllRecipes]   = useState<RecipeSummary[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState("");
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [showCreate, setShowCreate]   = useState(false);
-  const [deleteColId, setDeleteColId] = useState<string | null>(null);
+  const [allRecipes, setAllRecipes]     = useState<RecipeSummary[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState("");
+  const [showAddMenu, setShowAddMenu]   = useState(false);
+  const [showCreate, setShowCreate]     = useState(false);
+  const [deleteColId, setDeleteColId]   = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<RecipeSummary | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -69,6 +70,13 @@ export default function LibraryPage() {
     const q = search.toLowerCase();
     return savedRecipes.filter((r) => r.title.toLowerCase().includes(q));
   }, [savedRecipes, search]);
+
+  async function handleDeleteRecipe(recipe: RecipeSummary) {
+    await supabase.from("recipes").delete().eq("id", parseInt(recipe.id));
+    unsave(recipe.id);
+    setAllRecipes((prev) => prev.filter((r) => r.id !== recipe.id));
+    setPendingDelete(null);
+  }
 
   const systemCounts: Record<string, number> = useMemo(() => {
     const recentIds = new Set(getRecentlyViewedIds());
@@ -196,7 +204,12 @@ export default function LibraryPage() {
           >
             <AnimatePresence>
               {displayRecipes.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} />
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onEdit={() => router.push(`/edit/${recipe.id}`)}
+                  onDelete={() => setPendingDelete(recipe)}
+                />
               ))}
             </AnimatePresence>
           </motion.div>
@@ -213,6 +226,17 @@ export default function LibraryPage() {
           confirmLabel="Delete"
           onConfirm={() => { deleteCollection(deleteColId); setDeleteColId(null); }}
           onCancel={() => setDeleteColId(null)}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          open={true}
+          title="Delete recipe?"
+          message={`"${pendingDelete.title}" will be permanently removed.`}
+          confirmLabel="Delete"
+          onConfirm={() => handleDeleteRecipe(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </main>
