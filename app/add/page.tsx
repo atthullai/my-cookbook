@@ -12,6 +12,7 @@ import RecipeForm from "@/components/RecipeForm";
 import { useToast } from "@/components/ToastProvider";
 import { apiRequest } from "@/lib/api-client";
 import { buildRecipePayload } from "@/lib/recipe-db";
+import { saveRecipe as saveToLibrary } from "@/lib/library";
 import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import type {
   AppUser,
@@ -268,7 +269,7 @@ export default function AddRecipe() {
 
     const { data, error } = await supabase
       .from("recipes")
-      .insert([{ user_id: user.id, ...payload }])
+      .insert([{ user_id: user.id, is_public: false, ...payload }])
       .select("id")
       .single();
 
@@ -279,7 +280,10 @@ export default function AddRecipe() {
       return;
     }
 
-    notify({ tone: "success", title: "Recipe saved!", message: "Your new recipe is ready." });
+    // Auto-save to Library so the user can find it there
+    saveToLibrary(String(data.id));
+
+    notify({ tone: "success", title: "Recipe saved to your Library!", message: "Find it under Library → My Recipes." });
     setTadkaBurst(true);
     setTimeout(() => router.push(`/recipe/${data.id}`), 950);
   };

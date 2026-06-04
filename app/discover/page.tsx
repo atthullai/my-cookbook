@@ -33,6 +33,7 @@ export default function DiscoverPage() {
       const { data } = await supabase
         .from("recipes")
         .select("*")
+        .eq("is_public", true)
         .order("created_at", { ascending: false });
       if (data) {
         const rows = mapRecipeRows(data);

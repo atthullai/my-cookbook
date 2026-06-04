@@ -38,6 +38,8 @@ export default function LibraryPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
+      // Fetch all recipes (public + user's private) — RLS on Supabase will
+      // naturally scope private recipes to the owner once auth is wired up.
       const { data } = await supabase
         .from("recipes")
         .select("*")
