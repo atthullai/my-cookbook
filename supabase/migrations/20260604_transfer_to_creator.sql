@@ -37,15 +37,18 @@ BEGIN
     SET user_id = new_creator
     WHERE user_id = old_user_id;
 
-  -- 5. User profile (copy name/bio to new account, keep old intact) ----
-  INSERT INTO public.user_profiles (user_id, display_name, bio, avatar_url)
-    SELECT new_creator, display_name, bio, avatar_url
+  -- 5. User profile (copy name/bio/etc to new account, keep old intact)
+  --    user_profiles uses "id" as the primary key (references auth.users)
+  INSERT INTO public.user_profiles (id, display_name, bio, location, avatar_url, cook_style)
+    SELECT new_creator, display_name, bio, location, avatar_url, cook_style
     FROM   public.user_profiles
-    WHERE  user_id = old_user_id
-  ON CONFLICT (user_id) DO UPDATE
+    WHERE  id = old_user_id
+  ON CONFLICT (id) DO UPDATE
     SET display_name = EXCLUDED.display_name,
         bio          = EXCLUDED.bio,
-        avatar_url   = EXCLUDED.avatar_url;
+        location     = EXCLUDED.location,
+        avatar_url   = EXCLUDED.avatar_url,
+        cook_style   = EXCLUDED.cook_style;
 
   RAISE NOTICE 'Transfer complete: all data moved from % to %', old_user_id, new_creator;
 END $$;
