@@ -2292,3 +2292,592 @@ main.container > p {
     margin: 18mm 16mm;
   }
 }
+
+/* ============================================================
+   RECIPE CARD — Save / Add-to button
+   ============================================================ */
+.recipe-card-save-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px 4px 7px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255,255,255,0.88);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.recipe-card-save-btn:hover {
+  background: var(--accent-strong);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.recipe-card-save-btn--saved {
+  background: var(--accent-strong);
+  color: #fff;
+  padding: 5px 9px;
+}
+
+.recipe-card-save-btn--saved:hover {
+  background: rgba(132, 58, 33, 0.85);
+}
+
+.recipe-card-save-label {
+  line-height: 1;
+}
+
+/* ============================================================
+   MODALS — shared base
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid rgba(89,58,34,0.15);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  width: 100%;
+  max-width: 380px;
+  overflow: hidden;
+  animation: modal-in 0.18s ease;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modal-subtitle {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 2px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.modal-close:hover {
+  background: rgba(132,58,33,0.1);
+  color: var(--accent-strong);
+}
+
+.modal-body {
+  padding: 18px;
+}
+
+.modal-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.modal-input:focus {
+  border-color: var(--accent);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px 18px;
+}
+
+.modal-btn {
+  padding: 8px 18px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  border: none;
+}
+
+.modal-btn--ghost {
+  background: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.modal-btn--ghost:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.modal-btn--primary {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.modal-btn--primary:hover {
+  opacity: 0.88;
+}
+
+.modal-btn--primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── AddToModal specific ──────────────────────────────────── */
+.add-to-options {
+  padding: 8px;
+}
+
+.add-to-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.add-to-option:hover {
+  background: var(--surface-strong);
+}
+
+.add-to-option-icon {
+  color: var(--accent-strong);
+  flex-shrink: 0;
+}
+
+.add-to-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.add-to-option-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.add-to-option-desc {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.add-to-option-chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.add-to-collections {
+  margin: 4px 0 4px 44px;
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-to-empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 6px 0;
+}
+
+.add-to-collection-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.add-to-collection-item:hover:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+.add-to-collection-item.added {
+  color: var(--accent-strong);
+  opacity: 0.7;
+  cursor: default;
+}
+
+.add-to-new {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.add-to-check {
+  margin-left: auto;
+  font-size: 0.8rem;
+}
+
+/* ============================================================
+   LIBRARY PAGE
+   ============================================================ */
+.library-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.library-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.library-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent-strong);
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.library-add-btn:hover { opacity: 0.88; }
+
+.library-add-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid rgba(89,58,34,0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+  z-index: 100;
+  overflow: hidden;
+  min-width: 200px;
+  padding: 4px;
+}
+
+.library-add-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.library-add-menu-item:hover {
+  background: var(--surface-strong);
+}
+
+.library-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+
+.library-search-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.library-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.library-search-input {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.library-search-input:focus {
+  border-color: var(--accent);
+}
+
+.library-search-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
+.library-filter-btn {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.library-filter-btn:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.library-section {
+  margin-bottom: 2.5rem;
+}
+
+.library-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.library-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* ── Collections grid ─────────────────────────────────────── */
+.collections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.collection-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  cursor: default;
+}
+
+.collection-card:hover {
+  border-color: rgba(132,58,33,0.28);
+  transform: translateY(-2px);
+}
+
+.collection-card--create {
+  border-style: dashed;
+  cursor: pointer;
+  color: var(--accent-strong);
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.collection-card--create:hover {
+  background: var(--accent-soft);
+}
+
+.collection-card-icon {
+  color: var(--accent-strong);
+  opacity: 0.8;
+}
+
+.collection-card-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.collection-card-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.collection-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.collection-card--user:hover .collection-card-delete {
+  opacity: 1;
+}
+
+.collection-card-delete:hover {
+  background: rgba(192,57,43,0.1);
+  color: #c0392b;
+}
+
+/* ── Library recipe grid ──────────────────────────────────── */
+.library-recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+/* ============================================================
+   DISCOVER PAGE
+   ============================================================ */
+.discover-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.discover-header {
+  margin-bottom: 1.5rem;
+}
+
+.discover-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.discover-subtitle {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.discover-search {
+  margin-bottom: 1.5rem;
+}
+
+.discover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
