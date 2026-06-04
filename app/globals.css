@@ -203,7 +203,19 @@ body.cooking-mode .site-shell {
 
 .site-nav-link.active {
   color: var(--accent-strong);
-  font-weight: 500;
+  font-weight: 600;
+  position: relative;
+}
+
+.site-nav-link.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 10%;
+  width: 80%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 /* Dropdown nav */
@@ -257,7 +269,7 @@ body.cooking-mode .site-shell {
 
 .nav-dropdown-panel {
   position: absolute;
-  top: calc(100% + 6px);
+  top: 100%;
   left: 0;
   min-width: 160px;
   background: var(--surface);
@@ -266,7 +278,9 @@ body.cooking-mode .site-shell {
   box-shadow: 0 8px 28px rgba(0,0,0,0.12);
   z-index: 100;
   overflow: hidden;
-  padding: 4px;
+  /* padding-top bridges the invisible gap so diagonal mouse movement
+     never leaves the hover zone before reaching the panel items */
+  padding: 8px 4px 4px;
 }
 
 .nav-dropdown-panel--right {
@@ -289,10 +303,17 @@ body.cooking-mode .site-shell {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.nav-dropdown-item:hover,
+.nav-dropdown-item:hover {
+  background: linear-gradient(135deg, var(--accent-soft), var(--saffron-soft));
+  color: var(--accent-strong);
+}
+
 .nav-dropdown-item.active {
   background: linear-gradient(135deg, var(--accent-soft), var(--saffron-soft));
   color: var(--accent-strong);
+  font-weight: 600;
+  border-left: 3px solid var(--accent);
+  padding-left: 11px;
 }
 
 .nav-dropdown-item--danger {
