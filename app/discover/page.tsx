@@ -45,13 +45,17 @@ export default function DiscoverPage() {
   const displayed = isFiltering ? filteredRecipes : recipes;
 
   return (
-    <main className="discover-page">
-      <div className="discover-header">
-        <h1 className="discover-title">Discover</h1>
-        <p className="discover-subtitle">All recipes from the kitchen</p>
+    <main className="container">
+      {/* Header */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>Discover</h1>
+        <p style={{ color: "var(--muted)", marginTop: "4px", fontSize: "0.875rem" }}>
+          All recipes from the kitchen
+        </p>
       </div>
 
-      <div className="discover-search">
+      {/* Search */}
+      <div style={{ marginBottom: "1.5rem" }}>
         <RecipeSearchBar
           onTitleSearch={setTitleQuery}
           onIngredientFilter={setIngredientFilter}
@@ -60,13 +64,14 @@ export default function DiscoverPage() {
         />
       </div>
 
+      {/* Grid */}
       {loading ? (
-        <p style={{ padding: "2rem", color: "var(--muted)" }}>Loading…</p>
+        <p style={{ color: "var(--muted)" }}>Loading…</p>
       ) : displayed.length === 0 ? (
-        <p style={{ padding: "2rem", color: "var(--muted)" }}>No recipes found.</p>
+        <p style={{ color: "var(--muted)" }}>No recipes found.</p>
       ) : (
         <motion.div
-          className="discover-grid"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
           variants={gridVariants}
           initial="hidden"
           animate="visible"

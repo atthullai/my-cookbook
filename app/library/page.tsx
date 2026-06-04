@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, SlidersHorizontal, FolderHeart, BookMarked, Eye, ChefHat, CalendarDays, Star, X } from "lucide-react";
@@ -15,18 +15,18 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { getRecentlyViewedIds } from "@/lib/library";
 import type { RecipeSummary } from "@/types";
 
-// ── System collections definition ──────────────────────────────────────────
 const SYSTEM_COLLECTIONS = [
-  { key: "saved-plans",      label: "Saved Plans",      icon: <BookMarked size={18} />,   desc: "Meal plans you bookmarked" },
-  { key: "recently-viewed",  label: "Recently Viewed",  icon: <Eye size={18} />,          desc: "Recipes you opened lately" },
-  { key: "my-recipes",       label: "My Recipes",       icon: <ChefHat size={18} />,      desc: "Recipes you created" },
-  { key: "planned",          label: "Planned",          icon: <CalendarDays size={18} />, desc: "On your meal planner" },
-  { key: "made-it",          label: "Made It",          icon: <Star size={18} />,         desc: "Recipes you've cooked" },
+  { key: "saved-plans",     label: "Saved Plans",     icon: <BookMarked size={20} /> },
+  { key: "recently-viewed", label: "Recently Viewed", icon: <Eye size={20} /> },
+  { key: "my-recipes",      label: "My Recipes",      icon: <ChefHat size={20} /> },
+  { key: "planned",         label: "Planned",         icon: <CalendarDays size={20} /> },
+  { key: "made-it",         label: "Made It",         icon: <Star size={20} /> },
 ] as const;
 
 export default function LibraryPage() {
   const router = useRouter();
   const { savedIds, collections, deleteCollection } = useLibrary();
+  const addMenuRef = useRef<HTMLDivElement>(null);
 
   const [allRecipes, setAllRecipes]   = useState<RecipeSummary[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -35,7 +35,6 @@ export default function LibraryPage() {
   const [showCreate, setShowCreate]   = useState(false);
   const [deleteColId, setDeleteColId] = useState<string | null>(null);
 
-  // Load all recipes once so we can filter by savedIds
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -43,65 +42,61 @@ export default function LibraryPage() {
         .from("recipes")
         .select("*")
         .order("created_at", { ascending: false });
-      if (data) {
-        const rows = mapRecipeRows(data);
-        setAllRecipes(toRecipeSummaries(rows));
-      }
+      if (data) setAllRecipes(toRecipeSummaries(mapRecipeRows(data)));
       setLoading(false);
     })();
   }, []);
 
-  // Recipes the user saved
+  // Close add-menu on outside click
+  useEffect(() => {
+    if (!showAddMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (!addMenuRef.current?.contains(e.target as Node)) setShowAddMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAddMenu]);
+
   const savedRecipes = useMemo(
     () => allRecipes.filter((r) => savedIds.has(r.id)),
     [allRecipes, savedIds]
   );
 
-  // Filtered by search query
   const displayRecipes = useMemo(() => {
     if (!search.trim()) return savedRecipes;
     const q = search.toLowerCase();
     return savedRecipes.filter((r) => r.title.toLowerCase().includes(q));
   }, [savedRecipes, search]);
 
-  // System collection counts
   const systemCounts: Record<string, number> = useMemo(() => {
     const recentIds = new Set(getRecentlyViewedIds());
     return {
-      "saved-plans":     0, // future
+      "saved-plans":     0,
       "recently-viewed": allRecipes.filter((r) => recentIds.has(r.id)).length,
-      "my-recipes":      allRecipes.filter((r) => (r as RecipeSummary & { author?: string }).author === "Atthuzhai").length,
-      "planned":         0, // future
-      "made-it":         0, // future
+      "my-recipes":      allRecipes.length,
+      "planned":         0,
+      "made-it":         0,
     };
   }, [allRecipes]);
 
   return (
-    <main className="library-page">
-      {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="library-header">
-        <h1 className="library-title">Library</h1>
+    <main className="container">
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+        <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>Library</h1>
 
         {/* + Add dropdown */}
-        <div style={{ position: "relative" }}>
-          <button
-            className="library-add-btn"
-            onClick={() => setShowAddMenu((v) => !v)}
-          >
-            <Plus size={15} /> Add
+        <div style={{ position: "relative" }} ref={addMenuRef}>
+          <button className="library-add-btn" onClick={() => setShowAddMenu((v) => !v)}>
+            <Plus size={14} /> Add
           </button>
           {showAddMenu && (
             <div className="library-add-menu">
-              <button
-                className="library-add-menu-item"
-                onClick={() => { setShowAddMenu(false); router.push("/add?source=url"); }}
-              >
+              <button className="library-add-menu-item" onClick={() => { setShowAddMenu(false); router.push("/add?source=url"); }}>
                 Add recipe from URL
               </button>
-              <button
-                className="library-add-menu-item"
-                onClick={() => { setShowAddMenu(false); router.push("/add"); }}
-              >
+              <button className="library-add-menu-item" onClick={() => { setShowAddMenu(false); router.push("/add"); }}>
                 Create new recipe
               </button>
             </div>
@@ -109,19 +104,20 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* ── Search ──────────────────────────────────────────────────────── */}
-      <div className="library-search-row">
-        <div className="library-search-wrap">
-          <Search size={15} className="library-search-icon" />
+      {/* ── Search ─────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "2rem" }}>
+        <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center" }}>
+          <Search size={15} style={{ position: "absolute", left: 12, color: "var(--muted)", pointerEvents: "none" }} />
           <input
             className="library-search-input"
             type="search"
             placeholder="Search saved recipes…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            style={{ paddingLeft: "36px" }}
           />
           {search && (
-            <button className="library-search-clear" onClick={() => setSearch("")}>
+            <button onClick={() => setSearch("")} style={{ position: "absolute", right: 10, background: "none", border: "none", cursor: "pointer", color: "var(--muted)", display: "flex", alignItems: "center" }}>
               <X size={13} />
             </button>
           )}
@@ -131,11 +127,11 @@ export default function LibraryPage() {
         </button>
       </div>
 
-      {/* ── Collections ─────────────────────────────────────────────────── */}
-      <section className="library-section">
+      {/* ── Collections ────────────────────────────────────────────────── */}
+      <section style={{ marginBottom: "2.5rem" }}>
         <h2 className="library-section-title">Collections</h2>
-        <div className="collections-grid">
-          {/* System collections */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+
           {SYSTEM_COLLECTIONS.map((col) => (
             <div key={col.key} className="collection-card">
               <div className="collection-card-icon">{col.icon}</div>
@@ -146,43 +142,35 @@ export default function LibraryPage() {
             </div>
           ))}
 
-          {/* User collections */}
           {collections.map((col) => (
             <div key={col.id} className="collection-card collection-card--user">
-              <div className="collection-card-icon"><FolderHeart size={18} /></div>
+              <div className="collection-card-icon"><FolderHeart size={20} /></div>
               <div className="collection-card-name">{col.name}</div>
               <div className="collection-card-count">
                 {col.recipeIds.length} recipe{col.recipeIds.length !== 1 ? "s" : ""}
               </div>
-              <button
-                className="collection-card-delete"
-                onClick={() => setDeleteColId(col.id)}
-                aria-label="Delete collection"
-              >
+              <button className="collection-card-delete" onClick={() => setDeleteColId(col.id)} aria-label="Delete">
                 <X size={12} />
               </button>
             </div>
           ))}
 
-          {/* Create new collection */}
           <button className="collection-card collection-card--create" onClick={() => setShowCreate(true)}>
-            <div className="collection-card-icon"><Plus size={18} /></div>
+            <div className="collection-card-icon"><Plus size={20} /></div>
             <div className="collection-card-name">Create collection</div>
           </button>
         </div>
       </section>
 
-      {/* ── Saved Recipes ───────────────────────────────────────────────── */}
-      <section className="library-section">
+      {/* ── Saved Recipes ──────────────────────────────────────────────── */}
+      <section>
         <h2 className="library-section-title">
           Saved Recipes
-          {savedRecipes.length > 0 && (
-            <span className="library-count">{savedRecipes.length}</span>
-          )}
+          {savedRecipes.length > 0 && <span className="library-count">{savedRecipes.length}</span>}
         </h2>
 
         {loading ? (
-          <p className="library-empty">Loading…</p>
+          <p style={{ color: "var(--muted)" }}>Loading…</p>
         ) : displayRecipes.length === 0 ? (
           <div className="library-empty">
             {savedIds.size === 0 ? (
@@ -199,7 +187,7 @@ export default function LibraryPage() {
           </div>
         ) : (
           <motion.div
-            className="library-recipe-grid"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             initial="hidden"
             animate="visible"
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}
@@ -213,10 +201,8 @@ export default function LibraryPage() {
         )}
       </section>
 
-      {/* ── Modals ──────────────────────────────────────────────────────── */}
-      {showCreate && (
-        <CreateCollectionModal onClose={() => setShowCreate(false)} />
-      )}
+      {showCreate && <CreateCollectionModal onClose={() => setShowCreate(false)} />}
+
       {deleteColId && (
         <ConfirmDialog
           open={true}

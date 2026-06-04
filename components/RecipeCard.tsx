@@ -88,12 +88,13 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
             {theme.emoji} {theme.label}
           </span>
 
-          {/* Save / Add-to button */}
+          {/* Save / Add-to button — inline position for reliability */}
           {saved ? (
             <button
               type="button"
               onClick={handleAddToClick}
               className="recipe-card-save-btn recipe-card-save-btn--saved"
+              style={{ position: "absolute", top: 8, right: 8 }}
               aria-label="Add to…"
             >
               <Plus size={13} />
@@ -103,6 +104,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
               type="button"
               onClick={handleSaveClick}
               className="recipe-card-save-btn"
+              style={{ position: "absolute", top: 8, right: 8 }}
               aria-label="Save to Library"
             >
               <Bookmark size={13} />
