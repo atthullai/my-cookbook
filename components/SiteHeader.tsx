@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 
 // ---------------------------------------------------------------------------
 // Nav structure
@@ -139,6 +140,13 @@ function UserMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = useCallback(async () => {
+    setOpen(false);
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }, [router]);
 
   const isUserActive =
     pathname?.startsWith("/about") ||
@@ -193,7 +201,7 @@ function UserMenu() {
           <Link href="/settings" role="menuitem" className="nav-dropdown-item" onClick={() => setOpen(false)}>Settings</Link>
           <Link href="/feedback" role="menuitem" className="nav-dropdown-item" onClick={() => setOpen(false)}>Feedback &amp; Support</Link>
           <div className="nav-dropdown-divider" />
-          <button className="nav-dropdown-item nav-dropdown-item--danger" role="menuitem" onClick={() => setOpen(false)}>
+          <button className="nav-dropdown-item nav-dropdown-item--danger" role="menuitem" onClick={() => void handleLogout()}>
             Logout
           </button>
         </div>

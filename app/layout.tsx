@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/ToastProvider";
 import { LibraryProvider } from "@/components/LibraryProvider";
+import { PreferencesProvider } from "@/components/PreferencesProvider";
+import Fab from "@/components/Fab";
 import "./globals.css";
 
 // Baby-brain map:
@@ -27,8 +29,11 @@ export default function RootLayout({
       <body className="min-h-full">
         <ToastProvider>
           <LibraryProvider>
-            <SiteHeader />
-            {children}
+            <PreferencesProvider>
+              <SiteHeader />
+              {children}
+              <Fab />
+            </PreferencesProvider>
           </LibraryProvider>
         </ToastProvider>
       </body>
