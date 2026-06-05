@@ -12,7 +12,7 @@ import RecipeForm from "@/components/RecipeForm";
 import { useToast } from "@/components/ToastProvider";
 import { apiRequest } from "@/lib/api-client";
 import { buildRecipePayload } from "@/lib/recipe-db";
-import { saveRecipe as saveToLibrary } from "@/lib/library";
+import { saveRecipeDb } from "@/lib/library";
 import { isCreator } from "@/lib/creator";
 import type { ImportedRecipeDraft } from "@/lib/recipe-import";
 import type {
@@ -285,7 +285,7 @@ export default function AddRecipe() {
 
     if (!creatorAdding) {
       // Regular user → auto-save to Library
-      saveToLibrary(String(data.id));
+      await saveRecipeDb(String(data.id));
       notify({ tone: "success", title: "Recipe saved to your Library!", message: "Find it under Library → My Recipes." });
     } else {
       notify({ tone: "success", title: "Recipe published!", message: "It is now live on Discover." });

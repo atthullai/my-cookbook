@@ -24,10 +24,15 @@ export default function CreateCollectionModal({ onClose, onCreated }: CreateColl
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  function handleCreate() {
+  const [creating, setCreating] = useState(false);
+
+  async function handleCreate() {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    const col = createCollection(trimmed);
+    if (!trimmed || creating) return;
+    setCreating(true);
+    const col = await createCollection(trimmed);
+    setCreating(false);
+    if (!col) return; // toast already shown by provider
     onCreated?.(col);
     onClose();
   }
@@ -66,9 +71,9 @@ export default function CreateCollectionModal({ onClose, onCreated }: CreateColl
           <button
             className="modal-btn modal-btn--primary"
             onClick={handleCreate}
-            disabled={!name.trim()}
+            disabled={!name.trim() || creating}
           >
-            Create
+            {creating ? "Creating…" : "Create"}
           </button>
         </div>
       </div>

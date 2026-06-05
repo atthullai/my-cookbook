@@ -37,12 +37,20 @@ import { NutritionBadge } from "@/components/NutritionBadge";
 import { deriveNutritionMeta } from "@/lib/nutrition-confidence";
 import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
 import { findEquipmentItem } from "@/lib/equipment-library";
+import { useLibrary } from "@/components/LibraryProvider";
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
 };
 
 export default function RecipeClient({ recipe }: RecipeClientProps) {
+  // Record this view so it appears in "Recently Viewed" (Library + Home).
+  const { trackView } = useLibrary();
+  useEffect(() => {
+    trackView(String(recipe.id));
+    // Only track once per mount per recipe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe.id]);
   // These local UI states are purely for the reader experience and are not persisted to the database.
   const [multiplier, setMultiplier] = useState(1);
   const checkedStorageKey = `cookbook:recipe:${recipe.id}:checked-ingredients`;

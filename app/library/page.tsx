@@ -12,7 +12,6 @@ import { useLibrary } from "@/components/LibraryProvider";
 import RecipeCard from "@/components/RecipeCard";
 import CreateCollectionModal from "@/components/CreateCollectionModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { getRecentlyViewedIds } from "@/lib/library";
 import type { RecipeSummary } from "@/types";
 
 const SYSTEM_COLLECTIONS = [
@@ -25,7 +24,7 @@ const SYSTEM_COLLECTIONS = [
 
 export default function LibraryPage() {
   const router = useRouter();
-  const { savedIds, collections, deleteCollection, unsave } = useLibrary();
+  const { savedIds, favouriteIds, collections, recentlyViewedIds, recentlyCookedIds, deleteCollection, unsave } = useLibrary();
   const addMenuRef = useRef<HTMLDivElement>(null);
 
   const [allRecipes, setAllRecipes]     = useState<RecipeSummary[]>([]);
@@ -79,15 +78,17 @@ export default function LibraryPage() {
   }
 
   const systemCounts: Record<string, number> = useMemo(() => {
-    const recentIds = new Set(getRecentlyViewedIds());
+    const recentSet = new Set(recentlyViewedIds);
+    const cookedSet = new Set(recentlyCookedIds);
     return {
       "saved-plans":     0,
-      "recently-viewed": allRecipes.filter((r) => recentIds.has(r.id)).length,
-      "my-recipes":      allRecipes.length,
+      "recently-viewed": allRecipes.filter((r) => recentSet.has(r.id)).length,
+      "my-recipes":      savedIds.size,
       "planned":         0,
-      "made-it":         0,
+      "made-it":         allRecipes.filter((r) => cookedSet.has(r.id)).length,
+      "favourites":      favouriteIds.size,
     };
-  }, [allRecipes]);
+  }, [allRecipes, recentlyViewedIds, recentlyCookedIds, savedIds, favouriteIds]);
 
   return (
     <main className="container">
