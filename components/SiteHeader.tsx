@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import NotificationBell from "@/components/NotificationBell";
 
 // ---------------------------------------------------------------------------
 // Nav structure
@@ -207,18 +208,6 @@ function UserMenu() {
         </div>
       )}
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Notification bell
-// ---------------------------------------------------------------------------
-
-function NotificationBell() {
-  return (
-    <button className="site-nav-link nav-icon-btn" aria-label="Notifications" type="button">
-      <span className="nav-bell">🔔</span>
-    </button>
   );
 }
 

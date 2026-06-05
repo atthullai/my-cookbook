@@ -19,9 +19,26 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import type { AppUser, RecipeRecord } from "@/lib/recipe-types";
+import type { RecipeSummary, RecipeTag } from "@/types";
 import RecipeCard from "@/components/RecipeCard";
+import RecipeRail from "@/components/RecipeRail";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LottieAnimation from "@/components/LottieAnimation";
+import { useLibrary } from "@/components/LibraryProvider";
+import { usePreferences } from "@/components/PreferencesProvider";
+import { logSearchDb } from "@/lib/library";
+import type { DietKey } from "@/lib/preferences";
+
+// Map a diet preference to the recipe tags that satisfy it.
+const DIET_TO_TAGS: Record<DietKey, RecipeTag[]> = {
+  vegetarian:    ["veg", "vegan"],
+  vegan:         ["vegan"],
+  "high-protein": ["high-protein"],
+};
+
+const SLOT_LABEL: Record<string, string> = {
+  breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack",
+};
 
 // ── Quick-nav card ────────────────────────────────────────────────────────────
 function NavCard({
@@ -52,7 +69,12 @@ function NavCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const router = useRouter();
+  const { recentlyViewedIds } = useLibrary();
+  const { prefs } = usePreferences();
   const [records,       setRecords]       = useState<RecipeRecord[]>([]);
+  const [pool,          setPool]          = useState<RecipeSummary[]>([]);
+  const [planToday,     setPlanToday]     = useState<{ slot: string; title: string }[]>([]);
+  const [groceryCount,  setGroceryCount]  = useState(0);
   const [user,          setUser]          = useState<AppUser | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
@@ -72,19 +94,61 @@ export default function Home() {
     setLoading(false);
   }, []);
 
+  // Dashboard data: accessible recipe pool (for rails), today's plan, grocery count.
+  const loadDashboard = useCallback(async (currentUser: AppUser | null) => {
+    if (!currentUser) { setPool([]); setPlanToday([]); setGroceryCount(0); return; }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const [poolRes, mealRes, groceryRes] = await Promise.all([
+      supabase.from("recipes").select("*").order("id", { ascending: false }).limit(60),
+      supabase.from("planned_meals").select("meal_slot, recipe_id").eq("meal_date", today),
+      supabase.from("shopping_list").select("id", { count: "exact", head: true }).eq("checked", false),
+    ]);
+
+    const poolSummaries = poolRes.data ? toRecipeSummaries(mapRecipeRows(poolRes.data)) : [];
+    setPool(poolSummaries);
+
+    const titleById = new Map(poolSummaries.map((r) => [r.id, r.title]));
+    const order = ["breakfast", "lunch", "dinner", "snack"];
+    setPlanToday(
+      (mealRes.data ?? [])
+        .map((m) => ({ slot: String(m.meal_slot), title: titleById.get(String(m.recipe_id)) ?? "Planned meal" }))
+        .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot)),
+    );
+    setGroceryCount(groceryRes.count ?? 0);
+  }, []);
+
   useEffect(() => {
     let alive = true;
     const run = async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!alive) return;
       setUser(u);
-      await loadRecipes(u);
+      await Promise.all([loadRecipes(u), loadDashboard(u)]);
     };
     void run();
     return () => { alive = false; };
-  }, [loadRecipes]);
+  }, [loadRecipes, loadDashboard]);
 
   const summaries = useMemo(() => toRecipeSummaries(records), [records]);
+
+  // Recently Viewed rail — pool entries in view order.
+  const recentlyViewed = useMemo(() => {
+    const byId = new Map(pool.map((r) => [r.id, r]));
+    return recentlyViewedIds
+      .map((id) => byId.get(id))
+      .filter((r): r is RecipeSummary => Boolean(r))
+      .slice(0, 12);
+  }, [pool, recentlyViewedIds]);
+
+  // Recommended rail — filtered by the user's diet prefs, excluding recents.
+  const recommended = useMemo(() => {
+    const recentSet = new Set(recentlyViewedIds);
+    const targetTags = new Set(prefs.diets.flatMap((d) => DIET_TO_TAGS[d] ?? []));
+    let list = pool.filter((r) => !recentSet.has(r.id));
+    if (targetTags.size > 0) list = list.filter((r) => r.tags.some((t) => targetTags.has(t)));
+    return list.slice(0, 12);
+  }, [pool, recentlyViewedIds, prefs.diets]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -317,6 +381,54 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── Dashboard (logged-in) ─────────────────────────────────────── */}
+        {!loading && user && (
+          <section className="max-w-5xl mx-auto px-4 pb-2">
+
+            {/* Plan + grocery preview */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+              <Link href="/planner" className="rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--accent)", opacity: 0.85 }}>
+                  Today&apos;s plan
+                </p>
+                {planToday.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>Nothing planned — tap to add meals.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {planToday.map((m, i) => (
+                      <li key={i} className="text-sm" style={{ color: "var(--foreground)" }}>
+                        <span style={{ color: "var(--muted)" }}>{SLOT_LABEL[m.slot] ?? m.slot}:</span> {m.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Link>
+
+              <Link href="/planner/shopping" className="rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--accent)", opacity: 0.85 }}>
+                  Shopping list
+                </p>
+                {groceryCount === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>All caught up — nothing to buy.</p>
+                ) : (
+                  <p className="text-sm" style={{ color: "var(--foreground)" }}>
+                    <strong>{groceryCount}</strong> item{groceryCount === 1 ? "" : "s"} remaining to buy →
+                  </p>
+                )}
+              </Link>
+            </div>
+
+            <RecipeRail title="Recently viewed" recipes={recentlyViewed} href="/recipes" />
+            <RecipeRail
+              title={prefs.diets.length > 0 ? "Recommended for you" : "Recommended"}
+              recipes={recommended}
+              href="/recipes"
+            />
+          </section>
+        )}
+
         {/* ── Today's pick ──────────────────────────────────────────────── */}
         {!loading && todayPick && (
           <section className="max-w-5xl mx-auto px-4 pb-6">
@@ -367,6 +479,7 @@ export default function Home() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) void logSearchDb(search.trim()); }}
                 placeholder="Search recipes…"
                 className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm focus:outline-none transition"
                 style={{
