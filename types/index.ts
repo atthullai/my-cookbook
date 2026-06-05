@@ -158,16 +158,31 @@ export type RecipeSummary = Pick<
 // ---------------------------------------------------------------------------
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 
+/** A planned meal is either a recipe or a manual/non-recipe entry. */
+export type MealEntryType =
+  | "recipe"
+  | "restaurant"
+  | "delivery"
+  | "leftover"
+  | "frozen"
+  | "other";
+
 export interface PlannedMeal {
   id: string;
   /** ISO date string e.g. "2026-05-27" */
   date: string;
   slot: MealSlot;
-  /** Matches Recipe.id (string representation of the DB numeric id) */
+  /** Matches Recipe.id; empty string for manual (non-recipe) entries */
   recipeId: string;
   recipe?: RecipeSummary;
   servings: number;
   notes?: string;
+  /** "recipe" for normal recipe meals; otherwise a manual entry kind */
+  entryType?: MealEntryType;
+  /** Free-text label for manual entries (e.g. "Pizza delivery") */
+  label?: string;
+  /** For leftovers: the planned_meals.id this leftover came from */
+  leftoverOf?: string | null;
 }
 
 export type WeekPlan = Record<string, PlannedMeal[]>;

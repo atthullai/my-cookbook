@@ -29,7 +29,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import type { RecipeSummary, PlannedMeal, MealSlot } from "@/types";
+import type { RecipeSummary, PlannedMeal, MealSlot, MealEntryType } from "@/types";
 import { CATEGORY_MAP } from "@/lib/pantry-items";
 import { convertToBase } from "@/lib/conversion";
 import { markMealCooked } from "@/app/actions/planner";
@@ -42,6 +42,16 @@ import {
 const DAYS    = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const SLOTS: MealSlot[]  = ["breakfast", "lunch", "dinner", "snack"];
 const SLOT_ICONS: Record<MealSlot, string> = { breakfast: "🌅", lunch: "☀️", dinner: "🌙", snack: "🍎" };
+
+// Manual (non-recipe) entry kinds — icon + label.
+const ENTRY_META: Record<Exclude<MealEntryType, "recipe">, { icon: string; label: string }> = {
+  restaurant: { icon: "🍽", label: "Restaurant" },
+  delivery:   { icon: "🛵", label: "Delivery" },
+  leftover:   { icon: "♻️", label: "Leftover" },
+  frozen:     { icon: "🧊", label: "Frozen / ready meal" },
+  other:      { icon: "🍴", label: "Other" },
+};
+const MANUAL_TYPES = Object.keys(ENTRY_META) as Exclude<MealEntryType, "recipe">[];
 
 // CSS-var-based semantic slot styles (dark mode aware)
 const SLOT_STYLES: Record<MealSlot, React.CSSProperties> = {
@@ -315,15 +325,41 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
             )}
           </AnimatePresence>
         </motion.div>
+      ) : meal ? (
+        // Manual / non-recipe entry (restaurant, delivery, leftover, frozen…)
+        <div
+          className="relative h-full rounded-lg overflow-hidden min-h-[72px] flex flex-col justify-between p-2"
+          style={{ background: "var(--surface-strong)", border: "1px dashed var(--border)" }}
+        >
+          <div className="flex items-start justify-between gap-1">
+            <span className="text-[11px] font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "var(--foreground)" }}>
+              <span className="mr-1">{ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.icon ?? "🍴"}</span>
+              {meal.label || ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.label || "Meal"}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRemove(); }}
+              className="p-0.5 rounded-full transition flex-shrink-0"
+              style={{ background: "rgba(0,0,0,0.08)", color: "var(--muted)" }}
+              aria-label="Remove"
+            >
+              <X size={8} />
+            </button>
+          </div>
+          <span className="text-[9px] uppercase tracking-wide font-semibold mt-1" style={{ color: "var(--muted)", opacity: 0.7 }}>
+            {ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.label ?? "Meal"}
+          </span>
+        </div>
       ) : (
         <div
           className="h-full flex items-center justify-center min-h-[64px] transition-colors"
-          style={hasSelected ? { background: "rgba(192,138,45,0.06)", cursor: "pointer" } : { cursor: "default" }}
+          style={{ background: hasSelected ? "rgba(192,138,45,0.06)" : "transparent", cursor: "pointer" }}
           onClick={onClickPlan}
+          title={hasSelected ? "Plan selected recipe here" : "Add a meal here"}
         >
           <span
             className="text-xl transition-opacity"
-            style={{ color: "var(--muted)", opacity: hasSelected ? 0.5 : 0.2 }}
+            style={{ color: "var(--muted)", opacity: hasSelected ? 0.5 : 0.25 }}
           >+</span>
         </div>
       )}
@@ -385,6 +421,13 @@ export default function PlannerPage() {
   const [addToPlanDay, setAddToPlanDay] = useState("");
   const [addToPlanSlot, setAddToPlanSlot] = useState<MealSlot>("dinner");
   const [isAddingToPlan, setIsAddingToPlan] = useState(false);
+
+  // ── Quick (manual / non-recipe) entry modal ───────────────────────────────
+  const [quickEntry, setQuickEntry] = useState<{ date: string; slot: MealSlot } | null>(null);
+  const [quickType, setQuickType]   = useState<Exclude<MealEntryType, "recipe">>("restaurant");
+  const [quickLabel, setQuickLabel] = useState("");
+  const [quickLeftoverFrom, setQuickLeftoverFrom] = useState<string>(""); // source planned_meal id
+  const [isAddingManual, setIsAddingManual] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -463,12 +506,15 @@ export default function PlannerPage() {
       setExpirySuggestions(scored.slice(0, 3));
 
       const mealRows: PlannedMeal[] = (mealsRes.data ?? []).map((row) => ({
-        id:       row.id as string,
-        date:     row.meal_date as string,
-        slot:     row.meal_slot as MealSlot,
-        recipeId: String(row.recipe_id),
-        servings: (row.servings as number) ?? 1,
-        notes:    (row.notes as string | undefined) ?? undefined,
+        id:        row.id as string,
+        date:      row.meal_date as string,
+        slot:      row.meal_slot as MealSlot,
+        recipeId:  row.recipe_id != null ? String(row.recipe_id) : "",
+        servings:  (row.servings as number) ?? 1,
+        notes:     (row.notes as string | undefined) ?? undefined,
+        entryType: ((row.entry_type as MealEntryType | undefined) ?? "recipe"),
+        label:     (row.label as string | undefined) ?? undefined,
+        leftoverOf: (row.leftover_of as string | null | undefined) ?? null,
       }));
 
       setPlannedMeals(mealRows);
@@ -654,6 +700,61 @@ export default function PlannerPage() {
       toast.error(err instanceof Error ? err.message : "Failed to add meal");
     }
   }, [selectedRecipeId, plannedMeals, recipes]);
+
+  // ── Empty-slot click: plan selected recipe, else open quick-entry modal ────
+  const handleEmptySlotClick = useCallback((date: string, slot: MealSlot) => {
+    if (selectedRecipeId) { void handleClickPlan(date, slot); return; }
+    setQuickType("restaurant");
+    setQuickLabel("");
+    setQuickLeftoverFrom("");
+    setQuickEntry({ date, slot });
+  }, [selectedRecipeId, handleClickPlan]);
+
+  // ── Add a manual (non-recipe) entry ────────────────────────────────────────
+  const addManualEntry = useCallback(async () => {
+    if (!quickEntry) return;
+    setIsAddingManual(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+
+      // For leftovers, derive label from the linked source meal when none typed.
+      let label = quickLabel.trim();
+      let leftoverOf: string | null = null;
+      if (quickType === "leftover" && quickLeftoverFrom) {
+        leftoverOf = quickLeftoverFrom;
+        const src = plannedMeals.find((m) => m.id === quickLeftoverFrom);
+        const srcTitle = src ? (getRecipe(src.recipeId)?.title ?? src.label) : undefined;
+        if (!label && srcTitle) label = `Leftover: ${srcTitle.split("|")[0].split("–")[0].trim()}`;
+      }
+      if (!label) label = ENTRY_META[quickType].label;
+
+      const { data, error } = await supabase.from("planned_meals").insert({
+        user_id: user.id, meal_date: quickEntry.date, meal_slot: quickEntry.slot,
+        recipe_id: null, servings: 1, entry_type: quickType, label, leftover_of: leftoverOf,
+      }).select().single();
+
+      if (error) {
+        if (error.message.includes("entry_type") || error.message.includes("column")) {
+          setMigrationNeeded(true);
+          toast.error("Run the planner migration first — see the yellow banner.");
+        } else throw error;
+        return;
+      }
+
+      setPlannedMeals((prev) => [...prev, {
+        id: data.id as string, date: data.meal_date as string, slot: data.meal_slot as MealSlot,
+        recipeId: "", servings: 1, entryType: quickType, label, leftoverOf,
+      }]);
+      toast.success(`${ENTRY_META[quickType].icon} ${label} → ${quickEntry.slot}`, { duration: 2500 });
+      setQuickEntry(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add entry");
+    } finally {
+      setIsAddingManual(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickEntry, quickType, quickLabel, quickLeftoverFrom, plannedMeals]);
 
   // ── Update servings ────────────────────────────────────────────────────────
   const handleServings = useCallback(async (mealId: string, delta: number) => {
@@ -1108,7 +1209,7 @@ export default function PlannerPage() {
                               mealStatus={meal ? mealStatuses[meal.id] : undefined}
                               expanded={meal ? expandedMealId === meal.id : false}
                               onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
-                              onClickPlan={!meal ? () => void handleClickPlan(toISO(date), slot) : undefined}
+                              onClickPlan={!meal ? () => handleEmptySlotClick(toISO(date), slot) : undefined}
                               hasSelected={!!selectedRecipeId}
                             />
                           );
@@ -1190,6 +1291,85 @@ export default function PlannerPage() {
               })()}
             </DragOverlay>
           </DndContext>
+
+          {/* ── Quick (manual / non-recipe) entry modal ────────────────────── */}
+          {quickEntry && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ background: "rgba(0,0,0,0.5)" }}
+              onClick={() => setQuickEntry(null)}>
+              <div className="rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}>
+                <div>
+                  <p className="font-semibold" style={{ color: "var(--foreground)" }}>Add a meal</p>
+                  <p className="text-sm mt-0.5 capitalize" style={{ color: "var(--muted)" }}>
+                    {new Date(quickEntry.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })} · {quickEntry.slot}
+                  </p>
+                </div>
+
+                {/* Type chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  {MANUAL_TYPES.map((t) => {
+                    const active = quickType === t;
+                    return (
+                      <button key={t} type="button" onClick={() => setQuickType(t)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition"
+                        style={{
+                          border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                          background: active ? "var(--accent)" : "var(--surface)",
+                          color: active ? "#fff" : "var(--foreground)",
+                        }}>
+                        <span>{ENTRY_META[t].icon}</span>{ENTRY_META[t].label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Leftover source picker */}
+                {quickType === "leftover" && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                      Leftover from (optional)
+                    </label>
+                    <select value={quickLeftoverFrom} onChange={(e) => setQuickLeftoverFrom(e.target.value)}
+                      className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                      style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}>
+                      <option value="">— none —</option>
+                      {plannedMeals.filter((m) => m.recipeId).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {(getRecipe(m.recipeId)?.title ?? "Recipe").split("|")[0].slice(0, 30)} · {m.date.slice(5)} {m.slot}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Label */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                    Label (optional)
+                  </label>
+                  <input type="text" value={quickLabel} onChange={(e) => setQuickLabel(e.target.value)}
+                    placeholder={ENTRY_META[quickType].label}
+                    maxLength={60}
+                    onKeyDown={(e) => { if (e.key === "Enter") void addManualEntry(); }}
+                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setQuickEntry(null)}
+                    className="px-4 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={() => void addManualEntry()} disabled={isAddingManual}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
+                    {isAddingManual ? "Adding…" : "Add"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Add-to-plan picker modal ───────────────────────────────────── */}
           {addToPlanSuggestion && (
