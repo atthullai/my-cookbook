@@ -123,12 +123,13 @@ export default function Home() {
     const run = async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!alive) return;
+      if (!u) { router.replace("/welcome"); return; } // first-launch landing
       setUser(u);
       await Promise.all([loadRecipes(u), loadDashboard(u)]);
     };
     void run();
     return () => { alive = false; };
-  }, [loadRecipes, loadDashboard]);
+  }, [loadRecipes, loadDashboard, router]);
 
   const summaries = useMemo(() => toRecipeSummaries(records), [records]);
 

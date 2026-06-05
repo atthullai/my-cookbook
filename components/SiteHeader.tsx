@@ -219,6 +219,9 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const [hidden, setHidden] = useState(false);
 
+  // Full-bleed routes hide the app chrome.
+  const chromeless = pathname === "/welcome" || pathname === "/onboarding";
+
   useEffect(() => {
     let lastY = window.scrollY;
     const onScroll = () => {
@@ -229,6 +232,8 @@ export default function SiteHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  if (chromeless) return null;
 
   return (
     <>

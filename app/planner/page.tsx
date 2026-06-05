@@ -331,6 +331,14 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
   );
 }
 
+// Colour a day by its total calorie load (rough whole-day guidance).
+function calorieColor(kcal: number): string {
+  if (kcal <= 0)    return "var(--muted)";
+  if (kcal <= 2200) return "#3d7770"; // green — light day
+  if (kcal <= 2800) return "#c08a2d"; // amber — moderate
+  return "#9c4c5f";                   // berry — heavy day
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PlannerPage() {
   const [weekOffset,    setWeekOffset]    = useState(0);
@@ -772,6 +780,22 @@ export default function PlannerPage() {
     SLOTS.filter((slot) => getMeal(date, slot)).length
   );
 
+  // Per-day calorie totals (per-serving kcal × planned servings, summed).
+  const dayCalories = useMemo(
+    () => weekDates.map((date) => {
+      let kcal = 0;
+      for (const slot of SLOTS) {
+        const meal = getMeal(date, slot);
+        if (!meal) continue;
+        const r = getRecipe(meal.recipeId);
+        if (r?.nutrition?.calories) kcal += r.nutrition.calories * (meal.servings || 1);
+      }
+      return Math.round(kcal);
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weekDates, plannedMeals, recipes],
+  );
+
   return (
     <>
       <Toaster position="top-right" />
@@ -1016,6 +1040,8 @@ export default function PlannerPage() {
                       {weekDates.map((date, i) => {
                         const isToday = toISO(date) === toISO(new Date());
                         const mealCount = mealsPerDay[i];
+                        const kcal = dayCalories[i];
+                        const dotColor = calorieColor(kcal);
                         return (
                           <div key={i} className="text-center pb-1">
                             <span
@@ -1035,8 +1061,13 @@ export default function PlannerPage() {
                             {mealCount > 0 && (
                               <div className="flex justify-center gap-0.5 mt-1">
                                 {[...Array(Math.min(mealCount, 4))].map((_, d) => (
-                                  <div key={d} className="w-1 h-1 rounded-full" style={{ background: "var(--accent)" }} />
+                                  <div key={d} className="w-1 h-1 rounded-full" style={{ background: dotColor }} />
                                 ))}
+                              </div>
+                            )}
+                            {kcal > 0 && (
+                              <div className="text-[9px] font-semibold mt-0.5 tabular-nums" style={{ color: dotColor }}>
+                                {kcal} kcal
                               </div>
                             )}
                           </div>
