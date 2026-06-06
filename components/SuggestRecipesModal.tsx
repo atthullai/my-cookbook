@@ -208,7 +208,7 @@ function MatchRow({ match, onPlan, onView, onAddToList, addingKey }: {
   onAddToList: (missing: string[]) => void;
   addingKey: string | null;
 }) {
-  const { recipe, matchedCount, totalRequired, coveragePercent, missingIngredients, canMakeNow } = match;
+  const { recipe, matchedCount, totalRequired, coveragePercent, missingIngredients, canMakeNow, expiringUsed } = match;
   const thisKey = missingIngredients.join(",");
   const isAdding = addingKey === thisKey;
 
@@ -274,6 +274,15 @@ function MatchRow({ match, onPlan, onView, onAddToList, addingKey }: {
           <span style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>
             {matchedCount}/{totalRequired} ingredients
           </span>
+          {expiringUsed > 0 && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, whiteSpace: "nowrap",
+              padding: "1px 6px", borderRadius: 999,
+              background: "rgba(245,158,11,0.15)", color: "#b45309",
+            }}>
+              ⏰ uses {expiringUsed} expiring
+            </span>
+          )}
         </div>
 
         {/* Missing chips + add to list */}

@@ -14,7 +14,10 @@ export type RecipeMatch = {
   coveragePercent: number;    // matchedCount / totalRequired * 100
   missingIngredients: string[];
   canMakeNow: boolean;        // coveragePercent === 100
+  expiringUsed: number;       // matched ingredients that are expiring soon
 };
+
+const EXPIRY_SOON_DAYS = 3;
 
 // ─── Normalise helper ─────────────────────────────────────────────────────────
 
@@ -38,6 +41,25 @@ export function suggestRecipes(
       .filter(Boolean) as string[]
   );
   const pantryNormNames = new Set(pantryItems.map((p) => norm(p.name)));
+
+  // Names/ids of pantry items that are expiring soon (or already past) — used to
+  // boost recipes that help "use them up".
+  const now = Date.now();
+  const isExpiringSoon = (p: PantryItem) => {
+    if (!p.expiryDate) return false;
+    const daysLeft = Math.ceil((new Date(p.expiryDate).getTime() - now) / 86_400_000);
+    return daysLeft <= EXPIRY_SOON_DAYS;
+  };
+  const expiringNames = new Set(pantryItems.filter(isExpiringSoon).map((p) => norm(p.name)));
+  const expiringLibraryIds = new Set(
+    pantryItems.filter(isExpiringSoon)
+      .map((p) => (p as PantryItem & { libraryId?: string }).libraryId)
+      .filter(Boolean) as string[],
+  );
+  const isExpiringMatch = (item: { libraryId?: string | null; name_en?: string }): boolean => {
+    if (item.libraryId && expiringLibraryIds.has(item.libraryId)) return true;
+    return Boolean(norm(item.name_en) && expiringNames.has(norm(item.name_en)));
+  };
 
   function isPantryMatch(item: {
     libraryId?: string | null;
@@ -77,12 +99,14 @@ export function suggestRecipes(
       coveragePercent,
       missingIngredients,
       canMakeNow: coveragePercent === 100,
+      expiringUsed: matchedItems.filter(isExpiringMatch).length,
     });
   }
 
-  // Sort: can-make-now first → coverage % desc → fewest missing
+  // Sort: can-make-now first → uses more expiring items → coverage % desc → fewest missing
   matches.sort((a, b) => {
     if (a.canMakeNow !== b.canMakeNow) return a.canMakeNow ? -1 : 1;
+    if (b.expiringUsed !== a.expiringUsed) return b.expiringUsed - a.expiringUsed;
     if (b.coveragePercent !== a.coveragePercent) return b.coveragePercent - a.coveragePercent;
     return a.missingIngredients.length - b.missingIngredients.length;
   });
