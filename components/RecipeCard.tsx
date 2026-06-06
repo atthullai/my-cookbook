@@ -19,6 +19,8 @@ import TagBadge from "@/components/TagBadge";
 import { calorieColor } from "@/lib/nutrition";
 import { useLibrary } from "@/components/LibraryProvider";
 import { usePantry } from "@/components/PantryProvider";
+import { usePreferences } from "@/components/PreferencesProvider";
+import { detectAllergens } from "@/lib/allergens";
 import AddToModal from "@/components/AddToModal";
 
 interface RecipeCardProps {
@@ -45,6 +47,12 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
   const haveCount = pantryReady ? ingLinks.filter((l) => pantryHas(l)).length : 0;
   const showAvail = pantryReady && ingLinks.length > 0;
   const allAvail = showAvail && haveCount === ingLinks.length;
+
+  // Allergen warning: does this recipe contain one of the user's allergens?
+  const { prefs } = usePreferences();
+  const myAllergenHits = prefs.allergies.length > 0
+    ? detectAllergens(ingLinks.map((l) => l.name_en)).filter((a) => prefs.allergies.includes(a))
+    : [];
 
   function handleSaveClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -95,6 +103,15 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
           >
             {theme.emoji} {theme.label}
           </span>
+
+          {/* Allergen warning */}
+          {myAllergenHits.length > 0 && (
+            <span className="absolute top-2 left-2 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(192,57,43,0.92)", color: "#fff" }}
+              title={`Contains: ${myAllergenHits.join(", ")}`}>
+              ⚠ allergen
+            </span>
+          )}
 
           {/* Pantry availability pill */}
           {showAvail && (

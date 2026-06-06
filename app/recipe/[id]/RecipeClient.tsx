@@ -44,6 +44,8 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import RecipeRail from "@/components/RecipeRail";
 import RecipeFeedback from "@/components/RecipeFeedback";
+import { usePreferences } from "@/components/PreferencesProvider";
+import { detectAllergens, ALLERGEN_LABELS } from "@/lib/allergens";
 import type { RecipeSummary } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -79,6 +81,7 @@ type RecipeClientProps = {
 export default function RecipeClient({ recipe }: RecipeClientProps) {
   // Record this view so it appears in "Recently Viewed" (Library + Home).
   const { trackView } = useLibrary();
+  const { prefs } = usePreferences();
   useEffect(() => {
     trackView(String(recipe.id));
     // Only track once per mount per recipe.
@@ -266,6 +269,13 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     }
     return [...names].slice(0, 8);
   }, [isCookingMode, activeStep, allSteps, ingredientGroups, lang]);
+
+  // Allergens present in this recipe; which of them the user flagged.
+  const recipeAllergens = useMemo(
+    () => detectAllergens(ingredientGroups.flatMap((g) => g.items).map((it) => getIngredientLabel(it, "en") || it.name_en)),
+    [ingredientGroups],
+  );
+  const myAllergenHits = recipeAllergens.filter((a) => prefs.allergies.includes(a));
 
   // ── Recipe actions: add to grocery / add to plan ───────────────────────────
   const [actionBusy, setActionBusy] = useState(false);
@@ -456,6 +466,28 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         </div>
       </div>
+
+      {recipeAllergens.length > 0 && (
+        <div className="card" style={{
+          marginBottom: 16,
+          borderColor: myAllergenHits.length > 0 ? "rgba(192,57,43,0.5)" : "var(--border)",
+          background: myAllergenHits.length > 0 ? "rgba(192,57,43,0.08)" : "var(--surface)",
+        }}>
+          <strong style={{ color: myAllergenHits.length > 0 ? "#c0392b" : "var(--foreground)" }}>
+            {myAllergenHits.length > 0 ? "⚠ " : ""}Contains:{" "}
+          </strong>
+          {recipeAllergens.map((a, i) => (
+            <span key={a} style={{ color: prefs.allergies.includes(a) ? "#c0392b" : "var(--muted)", fontWeight: prefs.allergies.includes(a) ? 700 : 400 }}>
+              {i > 0 ? ", " : ""}{ALLERGEN_LABELS[a]}
+            </span>
+          ))}
+          {myAllergenHits.length > 0 && (
+            <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#c0392b" }}>
+              This recipe contains ingredients you flagged as allergens.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="recipe-detail-layout">
         {coverImage ? (
