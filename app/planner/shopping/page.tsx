@@ -81,6 +81,11 @@ export default function ShoppingListPage() {
   const [loading, setLoading]   = useState(true);
   const [copied, setCopied]     = useState(false);
 
+  // ── Multiple lists ────────────────────────────────────────────────────────
+  const DEFAULT_LIST = "My List";
+  const [currentList, setCurrentList] = useState(DEFAULT_LIST);
+  const [lists, setLists]             = useState<string[]>([DEFAULT_LIST]);
+
   // ── Add form state ────────────────────────────────────────────────────────
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm]         = useState(EMPTY_ADD_FORM);
@@ -135,10 +140,20 @@ export default function ShoppingListPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = "/login"; return; }
 
+      // Collect all of the user's list names for the switcher.
+      const { data: nameRows } = await supabase
+        .from("shopping_list").select("list_name").eq("user_id", user.id);
+      if (nameRows) {
+        const names = (nameRows as { list_name: string | null }[])
+          .map((r) => r.list_name).filter((n): n is string => Boolean(n));
+        setLists((prev) => [...new Set([DEFAULT_LIST, ...prev, ...names])]);
+      }
+
       const { data, error } = await supabase
         .from("shopping_list")
         .select("*")
         .eq("user_id", user.id)
+        .eq("list_name", currentList)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -176,7 +191,7 @@ export default function ShoppingListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentList]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
@@ -198,6 +213,7 @@ export default function ShoppingListPage() {
           category: addForm.category,
           checked:  false,
           source:   "manual",
+          list_name: currentList,
         })
         .select()
         .single();
@@ -351,6 +367,7 @@ export default function ShoppingListPage() {
         category: n.category,
         checked:  false,
         source:   "planner",
+        list_name: currentList,
       }));
 
       const { data: inserted, error: insertError } = await supabase
@@ -676,6 +693,33 @@ export default function ShoppingListPage() {
               <Plus size={14} /> Add Item
             </button>
           </div>
+        </div>
+
+        {/* ── List switcher ─────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          {lists.map((name) => (
+            <button key={name} type="button" onClick={() => setCurrentList(name)}
+              className="px-3 py-1.5 rounded-full text-sm font-medium transition"
+              style={{
+                border: `1px solid ${currentList === name ? "var(--accent)" : "var(--border)"}`,
+                background: currentList === name ? "var(--accent)" : "var(--surface)",
+                color: currentList === name ? "#fff" : "var(--foreground)",
+              }}>
+              {name}
+            </button>
+          ))}
+          <button type="button"
+            onClick={() => {
+              const name = window.prompt("New list name")?.trim();
+              if (!name) return;
+              if (lists.includes(name)) { setCurrentList(name); return; }
+              setLists((prev) => [...prev, name]);
+              setCurrentList(name);
+            }}
+            className="px-3 py-1.5 rounded-full text-sm font-medium transition"
+            style={{ border: "1px dashed var(--border)", color: "var(--muted)", background: "transparent" }}>
+            + New list
+          </button>
         </div>
 
         {/* ── Inline add form ───────────────────────────────────────────── */}
