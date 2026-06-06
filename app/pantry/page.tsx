@@ -167,6 +167,17 @@ function fmtDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+// Shape returned by /api/barcode for a found product.
+interface ScannedProduct {
+  found: boolean;
+  name: string;
+  brand?: string;
+  category?: ShoppingCategory;
+  quantity?: number;
+  unit?: string;
+  imageUrl?: string | null;
+}
+
 export default function PantryPage() {
   const [items, setItems]           = useState<PantryItem[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -187,6 +198,8 @@ export default function PantryPage() {
   }, []);
   const [showScanner, setShowScanner] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
+  // When a scanned product looks like a deposit item, ask where it should go.
+  const [pfandPrompt, setPfandPrompt] = useState<{ data: ScannedProduct; pfand: ReturnType<typeof detectPfand> } | null>(null);
 
   // ── Recipe request / food sharing modal ───────────────────────────────────
   const [noRecipeItem, setNoRecipeItem] = useState<PantryItem | null>(null);
@@ -244,29 +257,49 @@ export default function PantryPage() {
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
+  // Open the scanner automatically when arriving from the FAB (/pantry?scan=1).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("scan") === "1") {
+      setShowScanner(true);
+      window.history.replaceState({}, "", "/pantry");
+    }
+  }, []);
+
+  // Fill the Add-Item form from a scanned product (→ pantry).
+  const fillFormFromScan = (data: ScannedProduct) => {
+    setForm((f) => ({
+      ...f,
+      name:     data.name  || f.name,
+      brand:    data.brand || f.brand,
+      category: (data.category as ShoppingCategory) ?? f.category,
+      storage:  DEFAULT_STORAGE[(data.category as ShoppingCategory) ?? f.category],
+      quantity: data.quantity ? String(data.quantity) : f.quantity,
+      unit:     data.unit   || f.unit,
+      isHomemade: false,
+    }));
+    setShowForm(true);
+    toast.success(`Found: ${data.name}`);
+  };
+
   // ── Barcode lookup ────────────────────────────────────────────────────────
   const handleBarcode = async (code: string) => {
     setShowScanner(false);
     setBarcodeLoading(true);
     try {
       const res = await fetch(`/api/barcode?code=${encodeURIComponent(code)}`);
-      const data = await res.json();
+      const data = await res.json() as ScannedProduct;
       if (!data.found) {
         toast.error(`Barcode ${code} not found in product database`);
         return;
       }
-      setForm((f) => ({
-        ...f,
-        name:     data.name  || f.name,
-        brand:    data.brand || f.brand,
-        category: (data.category as ShoppingCategory) ?? f.category,
-        storage:  DEFAULT_STORAGE[(data.category as ShoppingCategory) ?? f.category],
-        quantity: data.quantity ? String(data.quantity) : f.quantity,
-        unit:     data.unit   || f.unit,
-        isHomemade: false,
-      }));
-      setShowForm(true);
-      toast.success(`Found: ${data.name}`);
+      // Deposit bottle/can? Offer Pfand tracker vs pantry.
+      const pfand = detectPfand(data.name);
+      if (pfand.pfandType !== "none") {
+        setPfandPrompt({ data, pfand });
+        return;
+      }
+      fillFormFromScan(data);
     } catch {
       toast.error("Barcode lookup failed");
     } finally {
@@ -1880,6 +1913,47 @@ export default function PantryPage() {
           onDetected={handleBarcode}
           onClose={() => setShowScanner(false)}
         />
+      )}
+
+      {/* ── Pfand routing prompt (scanned a deposit item) ─────────────────── */}
+      {pfandPrompt && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setPfandPrompt(null)}>
+          <div className="rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div>
+              <p className="font-semibold" style={{ color: "var(--foreground)" }}>Deposit item detected</p>
+              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+                <strong>{pfandPrompt.data.name}</strong> looks like a {pfandPrompt.pfand.containerType}
+                {pfandPrompt.pfand.deposit > 0 ? ` · €${pfandPrompt.pfand.deposit.toFixed(2)} Pfand` : ""}.
+                Where should it go?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button type="button"
+                onClick={async () => {
+                  const ok = await addPfandEntry(pfandPrompt.data.name, pfandPrompt.pfand);
+                  toast[ok ? "success" : "error"](ok ? "Added to Pfand tracker →" : "Couldn't add to Pfand");
+                  setPfandPrompt(null);
+                }}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
+                ♻️ Add to Pfand tracker
+              </button>
+              <button type="button"
+                onClick={() => { const d = pfandPrompt.data; setPfandPrompt(null); fillFormFromScan(d); }}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}>
+                🥫 Add to pantry instead
+              </button>
+              <button type="button" onClick={() => setPfandPrompt(null)}
+                className="px-4 py-1.5 rounded-xl text-sm" style={{ color: "var(--muted)" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── No-Recipe Modal: request + share ─────────────────────────── */}
