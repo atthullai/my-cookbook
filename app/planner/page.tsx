@@ -21,7 +21,7 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ShoppingCart, X, Search, Minus, Plus, Calendar, UtensilsCrossed, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, X, Search, Minus, Plus, Calendar, UtensilsCrossed, Loader2, Repeat, History } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -138,6 +138,7 @@ interface SlotCellProps {
   onRemove:     () => void;
   onServings:   (delta: number) => void;
   onCooked:     () => void;
+  onRepeat:     () => void;
   mealStatus?:  MealCheckResult;
   expanded?:    boolean;
   onExpand?:    () => void;
@@ -145,7 +146,7 @@ interface SlotCellProps {
   hasSelected?: boolean;
 }
 
-function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, mealStatus, expanded, onExpand, onClickPlan, hasSelected }: SlotCellProps) {
+function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, onRepeat, mealStatus, expanded, onExpand, onClickPlan, hasSelected }: SlotCellProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `${toISO(date)}-${slot}`,
     data: { date: toISO(date), slot },
@@ -245,11 +246,21 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
               <Plus size={7} />
             </button>
             <span className="text-[9px] opacity-60 text-white">srv</span>
+            {/* Repeat weekly */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRepeat(); }}
+              className="ml-auto p-0.5 rounded-full bg-black/15 hover:bg-black/40 transition text-white flex-shrink-0"
+              aria-label="Repeat weekly"
+              title="Repeat weekly (next 3 weeks)"
+            >
+              <Repeat size={8} />
+            </button>
             {/* Mark as cooked */}
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onCooked(); }}
-              className="ml-auto p-0.5 rounded-full bg-black/15 hover:bg-green-500/80 transition text-white flex-shrink-0"
+              className="p-0.5 rounded-full bg-black/15 hover:bg-green-500/80 transition text-white flex-shrink-0"
               aria-label="Mark as cooked"
               title="Mark as cooked"
             >
@@ -336,15 +347,27 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
               <span className="mr-1">{ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.icon ?? "🍴"}</span>
               {meal.label || ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.label || "Meal"}
             </span>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onRemove(); }}
-              className="p-0.5 rounded-full transition flex-shrink-0"
-              style={{ background: "rgba(0,0,0,0.08)", color: "var(--muted)" }}
-              aria-label="Remove"
-            >
-              <X size={8} />
-            </button>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRepeat(); }}
+                className="p-0.5 rounded-full transition"
+                style={{ background: "rgba(0,0,0,0.06)", color: "var(--muted)" }}
+                aria-label="Repeat weekly"
+                title="Repeat weekly (next 3 weeks)"
+              >
+                <Repeat size={8} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                className="p-0.5 rounded-full transition"
+                style={{ background: "rgba(0,0,0,0.08)", color: "var(--muted)" }}
+                aria-label="Remove"
+              >
+                <X size={8} />
+              </button>
+            </div>
           </div>
           <span className="text-[9px] uppercase tracking-wide font-semibold mt-1" style={{ color: "var(--muted)", opacity: 0.7 }}>
             {ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.label ?? "Meal"}
@@ -495,6 +518,10 @@ export default function PlannerPage() {
   const [templates, setTemplates]         = useState<MealTemplate[]>([]);
   const [templateName, setTemplateName]   = useState("");
   const [templateBusy, setTemplateBusy]   = useState(false);
+
+  // ── Meal history ───────────────────────────────────────────────────────────
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory]         = useState<{ date: string; slot: string; title: string }[]>([]);
 
   // ── Quick (manual / non-recipe) entry modal ───────────────────────────────
   const [quickEntry, setQuickEntry] = useState<{ date: string; slot: MealSlot } | null>(null);
@@ -935,6 +962,68 @@ export default function PlannerPage() {
     await supabase.from("meal_templates").delete().eq("id", id);
   };
 
+  // ── Meal history (past planned meals) ──────────────────────────────────────
+  const openHistory = async () => {
+    setShowHistory(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("planned_meals")
+      .select("meal_date, meal_slot, recipe_id, label")
+      .eq("user_id", user.id)
+      .lt("meal_date", toISO(new Date()))
+      .order("meal_date", { ascending: false })
+      .limit(60);
+    const titleById = new Map(recipes.map((r) => [r.id, r.title]));
+    setHistory((data ?? []).map((r) => ({
+      date: r.meal_date as string,
+      slot: r.meal_slot as string,
+      title: r.recipe_id != null
+        ? (titleById.get(String(r.recipe_id)) ?? "Recipe").split("|")[0].trim()
+        : (r.label as string | null) ?? "Meal",
+    })));
+  };
+
+  // ── Plan a recipe directly into a slot (used by empty-day suggestions) ──────
+  const planRecipeDirect = useCallback(async (dateISO: string, slot: MealSlot, recipeId: string) => {
+    if (plannedMeals.find((m) => m.date === dateISO && m.slot === slot)) { toast.error("Slot already filled"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { window.location.href = "/login"; return; }
+    const { data, error } = await supabase.from("planned_meals")
+      .insert({ user_id: user.id, meal_date: dateISO, meal_slot: slot, recipe_id: parseInt(recipeId), servings: 1 })
+      .select().single();
+    if (error) { toast.error(error.message); return; }
+    setPlannedMeals((prev) => [...prev, {
+      id: data.id as string, date: dateISO, slot, recipeId: String(data.recipe_id), servings: 1, entryType: "recipe",
+    }]);
+    toast.success("Added to plan");
+  }, [plannedMeals]);
+
+  // ── Repeat a meal for the next 3 weeks (same weekday + slot) ───────────────
+  const repeatMeal = useCallback(async (meal: PlannedMeal) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      const base = new Date(meal.date);
+      const rows = [1, 2, 3].map((w) => ({
+        user_id: user.id,
+        meal_date: toISO(addDays(base, 7 * w)),
+        meal_slot: meal.slot,
+        recipe_id: meal.recipeId ? parseInt(meal.recipeId) : null,
+        servings: meal.servings,
+        entry_type: meal.entryType ?? "recipe",
+        label: meal.label ?? null,
+      }));
+      const { error } = await supabase.from("planned_meals")
+        .upsert(rows, { onConflict: "user_id,meal_date,meal_slot", ignoreDuplicates: true });
+      if (error) throw error;
+      const name = getRecipe(meal.recipeId)?.title ?? meal.label ?? "Meal";
+      toast.success(`Repeated “${name.split("|")[0].trim()}” for the next 3 weeks`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to repeat meal");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Update servings ────────────────────────────────────────────────────────
   const handleServings = useCallback(async (mealId: string, delta: number) => {
     const meal = plannedMeals.find((m) => m.id === mealId);
@@ -1079,6 +1168,17 @@ export default function PlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekDates, plannedMeals, recipes]);
 
+  // Empty-day suggestions (Day view): if the selected day has no meals, suggest
+  // a few recipes not already on this week's plan.
+  const daySuggestions = useMemo(() => {
+    if (view !== "day") return [];
+    const date = weekDates[dayIndex];
+    if (SLOTS.some((s) => getMeal(date, s))) return [];
+    const planned = new Set(plannedMeals.map((m) => m.recipeId));
+    return recipes.filter((r) => !planned.has(r.id)).slice(0, 3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, dayIndex, weekDates, plannedMeals, recipes]);
+
   return (
     <>
       <Toaster position="top-right" />
@@ -1159,6 +1259,14 @@ export default function PlannerPage() {
                   style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
                 >
                   🗂 Templates
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openHistory()}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                  style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+                >
+                  <History size={15} /> History
                 </button>
                 <Link
                   href="/planner/shopping"
@@ -1459,6 +1567,7 @@ export default function PlannerPage() {
                               onRemove={() => meal && setRemoveTarget(meal)}
                               onServings={(delta) => meal && void handleServings(meal.id, delta)}
                               onCooked={() => meal && void openCookedModal(meal)}
+                              onRepeat={() => meal && void repeatMeal(meal)}
                               mealStatus={meal ? mealStatuses[meal.id] : undefined}
                               expanded={meal ? expandedMealId === meal.id : false}
                               onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
@@ -1472,6 +1581,30 @@ export default function PlannerPage() {
                   </div>
                 )}
               </div>
+
+              {/* ── Empty-day suggestions (Day view) ───────────────────────── */}
+              {!loadingMeals && daySuggestions.length > 0 && (
+                <div className="rounded-2xl p-4" style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}>
+                  <p className="text-sm font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+                    Need dinner ideas for {weekDates[dayIndex].toLocaleDateString("en-GB", { weekday: "long" })}?
+                  </p>
+                  <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>Tap to add to dinner.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {daySuggestions.map((r) => {
+                      const t = getCuisineTheme(r.cuisine);
+                      return (
+                        <button key={r.id} type="button"
+                          onClick={() => void planRecipeDirect(toISO(weekDates[dayIndex]), "dinner", r.id)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition hover:scale-[1.02] ${t.cardGradient} ${t.textColor}`}>
+                          <span>{t.emoji}</span>
+                          <span className="truncate max-w-[160px]">{r.title.split("|")[0].trim()}</span>
+                          <Plus size={13} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* ── Recipe panel (BELOW) ───────────────────────────────────── */}
               <div>
@@ -1544,6 +1677,37 @@ export default function PlannerPage() {
               })()}
             </DragOverlay>
           </DndContext>
+
+          {/* ── Meal history modal ─────────────────────────────────────────── */}
+          {showHistory && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ background: "rgba(0,0,0,0.5)" }}
+              onClick={() => setShowHistory(false)}>
+              <div className="rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold" style={{ color: "var(--foreground)" }}>Meal history</p>
+                  <button type="button" onClick={() => setShowHistory(false)} style={{ color: "var(--muted)" }}><X size={16} /></button>
+                </div>
+                {history.length === 0 ? (
+                  <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>No past meals yet.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                    {history.map((h, i) => (
+                      <div key={i} className="flex items-center gap-3 text-sm py-1.5 border-b" style={{ borderColor: "var(--border)" }}>
+                        <span className="tabular-nums flex-shrink-0" style={{ color: "var(--muted)", width: 72 }}>
+                          {new Date(h.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </span>
+                        <span className="capitalize flex-shrink-0" style={{ color: "var(--muted)", width: 64, fontSize: "0.75rem" }}>{h.slot}</span>
+                        <span className="flex-1 truncate" style={{ color: "var(--foreground)" }}>{h.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── Templates modal ────────────────────────────────────────────── */}
           {showTemplates && (
