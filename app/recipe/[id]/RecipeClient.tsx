@@ -39,6 +39,12 @@ import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, reci
 import { findEquipmentItem } from "@/lib/equipment-library";
 import { useLibrary } from "@/components/LibraryProvider";
 import { logCookDb } from "@/lib/library";
+import { supabase } from "@/lib/supabase";
+import { mapRecipeRows } from "@/lib/recipe-db";
+import { toRecipeSummaries } from "@/lib/recipe-adapter";
+import RecipeRail from "@/components/RecipeRail";
+import type { RecipeSummary } from "@/types";
+import toast, { Toaster } from "react-hot-toast";
 
 // One running kitchen timer (cooking mode supports several at once).
 interface CookTimer { id: number; label: string; total: number; left: number; running: boolean }
@@ -260,6 +266,85 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     return [...names].slice(0, 8);
   }, [isCookingMode, activeStep, allSteps, ingredientGroups, lang]);
 
+  // ── Recipe actions: add to grocery / add to plan ───────────────────────────
+  const [actionBusy, setActionBusy] = useState(false);
+  const [showPlan, setShowPlan]     = useState(false);
+  const [planDate, setPlanDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [planSlot, setPlanSlot]     = useState("dinner");
+
+  const addToGrocery = useCallback(async () => {
+    setActionBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please log in"); return; }
+      const rows = ingredientGroups.flatMap((g) => g.items)
+        .filter((it) => (it.name_en ?? "").trim() && !it.optional && !it.garnish)
+        .map((it) => {
+          const amt = parseAmount(it.amount);
+          return {
+            user_id: user.id,
+            name: getIngredientLabel(it, "en") || it.name_en,
+            quantity: amt && amt > 0 ? amt * multiplier : 1,
+            unit: it.unit && it.unit !== "to taste" && it.unit !== "whole" ? it.unit : null,
+            category: "other",
+            checked: false,
+            source: "manual",
+            list_name: "My List",
+          };
+        });
+      if (rows.length === 0) { toast("No ingredients to add"); return; }
+      const { error } = await supabase.from("shopping_list").insert(rows);
+      if (error) throw error;
+      toast.success(`Added ${rows.length} ingredients to your shopping list`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add to shopping list");
+    } finally {
+      setActionBusy(false);
+    }
+  }, [ingredientGroups, multiplier]);
+
+  const addToPlan = useCallback(async () => {
+    setActionBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please log in"); return; }
+      const { error } = await supabase.from("planned_meals").upsert({
+        user_id: user.id, meal_date: planDate, meal_slot: planSlot,
+        recipe_id: Number(recipe.id), servings: 1, entry_type: "recipe",
+      }, { onConflict: "user_id,meal_date,meal_slot" });
+      if (error) throw error;
+      toast.success("Added to your meal plan");
+      setShowPlan(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add to plan");
+    } finally {
+      setActionBusy(false);
+    }
+  }, [planDate, planSlot, recipe.id]);
+
+  // ── "You may also like" — similar public recipes ───────────────────────────
+  const [similar, setSimilar] = useState<RecipeSummary[]>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.from("recipes").select("*").eq("is_public", true).limit(80);
+      if (!alive || !data) return;
+      const me = toRecipeSummaries(mapRecipeRows([recipe]))[0];
+      const others = toRecipeSummaries(mapRecipeRows(data)).filter((r) => r.id !== String(recipe.id));
+      const myTags = new Set(me?.tags ?? []);
+      const scored = others
+        .map((r) => ({
+          r,
+          score: (r.cuisine === me?.cuisine ? 2 : 0) + r.tags.filter((t) => myTags.has(t)).length,
+        }))
+        .sort((a, b) => b.score - a.score);
+      const top = scored.filter((s) => s.score > 0).slice(0, 8).map((s) => s.r);
+      setSimilar(top.length > 0 ? top : others.slice(0, 8));
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe.id]);
+
   // Tick all running timers once per second; alert when one reaches zero.
   const anyRunning = timers.some((t) => t.running && t.left > 0);
   useEffect(() => {
@@ -304,6 +389,35 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
 
   return (
     <div className={isCookingMode ? "cooking-mode-shell" : ""} style={{ marginTop: 16 }}>
+      <Toaster position="top-right" />
+
+      {/* Add-to-plan picker */}
+      {showPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setShowPlan(false)}>
+          <div className="card" style={{ maxWidth: 360, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 12 }}>Add to meal plan</h3>
+            <label className="eyebrow" htmlFor="plan-date">Date</label>
+            <input id="plan-date" type="date" value={planDate} onChange={(e) => setPlanDate(e.target.value)}
+              className="input" style={{ width: "100%", marginBottom: 12 }} />
+            <label className="eyebrow" htmlFor="plan-slot">Meal</label>
+            <select id="plan-slot" value={planSlot} onChange={(e) => setPlanSlot(e.target.value)}
+              className="input" style={{ width: "100%", marginBottom: 16 }}>
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+              <option value="snack">Snack</option>
+            </select>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="button" type="button" onClick={() => setShowPlan(false)}>Cancel</button>
+              <button className="button button-primary" type="button" onClick={() => void addToPlan()} disabled={actionBusy}>
+                {actionBusy ? "Adding…" : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Keep header controls together because language and serving size both change the same recipe view. */}
       <div className="hero-panel" style={{ marginBottom: 20 }}>
         <div className="hero-copy">
@@ -324,6 +438,12 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           <button className="button button-primary" type="button" onClick={() => (isCookingMode ? exitCooking() : enterCooking())}>
             <AppIcon name="quick" size={16} />
             {isCookingMode ? "Exit Cooking" : "Cooking Mode"}
+          </button>
+          <button className="button" type="button" onClick={() => void addToGrocery()} disabled={actionBusy}>
+            🛒 Add to list
+          </button>
+          <button className="button" type="button" onClick={() => setShowPlan(true)} disabled={actionBusy}>
+            📅 Add to plan
           </button>
           <div className="segmented-control" aria-label="Recipe language">
             <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
@@ -924,6 +1044,13 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         ) : null}
       </div>
+
+      {/* You may also like */}
+      {!isCookingMode && similar.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <RecipeRail title={lang === "de" ? "Das könnte dir auch gefallen" : "You may also like"} recipes={similar} />
+        </div>
+      )}
     </div>
   );
 }
