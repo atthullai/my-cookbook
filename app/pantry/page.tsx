@@ -26,6 +26,7 @@ import type { RecipeRecord } from "@/lib/recipe-types";
 import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BarcodeScanner from "@/components/BarcodeScanner";
+import ReceiptScanner from "@/components/ReceiptScanner";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
 import { addPfandEntry } from "@/lib/pfand-tracker";
 import {
@@ -197,6 +198,7 @@ export default function PantryPage() {
     if (localStorage.getItem("pantry-grouped-view") === "false") setGroupedView(false);
   }, []);
   const [showScanner, setShowScanner] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   // When a scanned product looks like a deposit item, ask where it should go.
   const [pfandPrompt, setPfandPrompt] = useState<{ data: ScannedProduct; pfand: ReturnType<typeof detectPfand> } | null>(null);
@@ -280,6 +282,22 @@ export default function PantryPage() {
     }));
     setShowForm(true);
     toast.success(`Found: ${data.name}`);
+  };
+
+  // Bulk-add scanned receipt items to the pantry.
+  const addNamesToPantry = async (names: string[]) => {
+    setShowReceipt(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Please log in"); return; }
+    const rows = names.filter((n) => n.trim()).map((n) => ({
+      user_id: user.id, name: n.trim(), quantity: 1, unit: "whole",
+      category: "other", storage_location: "room-temp",
+    }));
+    if (rows.length === 0) return;
+    const { error } = await supabase.from("pantry_items").insert(rows);
+    if (error) { toast.error("Couldn't add items"); return; }
+    toast.success(`Added ${rows.length} item${rows.length === 1 ? "" : "s"} to pantry`);
+    void loadItems();
   };
 
   // ── Barcode lookup ────────────────────────────────────────────────────────
@@ -748,6 +766,12 @@ export default function PantryPage() {
                 style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
               >
                 {barcodeLoading ? "Looking up…" : "📷 Scan"}
+              </button>
+              <button type="button" onClick={() => setShowReceipt(true)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+              >
+                🧾 Scan receipt
               </button>
               <button type="button"
                 onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setShowForm((s) => !s); }}
@@ -1913,6 +1937,10 @@ export default function PantryPage() {
           onDetected={handleBarcode}
           onClose={() => setShowScanner(false)}
         />
+      )}
+
+      {showReceipt && (
+        <ReceiptScanner onClose={() => setShowReceipt(false)} onAdd={(names) => void addNamesToPantry(names)} />
       )}
 
       {/* ── Pfand routing prompt (scanned a deposit item) ─────────────────── */}
