@@ -381,6 +381,27 @@ export default function PlannerPage() {
   const monday    = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
   const weekDates = useMemo(() => DAYS.map((_, i) => addDays(monday, i)), [monday]);
 
+  // View mode (Week grid vs single Day). Day view reuses the loaded week's data.
+  const [view, setView] = useState<"week" | "day">("week");
+  const [dayIndex, setDayIndex] = useState(() => {
+    const wd = new Date().getDay();      // 0=Sun..6=Sat
+    return wd === 0 ? 6 : wd - 1;        // → Mon=0..Sun=6
+  });
+  const visibleDates = view === "week" ? weekDates : [weekDates[dayIndex]];
+  const gridCols = `60px repeat(${visibleDates.length}, 1fr)`;
+
+  // Step forward/back: by week in week view, by day in day view (wrapping weeks).
+  const stepBack = () => {
+    if (view === "week") { setWeekOffset((w) => w - 1); return; }
+    if (dayIndex > 0) setDayIndex((d) => d - 1);
+    else { setWeekOffset((w) => w - 1); setDayIndex(6); }
+  };
+  const stepForward = () => {
+    if (view === "week") { setWeekOffset((w) => w + 1); return; }
+    if (dayIndex < 6) setDayIndex((d) => d + 1);
+    else { setWeekOffset((w) => w + 1); setDayIndex(0); }
+  };
+
   const [plannedMeals,  setPlannedMeals]  = useState<PlannedMeal[]>([]);
   const [recipes,       setRecipes]       = useState<RecipeSummary[]>([]);
   const [loadingMeals,  setLoadingMeals]  = useState(true);
@@ -865,7 +886,9 @@ export default function PlannerPage() {
 
   const activeRecipe = activeId ? recipes.find((r) => `recipe-${r.id}` === activeId) : null;
 
-  const weekLabel = `${monday.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${addDays(monday, 6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+  const weekLabel = view === "day"
+    ? weekDates[dayIndex].toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })
+    : `${monday.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${addDays(monday, 6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
   // ── Week stats ─────────────────────────────────────────────────────────────
   const weekStats = useMemo(() => {
@@ -877,13 +900,12 @@ export default function PlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plannedMeals, recipes]);
 
-  const mealsPerDay = weekDates.map((date) =>
-    SLOTS.filter((slot) => getMeal(date, slot)).length
-  );
+  const mealCountForDate = (date: Date) => SLOTS.filter((slot) => getMeal(date, slot)).length;
 
-  // Per-day calorie totals (per-serving kcal × planned servings, summed).
-  const dayCalories = useMemo(
-    () => weekDates.map((date) => {
+  // Per-day calorie totals (per-serving kcal × planned servings), keyed by ISO date.
+  const caloriesByDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const date of weekDates) {
       let kcal = 0;
       for (const slot of SLOTS) {
         const meal = getMeal(date, slot);
@@ -891,11 +913,11 @@ export default function PlannerPage() {
         const r = getRecipe(meal.recipeId);
         if (r?.nutrition?.calories) kcal += r.nutrition.calories * (meal.servings || 1);
       }
-      return Math.round(kcal);
-    }),
+      map[toISO(date)] = Math.round(kcal);
+    }
+    return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [weekDates, plannedMeals, recipes],
-  );
+  }, [weekDates, plannedMeals, recipes]);
 
   return (
     <>
@@ -993,36 +1015,56 @@ export default function PlannerPage() {
 
         <div className="max-w-screen-xl mx-auto px-5 py-5">
 
-          {/* ── Week navigation ── */}
+          {/* ── Navigation + view toggle ── */}
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setWeekOffset((w) => w - 1)}
+                onClick={stepBack}
                 className="p-1.5 rounded-lg border transition"
                 style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
+                aria-label={view === "day" ? "Previous day" : "Previous week"}
               >
                 <ChevronLeft size={15} />
               </button>
               <span className="text-sm font-medium tabular-nums" style={{ color: "var(--muted)" }}>{weekLabel}</span>
               <button
                 type="button"
-                onClick={() => setWeekOffset((w) => w + 1)}
+                onClick={stepForward}
                 className="p-1.5 rounded-lg border transition"
                 style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
+                aria-label={view === "day" ? "Next day" : "Next week"}
               >
                 <ChevronRight size={15} />
               </button>
               {weekOffset !== 0 && (
                 <button
                   type="button"
-                  onClick={() => setWeekOffset(0)}
+                  onClick={() => {
+                    setWeekOffset(0);
+                    const wd = new Date().getDay();
+                    setDayIndex(wd === 0 ? 6 : wd - 1);
+                  }}
                   className="text-xs font-medium hover:underline"
                   style={{ color: "var(--accent)" }}
                 >
                   ← Today
                 </button>
               )}
+            </div>
+
+            {/* Week / Day toggle */}
+            <div className="inline-flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+              {(["week", "day"] as const).map((v) => (
+                <button key={v} type="button" onClick={() => setView(v)}
+                  className="px-3 py-1.5 text-xs font-semibold capitalize transition"
+                  style={{
+                    background: view === v ? "var(--accent)" : "var(--surface)",
+                    color: view === v ? "#fff" : "var(--muted)",
+                  }}>
+                  {v}
+                </button>
+              ))}
             </div>
             {!loadingMeals && weekStats.uniqueCuisines > 0 && (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -1136,12 +1178,12 @@ export default function PlannerPage() {
                 ) : (
                   <div style={{ minWidth: 560 }}>
                     {/* Day headers */}
-                    <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
+                    <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: gridCols }}>
                       <div />
-                      {weekDates.map((date, i) => {
+                      {visibleDates.map((date, i) => {
                         const isToday = toISO(date) === toISO(new Date());
-                        const mealCount = mealsPerDay[i];
-                        const kcal = dayCalories[i];
+                        const mealCount = mealCountForDate(date);
+                        const kcal = caloriesByDate[toISO(date)] ?? 0;
                         const dotColor = calorieColor(kcal);
                         return (
                           <div key={i} className="text-center pb-1">
@@ -1181,7 +1223,7 @@ export default function PlannerPage() {
                       <div
                         key={slot}
                         className="grid gap-1.5 mb-1.5"
-                        style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}
+                        style={{ gridTemplateColumns: gridCols }}
                       >
                         {/* Slot label — sticky so it remains visible when grid scrolls horizontally */}
                         <div
@@ -1193,7 +1235,7 @@ export default function PlannerPage() {
                         </div>
 
                         {/* Day cells */}
-                        {weekDates.map((date, i) => {
+                        {visibleDates.map((date, i) => {
                           const meal   = getMeal(date, slot);
                           const recipe = meal ? getRecipe(meal.recipeId) : undefined;
                           return (
