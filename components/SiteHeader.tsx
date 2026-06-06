@@ -22,7 +22,6 @@ const navItems: NavItem[] = [
     label: "Discover",
     key: "discover",
     items: [
-      { href: "/recipes",             label: "Recipes"    },
       { href: "/discover/categories", label: "Categories" },
     ],
   },
