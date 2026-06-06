@@ -367,6 +367,20 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, me
   );
 }
 
+// Saved week template.
+interface TemplateSlot {
+  d: number;            // 0=Mon .. 6=Sun
+  slot: MealSlot;
+  recipe_id: number | null;
+  entry_type: MealEntryType;
+  label: string | null;
+}
+interface MealTemplate {
+  id: string;
+  name: string;
+  slots: TemplateSlot[];
+}
+
 // Colour a day by its total calorie load (rough whole-day guidance).
 function calorieColor(kcal: number): string {
   if (kcal <= 0)    return "var(--muted)";
@@ -475,6 +489,12 @@ export default function PlannerPage() {
   const [addToPlanDay, setAddToPlanDay] = useState("");
   const [addToPlanSlot, setAddToPlanSlot] = useState<MealSlot>("dinner");
   const [isAddingToPlan, setIsAddingToPlan] = useState(false);
+
+  // ── Meal templates ─────────────────────────────────────────────────────────
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates]         = useState<MealTemplate[]>([]);
+  const [templateName, setTemplateName]   = useState("");
+  const [templateBusy, setTemplateBusy]   = useState(false);
 
   // ── Quick (manual / non-recipe) entry modal ───────────────────────────────
   const [quickEntry, setQuickEntry] = useState<{ date: string; slot: MealSlot } | null>(null);
@@ -837,6 +857,84 @@ export default function PlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickEntry, quickType, quickLabel, quickLeftoverFrom, plannedMeals]);
 
+  // ── Templates ──────────────────────────────────────────────────────────────
+  const fetchTemplates = useCallback(async () => {
+    const { data } = await supabase.from("meal_templates")
+      .select("id, name, slots").order("created_at", { ascending: false });
+    setTemplates((data ?? []).map((t) => ({ id: t.id as string, name: t.name as string, slots: (t.slots as TemplateSlot[]) ?? [] })));
+  }, []);
+
+  const openTemplates = () => { setShowTemplates(true); void fetchTemplates(); };
+
+  const saveTemplate = async () => {
+    const name = templateName.trim();
+    if (!name) return;
+    setTemplateBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      const slots: TemplateSlot[] = plannedMeals
+        .map((m) => {
+          const d = weekDates.findIndex((wd) => toISO(wd) === m.date);
+          return d < 0 ? null : {
+            d, slot: m.slot,
+            recipe_id: m.recipeId ? parseInt(m.recipeId) : null,
+            entry_type: (m.entryType ?? "recipe") as MealEntryType,
+            label: m.label ?? null,
+          };
+        })
+        .filter((s): s is TemplateSlot => s !== null);
+      if (slots.length === 0) { toast.error("Plan some meals first"); return; }
+      const { error } = await supabase.from("meal_templates").insert({ user_id: user.id, name, slots });
+      if (error) {
+        if (error.message.includes("relation") || error.message.includes("does not exist")) {
+          toast.error("Run the meal_templates migration first.");
+        } else throw error;
+        return;
+      }
+      toast.success(`Saved “${name}” (${slots.length} meals)`);
+      setTemplateName("");
+      void fetchTemplates();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save template");
+    } finally {
+      setTemplateBusy(false);
+    }
+  };
+
+  const applyTemplate = async (tpl: MealTemplate) => {
+    setTemplateBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      const rows = tpl.slots.map((s) => ({
+        user_id: user.id,
+        meal_date: toISO(addDays(monday, s.d)),
+        meal_slot: s.slot,
+        recipe_id: s.recipe_id,
+        servings: 1,
+        entry_type: s.entry_type ?? "recipe",
+        label: s.label,
+      }));
+      // Skip slots already filled (unique on user_id, meal_date, meal_slot).
+      const { error } = await supabase.from("planned_meals")
+        .upsert(rows, { onConflict: "user_id,meal_date,meal_slot", ignoreDuplicates: true });
+      if (error) throw error;
+      toast.success(`Applied “${tpl.name}” to this week`);
+      setShowTemplates(false);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply template");
+    } finally {
+      setTemplateBusy(false);
+    }
+  };
+
+  const deleteTemplate = async (id: string) => {
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    await supabase.from("meal_templates").delete().eq("id", id);
+  };
+
   // ── Update servings ────────────────────────────────────────────────────────
   const handleServings = useCallback(async (mealId: string, delta: number) => {
     const meal = plannedMeals.find((m) => m.id === mealId);
@@ -1054,6 +1152,14 @@ export default function PlannerPage() {
                     Clear week
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={openTemplates}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
+                  style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+                >
+                  🗂 Templates
+                </button>
                 <Link
                   href="/planner/shopping"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
@@ -1438,6 +1544,61 @@ export default function PlannerPage() {
               })()}
             </DragOverlay>
           </DndContext>
+
+          {/* ── Templates modal ────────────────────────────────────────────── */}
+          {showTemplates && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ background: "rgba(0,0,0,0.5)" }}
+              onClick={() => setShowTemplates(false)}>
+              <div className="rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold" style={{ color: "var(--foreground)" }}>Meal templates</p>
+                  <button type="button" onClick={() => setShowTemplates(false)} style={{ color: "var(--muted)" }}><X size={16} /></button>
+                </div>
+
+                {/* Save current week */}
+                <div className="flex gap-2">
+                  <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="Save this week as… (e.g. Gym Week)" maxLength={50}
+                    onKeyDown={(e) => { if (e.key === "Enter") void saveTemplate(); }}
+                    className="flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
+                  <button type="button" onClick={() => void saveTemplate()} disabled={templateBusy || !templateName.trim()}
+                    className="px-3 py-2 rounded-xl text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
+                    Save
+                  </button>
+                </div>
+
+                {/* Existing templates */}
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {templates.length === 0 ? (
+                    <p className="text-sm text-center py-4" style={{ color: "var(--muted)" }}>No templates yet.</p>
+                  ) : (
+                    templates.map((t) => (
+                      <div key={t.id} className="flex items-center gap-2 rounded-xl px-3 py-2"
+                        style={{ border: "1px solid var(--border)" }}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{t.name}</p>
+                          <p className="text-xs" style={{ color: "var(--muted)" }}>{t.slots.length} meal{t.slots.length === 1 ? "" : "s"}</p>
+                        </div>
+                        <button type="button" onClick={() => void applyTemplate(t)} disabled={templateBusy}
+                          className="text-xs px-3 py-1.5 rounded-lg font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
+                          Apply
+                        </button>
+                        <button type="button" onClick={() => void deleteTemplate(t.id)} aria-label="Delete template"
+                          style={{ color: "var(--muted)" }}><X size={14} /></button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+                  Applying adds the template&apos;s meals to the week you&apos;re viewing (filled slots are kept).
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── Quick (manual / non-recipe) entry modal ────────────────────── */}
           {quickEntry && (
