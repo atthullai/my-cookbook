@@ -26,6 +26,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import LottieAnimation from "@/components/LottieAnimation";
 import { useLibrary } from "@/components/LibraryProvider";
 import { usePreferences } from "@/components/PreferencesProvider";
+import { usePantry } from "@/components/PantryProvider";
 import { logSearchDb, fetchSearchHistory } from "@/lib/library";
 import type { DietKey } from "@/lib/preferences";
 
@@ -71,12 +72,14 @@ export default function Home() {
   const router = useRouter();
   const { recentlyViewedIds } = useLibrary();
   const { prefs } = usePreferences();
+  const { ready: pantryReady, has: pantryHas } = usePantry();
   const [records,       setRecords]       = useState<RecipeRecord[]>([]);
   const [pool,          setPool]          = useState<RecipeSummary[]>([]);
   const [planToday,     setPlanToday]     = useState<{ slot: string; title: string }[]>([]);
   const [groceryCount,  setGroceryCount]  = useState(0);
   const [cookProgress,  setCookProgress]  = useState<{ recipeId: string; title: string; step: number; total: number } | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [cookStats, setCookStats] = useState<{ streak: number; week: number }>({ streak: 0, week: 0 });
   const [user,          setUser]          = useState<AppUser | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
@@ -101,13 +104,25 @@ export default function Home() {
     if (!currentUser) { setPool([]); setPlanToday([]); setGroceryCount(0); return; }
 
     const today = new Date().toISOString().slice(0, 10);
-    const [poolRes, mealRes, groceryRes, searches] = await Promise.all([
+    const [poolRes, mealRes, groceryRes, searches, cooksRes] = await Promise.all([
       supabase.from("recipes").select("*").order("id", { ascending: false }).limit(60),
       supabase.from("planned_meals").select("meal_slot, recipe_id").eq("meal_date", today),
       supabase.from("shopping_list").select("id", { count: "exact", head: true }).eq("checked", false),
       fetchSearchHistory(8),
+      supabase.from("cook_history").select("cooked_at").order("cooked_at", { ascending: false }).limit(200),
     ]);
     setRecentSearches(searches);
+
+    // Cooking streak + this-week count from cook_history.
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const cookedDays = new Set((cooksRes.data ?? []).map((c) => iso(new Date(c.cooked_at as string))));
+    let streak = 0;
+    const cursor = new Date();
+    if (!cookedDays.has(iso(cursor))) cursor.setDate(cursor.getDate() - 1); // today optional
+    while (cookedDays.has(iso(cursor))) { streak++; cursor.setDate(cursor.getDate() - 1); }
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    const week = (cooksRes.data ?? []).filter((c) => new Date(c.cooked_at as string).getTime() >= weekAgo).length;
+    setCookStats({ streak, week });
 
     const poolSummaries = poolRes.data ? toRecipeSummaries(mapRecipeRows(poolRes.data)) : [];
     setPool(poolSummaries);
@@ -163,6 +178,12 @@ export default function Home() {
     if (targetTags.size > 0) list = list.filter((r) => r.tags.some((t) => targetTags.has(t)));
     return list.slice(0, 12);
   }, [pool, recentlyViewedIds, prefs.diets]);
+
+  // "What can I cook right now?" — recipes whose ingredients are all in the pantry.
+  const cookNow = useMemo(() => {
+    if (!pantryReady) return [];
+    return pool.filter((r) => r.ingredientLinks.length > 0 && r.ingredientLinks.every((l) => pantryHas(l))).slice(0, 12);
+  }, [pool, pantryReady, pantryHas]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -451,6 +472,22 @@ export default function Home() {
               </Link>
             </div>
 
+            {cookStats.streak > 0 || cookStats.week > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {cookStats.streak > 0 && (
+                  <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: "rgba(232,132,74,0.14)", color: "var(--accent-strong)" }}>
+                    🔥 {cookStats.streak}-day cooking streak
+                  </span>
+                )}
+                {cookStats.week > 0 && (
+                  <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--foreground)" }}>
+                    🍳 {cookStats.week} cooked this week
+                  </span>
+                )}
+              </div>
+            ) : null}
+
+            <RecipeRail title="Cook now from your pantry" recipes={cookNow} href="/pantry" />
             <RecipeRail title="Recently viewed" recipes={recentlyViewed} href="/recipes" />
             <RecipeRail
               title={prefs.diets.length > 0 ? "Recommended for you" : "Recommended"}
