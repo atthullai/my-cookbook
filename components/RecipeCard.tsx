@@ -11,7 +11,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Pencil, Trash2, Bookmark, Plus } from "lucide-react";
+import { Pencil, Trash2, Bookmark, Plus, Heart } from "lucide-react";
 import type { RecipeSummary } from "@/types";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import { getCardTags } from "@/lib/recipe-tags";
@@ -27,8 +27,6 @@ interface RecipeCardProps {
   recipe:        RecipeSummary;
   onEdit?:       () => void;
   onDelete?:     () => void;
-  /** Legacy prop kept for backward compat — no-op now, Library handles state */
-  onFavourite?:  (id: string, next: boolean) => void;
 }
 
 export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps) {
@@ -38,8 +36,9 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
   const [hovered, setHovered] = useState(false);
   const [showAddTo, setShowAddTo] = useState(false);
 
-  const { isSaved, save, unsave } = useLibrary();
+  const { isSaved, save, unsave, isFavourite, toggleFavourite } = useLibrary();
   const saved = isSaved(recipe.id);
+  const fav = isFavourite(recipe.id);
 
   // Pantry availability ("have N of M ingredients").
   const { ready: pantryReady, has: pantryHas } = usePantry();
@@ -53,6 +52,11 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
   const myAllergenHits = prefs.allergies.length > 0
     ? detectAllergens(ingLinks.map((l) => l.name_en)).filter((a) => prefs.allergies.includes(a))
     : [];
+
+  function handleHeartClick(e: React.MouseEvent) {
+    e.preventDefault();
+    toggleFavourite(recipe.id);
+  }
 
   function handleSaveClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -127,29 +131,39 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
             </span>
           )}
 
-          {/* Save / Add-to button — inline position for reliability */}
-          {saved ? (
+          {/* Favourite + Save controls */}
+          <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 6, alignItems: "center" }}>
             <button
               type="button"
-              onClick={handleAddToClick}
-              className="recipe-card-save-btn recipe-card-save-btn--saved"
-              style={{ position: "absolute", top: 8, right: 8 }}
-              aria-label="Add to…"
-            >
-              <Plus size={13} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSaveClick}
+              onClick={handleHeartClick}
               className="recipe-card-save-btn"
-              style={{ position: "absolute", top: 8, right: 8 }}
-              aria-label="Save to Library"
+              aria-label={fav ? "Remove favourite" : "Add to favourites"}
+              aria-pressed={fav}
+              title={fav ? "Favourited" : "Add to favourites"}
             >
-              <Bookmark size={13} />
-              <span className="recipe-card-save-label">Save</span>
+              <Heart size={13} fill={fav ? "#e0566f" : "none"} color={fav ? "#e0566f" : "currentColor"} />
             </button>
-          )}
+            {saved ? (
+              <button
+                type="button"
+                onClick={handleAddToClick}
+                className="recipe-card-save-btn recipe-card-save-btn--saved"
+                aria-label="Add to…"
+              >
+                <Plus size={13} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSaveClick}
+                className="recipe-card-save-btn"
+                aria-label="Save to Library"
+              >
+                <Bookmark size={13} />
+                <span className="recipe-card-save-label">Save</span>
+              </button>
+            )}
+          </div>
         </Link>
 
         {/* ── Body ─────────────────────────────────────────────────────── */}
