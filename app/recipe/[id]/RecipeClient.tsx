@@ -43,6 +43,7 @@ import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import RecipeRail from "@/components/RecipeRail";
+import RecipeFeedback from "@/components/RecipeFeedback";
 import type { RecipeSummary } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -1044,6 +1045,13 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </div>
         ) : null}
       </div>
+
+      {/* Ratings + personal notes */}
+      {!isCookingMode && (
+        <div style={{ marginTop: 24 }}>
+          <RecipeFeedback recipeId={String(recipe.id)} />
+        </div>
+      )}
 
       {/* You may also like */}
       {!isCookingMode && similar.length > 0 && (
