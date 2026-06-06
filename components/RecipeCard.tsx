@@ -18,6 +18,7 @@ import { getCardTags } from "@/lib/recipe-tags";
 import TagBadge from "@/components/TagBadge";
 import { calorieColor } from "@/lib/nutrition";
 import { useLibrary } from "@/components/LibraryProvider";
+import { usePantry } from "@/components/PantryProvider";
 import AddToModal from "@/components/AddToModal";
 
 interface RecipeCardProps {
@@ -37,6 +38,13 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
 
   const { isSaved, save, unsave } = useLibrary();
   const saved = isSaved(recipe.id);
+
+  // Pantry availability ("have N of M ingredients").
+  const { ready: pantryReady, has: pantryHas } = usePantry();
+  const ingLinks = recipe.ingredientLinks?.filter((l) => l.name_en.trim()) ?? [];
+  const haveCount = pantryReady ? ingLinks.filter((l) => pantryHas(l)).length : 0;
+  const showAvail = pantryReady && ingLinks.length > 0;
+  const allAvail = showAvail && haveCount === ingLinks.length;
 
   function handleSaveClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -87,6 +95,20 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
           >
             {theme.emoji} {theme.label}
           </span>
+
+          {/* Pantry availability pill */}
+          {showAvail && (
+            <span
+              className="absolute bottom-2 right-2 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                background: allAvail ? "rgba(102,116,69,0.92)" : "rgba(30,20,10,0.7)",
+                color: "#fff",
+              }}
+              title={`You have ${haveCount} of ${ingLinks.length} ingredients`}
+            >
+              {allAvail ? "✓ have all" : `${haveCount}/${ingLinks.length} in pantry`}
+            </span>
+          )}
 
           {/* Save / Add-to button — inline position for reliability */}
           {saved ? (

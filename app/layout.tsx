@@ -3,6 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/ToastProvider";
 import { LibraryProvider } from "@/components/LibraryProvider";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
+import { PantryProvider } from "@/components/PantryProvider";
 import Fab from "@/components/Fab";
 import "./globals.css";
 
@@ -30,9 +31,11 @@ export default function RootLayout({
         <ToastProvider>
           <LibraryProvider>
             <PreferencesProvider>
-              <SiteHeader />
-              {children}
-              <Fab />
+              <PantryProvider>
+                <SiteHeader />
+                {children}
+                <Fab />
+              </PantryProvider>
             </PreferencesProvider>
           </LibraryProvider>
         </ToastProvider>
