@@ -5,6 +5,7 @@ import { LibraryProvider } from "@/components/LibraryProvider";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { PantryProvider } from "@/components/PantryProvider";
 import Fab from "@/components/Fab";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 // Baby-brain map:
@@ -28,6 +29,7 @@ export default function RootLayout({
     // and the single global stylesheet import.
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
+        <ServiceWorkerRegister />
         <ToastProvider>
           <LibraryProvider>
             <PreferencesProvider>
