@@ -381,25 +381,58 @@ export default function PlannerPage() {
   const monday    = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
   const weekDates = useMemo(() => DAYS.map((_, i) => addDays(monday, i)), [monday]);
 
-  // View mode (Week grid vs single Day). Day view reuses the loaded week's data.
-  const [view, setView] = useState<"week" | "day">("week");
+  // View mode. Day view reuses the loaded week's data; Month is a read-only
+  // calendar overview that fetches its own per-day summary.
+  const [view, setView] = useState<"week" | "day" | "month">("week");
   const [dayIndex, setDayIndex] = useState(() => {
     const wd = new Date().getDay();      // 0=Sun..6=Sat
     return wd === 0 ? 6 : wd - 1;        // → Mon=0..Sun=6
   });
-  const visibleDates = view === "week" ? weekDates : [weekDates[dayIndex]];
+  const [monthAnchor, setMonthAnchor] = useState(() => {
+    const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [monthData, setMonthData] = useState<Record<string, { count: number; kcal: number }>>({});
+
+  const visibleDates = view === "day" ? [weekDates[dayIndex]] : weekDates;
   const gridCols = `60px repeat(${visibleDates.length}, 1fr)`;
 
-  // Step forward/back: by week in week view, by day in day view (wrapping weeks).
+  // Step forward/back: by month / week / day depending on the active view.
   const stepBack = () => {
-    if (view === "week") { setWeekOffset((w) => w - 1); return; }
+    if (view === "month") { setMonthAnchor((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1)); return; }
+    if (view === "week")  { setWeekOffset((w) => w - 1); return; }
     if (dayIndex > 0) setDayIndex((d) => d - 1);
     else { setWeekOffset((w) => w - 1); setDayIndex(6); }
   };
   const stepForward = () => {
-    if (view === "week") { setWeekOffset((w) => w + 1); return; }
+    if (view === "month") { setMonthAnchor((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1)); return; }
+    if (view === "week")  { setWeekOffset((w) => w + 1); return; }
     if (dayIndex < 6) setDayIndex((d) => d + 1);
     else { setWeekOffset((w) => w + 1); setDayIndex(0); }
+  };
+
+  // Calendar cells for the month grid (leading/trailing blanks to fill weeks).
+  const monthCells = useMemo<(Date | null)[]>(() => {
+    const year = monthAnchor.getFullYear(), m = monthAnchor.getMonth();
+    const first = new Date(year, m, 1);
+    const startWd = first.getDay() === 0 ? 6 : first.getDay() - 1; // Mon=0
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < startWd; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, m, d));
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [monthAnchor]);
+
+  // Jump from a month-cell into Day view for that date.
+  const openDayFromMonth = (date: Date) => {
+    const todayMon = getMondayOfWeek(0).getTime();
+    const d = new Date(date);
+    const wd = d.getDay();
+    d.setDate(d.getDate() + (wd === 0 ? -6 : 1 - wd));
+    d.setHours(0, 0, 0, 0);
+    setWeekOffset(Math.round((d.getTime() - todayMon) / (7 * 86_400_000)));
+    setDayIndex(wd === 0 ? 6 : wd - 1);
+    setView("day");
   };
 
   const [plannedMeals,  setPlannedMeals]  = useState<PlannedMeal[]>([]);
@@ -602,6 +635,33 @@ export default function PlannerPage() {
   }, [monday]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Month view: fetch a per-day summary (meal count + calories) for the month.
+  useEffect(() => {
+    if (view !== "month") return;
+    let alive = true;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !alive) return;
+      const first = monthAnchor;
+      const last  = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0);
+      const { data } = await supabase.from("planned_meals")
+        .select("meal_date, recipe_id, servings")
+        .eq("user_id", user.id)
+        .gte("meal_date", toISO(first)).lte("meal_date", toISO(last));
+      if (!alive) return;
+      const kcalById = new Map(recipes.map((r) => [r.id, r.nutrition?.calories ?? 0]));
+      const map: Record<string, { count: number; kcal: number }> = {};
+      for (const row of data ?? []) {
+        const d = row.meal_date as string;
+        if (!map[d]) map[d] = { count: 0, kcal: 0 };
+        map[d].count++;
+        if (row.recipe_id != null) map[d].kcal += (kcalById.get(String(row.recipe_id)) ?? 0) * ((row.servings as number) ?? 1);
+      }
+      setMonthData(map);
+    })();
+    return () => { alive = false; };
+  }, [view, monthAnchor, recipes]);
 
   // ── Add to plan from expiry suggestion ────────────────────────────────────
   const addSuggestionToPlan = async () => {
@@ -886,7 +946,9 @@ export default function PlannerPage() {
 
   const activeRecipe = activeId ? recipes.find((r) => `recipe-${r.id}` === activeId) : null;
 
-  const weekLabel = view === "day"
+  const weekLabel = view === "month"
+    ? monthAnchor.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+    : view === "day"
     ? weekDates[dayIndex].toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })
     : `${monday.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${addDays(monday, 6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
@@ -1053,9 +1115,9 @@ export default function PlannerPage() {
               )}
             </div>
 
-            {/* Week / Day toggle */}
+            {/* Week / Day / Month toggle */}
             <div className="inline-flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-              {(["week", "day"] as const).map((v) => (
+              {(["week", "day", "month"] as const).map((v) => (
                 <button key={v} type="button" onClick={() => setView(v)}
                   className="px-3 py-1.5 text-xs font-semibold capitalize transition"
                   style={{
@@ -1174,6 +1236,49 @@ export default function PlannerPage() {
                         ))}
                       </div>
                     ))}
+                  </div>
+                ) : view === "month" ? (
+                  <div style={{ minWidth: 320 }}>
+                    {/* Weekday header */}
+                    <div className="grid grid-cols-7 gap-1.5 mb-1">
+                      {DAYS.map((d) => (
+                        <div key={d} className="text-center text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>{d}</div>
+                      ))}
+                    </div>
+                    {/* Day cells */}
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {monthCells.map((date, i) => {
+                        if (!date) return <div key={i} />;
+                        const iso = toISO(date);
+                        const info = monthData[iso];
+                        const isToday = iso === toISO(new Date());
+                        const dotColor = calorieColor(info?.kcal ?? 0);
+                        return (
+                          <button key={i} type="button" onClick={() => openDayFromMonth(date)}
+                            className="rounded-xl p-1.5 text-left transition min-h-[62px] flex flex-col hover:shadow-sm"
+                            style={{ border: `1px solid ${isToday ? "var(--accent)" : "var(--border)"}`, background: "var(--surface)" }}
+                            title="Open day">
+                            <span className="text-xs font-bold" style={{ color: isToday ? "var(--accent)" : "var(--foreground)" }}>
+                              {date.getDate()}
+                            </span>
+                            {info && info.count > 0 && (
+                              <>
+                                <div className="flex gap-0.5 mt-1 flex-wrap">
+                                  {[...Array(Math.min(info.count, 4))].map((_, d) => (
+                                    <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }} />
+                                  ))}
+                                </div>
+                                {info.kcal > 0 && (
+                                  <span className="text-[9px] mt-auto font-semibold tabular-nums" style={{ color: dotColor }}>
+                                    {info.kcal} kcal
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   <div style={{ minWidth: 560 }}>
