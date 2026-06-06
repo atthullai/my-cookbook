@@ -101,6 +101,33 @@ export default function ShoppingListPage() {
   // ── Shopping mode (full-screen, category-by-category) ─────────────────────
   const [shoppingMode, setShoppingMode] = useState(false);
 
+  // ── Bulk select mode ──────────────────────────────────────────────────────
+  const [selectMode, setSelectMode]   = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const exitSelect = () => { setSelectMode(false); setSelectedIds(new Set()); };
+
+  const bulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setItems((prev) => prev.filter((i) => !selectedIds.has(i.id)));
+    exitSelect();
+    const { error } = await supabase.from("shopping_list").delete().in("id", ids);
+    if (error) toast.error("Failed to delete some items");
+    else toast.success(`Deleted ${ids.length} item${ids.length === 1 ? "" : "s"}`);
+  };
+
+  const bulkMarkBought = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setItems((prev) => prev.map((i) => selectedIds.has(i.id) ? { ...i, checked: true } : i));
+    exitSelect();
+    const { error } = await supabase.from("shopping_list").update({ checked: true }).in("id", ids);
+    if (error) toast.error("Failed to update some items");
+    else toast.success(`Marked ${ids.length} as bought`);
+  };
+
   // ── Load shopping list from Supabase ─────────────────────────────────────
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -620,7 +647,17 @@ export default function ShoppingListPage() {
               {copied ? <ClipboardCheck size={14} style={{ color: "var(--olive)" }} /> : <Clipboard size={14} />}
               {copied ? "Copied!" : "Copy"}
             </button>
-            {totalCount - checkedCount > 0 && (
+            {totalCount > 0 && (
+              <button
+                type="button"
+                onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition"
+                style={{ color: "var(--foreground)", border: "1px solid var(--border)", background: selectMode ? "var(--surface-strong)" : "var(--surface)" }}
+              >
+                {selectMode ? "Cancel" : "Select"}
+              </button>
+            )}
+            {totalCount - checkedCount > 0 && !selectMode && (
               <button
                 type="button"
                 onClick={() => setShoppingMode(true)}
@@ -779,20 +816,25 @@ export default function ShoppingListPage() {
                           style={{ color: "var(--foreground)" }}
                         >
                           {/* Main row */}
-                          <div className="flex items-center gap-3 cursor-pointer" onClick={() => void toggleItem(item)}>
-                            {/* Checkbox */}
-                            <div className={[
-                              "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition",
-                              item.checked
-                                ? "bg-green-500 border-green-500"
-                                : "border-gray-300 hover:border-green-400",
-                            ].join(" ")}>
-                              {item.checked && (
-                                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                  <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-3 cursor-pointer"
+                            onClick={() => (selectMode ? toggleSelect(item.id) : void toggleItem(item))}>
+                            {/* Checkbox (selection circle in select mode) */}
+                            {(() => {
+                              const on = selectMode ? selectedIds.has(item.id) : item.checked;
+                              return (
+                                <div className={[
+                                  "w-5 h-5 flex-shrink-0 flex items-center justify-center border-2 transition",
+                                  selectMode ? "rounded-md" : "rounded-full",
+                                  on ? "bg-green-500 border-green-500" : "border-gray-300 hover:border-green-400",
+                                ].join(" ")}>
+                                  {on && (
+                                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                      <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Name + quantity */}
                             <motion.span
@@ -897,6 +939,21 @@ export default function ShoppingListPage() {
                 </motion.section>
               );
             })}
+          </div>
+        )}
+        {/* Bulk action bar */}
+        {selectMode && selectedIds.size > 0 && (
+          <div className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl shadow-xl"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)", background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <span className="text-sm font-semibold px-2" style={{ color: "var(--foreground)" }}>{selectedIds.size} selected</span>
+            <button type="button" onClick={() => void bulkMarkBought()}
+              className="px-3 py-1.5 rounded-xl text-sm font-medium" style={{ background: "var(--olive)", color: "#fff" }}>
+              ✓ Bought
+            </button>
+            <button type="button" onClick={() => void bulkDelete()}
+              className="px-3 py-1.5 rounded-xl text-sm font-medium" style={{ background: "rgba(220,38,38,0.1)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.25)" }}>
+              <Trash2 size={13} className="inline" /> Delete
+            </button>
           </div>
         )}
       </main>
