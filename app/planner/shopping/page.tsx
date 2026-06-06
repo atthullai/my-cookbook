@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import type { ShoppingItem, ShoppingCategory } from "@/types";
 import { lookupItem, suggestExpiryDate, CATEGORY_MAP } from "@/lib/pantry-items";
+import { convertToBase } from "@/lib/conversion";
 
 const CATEGORY_META: Record<ShoppingCategory, { label: string; icon: string }> = {
   "produce":       { label: "Produce",        icon: "🥕" },
@@ -315,10 +316,10 @@ export default function ShoppingListPage() {
       if (recipesError) throw recipesError;
       const records = mapRecipeRows(recipeRows ?? []);
 
-      // Load pantry items for cross-check
+      // Load pantry items for cross-check (with units for quantity-aware subtraction)
       const { data: pantryRows } = await supabase
         .from("pantry_items")
-        .select("name, quantity")
+        .select("name, quantity, unit")
         .eq("user_id", user.id);
 
       // Normalise pantry names: lowercase, strip trailing 's', common synonyms
@@ -331,12 +332,23 @@ export default function ShoppingListPage() {
       const inPantry = (name: string) => {
         const n = normaliseName(name);
         if (pantryNorms.has(n)) return true;
-        // partial match: pantry item contains ingredient or vice-versa
         for (const p of pantryNorms) {
           if (p.includes(n) || n.includes(p)) return true;
         }
         return false;
       };
+
+      // Pantry stock in base units (g/ml) keyed by normalised name — lets us
+      // subtract what's on hand from what a recipe needs.
+      const pantryBase = new Map<string, { base: number; baseUnit: string }>();
+      for (const p of (pantryRows ?? []) as { name: string; quantity: number | null; unit: string | null }[]) {
+        const conv = convertToBase(Number(p.quantity) || 0, p.unit ?? "", p.name);
+        if (conv.tier === 3 || conv.base <= 0) continue;
+        const key = normaliseName(p.name);
+        const cur = pantryBase.get(key);
+        if (cur && cur.baseUnit === conv.baseUnit) cur.base += conv.base;
+        else if (!cur) pantryBase.set(key, { base: conv.base, baseUnit: conv.baseUnit });
+      }
 
       // Existing shopping list item names (to avoid duplicates)
       const existingNorms = new Set(items.map((i) => normaliseName(i.name)));
@@ -351,7 +363,9 @@ export default function ShoppingListPage() {
           for (const item of group.items) {
             const nameNorm = normaliseName(item.name_en);
             if (!nameNorm) continue;
-            if (inPantry(item.name_en)) continue;
+            // Non-quantifiable need (e.g. "to taste") that's on hand → skip.
+            const needTier = convertToBase(1, item.unit ?? "", item.name_en).tier;
+            if (needTier === 3 && inPantry(item.name_en)) continue;
             if (existingNorms.has(nameNorm)) continue;
 
             const qty = item.amount ? parseFloat(String(item.amount)) * multiplier : 0;
@@ -374,6 +388,21 @@ export default function ShoppingListPage() {
               });
             }
           }
+        }
+      }
+
+      // Subtract pantry stock (unit-aware) — only request the deficit.
+      for (const [key, entry] of aggregated) {
+        const stock = pantryBase.get(key);
+        if (!stock) continue;
+        const conv = convertToBase(entry.quantity, entry.unit, entry.name);
+        if (conv.tier === 3 || conv.baseUnit !== stock.baseUnit) continue;
+        const deficit = conv.base - stock.base;
+        if (deficit <= 0) { aggregated.delete(key); continue; } // fully covered
+        if (stock.baseUnit === "g" || stock.baseUnit === "ml") {
+          const bigUnit = stock.baseUnit === "g" ? "kg" : "L";
+          if (deficit >= 1000) { entry.quantity = Math.round(deficit / 100) / 10; entry.unit = bigUnit; }
+          else { entry.quantity = Math.round(deficit); entry.unit = stock.baseUnit; }
         }
       }
 
