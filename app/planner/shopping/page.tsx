@@ -85,6 +85,7 @@ export default function ShoppingListPage() {
   const DEFAULT_LIST = "My List";
   const [currentList, setCurrentList] = useState(DEFAULT_LIST);
   const [lists, setLists]             = useState<string[]>([DEFAULT_LIST]);
+  const [frequent, setFrequent]       = useState<string[]>([]); // frequently-bought item names
 
   // ── Add form state ────────────────────────────────────────────────────────
   const [showAddForm, setShowAddForm] = useState(false);
@@ -123,6 +124,21 @@ export default function ShoppingListPage() {
     else toast.success(`Deleted ${ids.length} item${ids.length === 1 ? "" : "s"}`);
   };
 
+  const quickAdd = async (name: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    if (items.some((i) => i.name.toLowerCase().trim() === name.toLowerCase().trim())) { toast("Already on the list"); return; }
+    const { data, error } = await supabase.from("shopping_list")
+      .insert({ user_id: user.id, name, quantity: 1, unit: null, category: "other", checked: false, source: "manual", list_name: currentList })
+      .select().single();
+    if (error) { toast.error("Couldn't add"); return; }
+    setItems((prev) => [...prev, {
+      id: data.id, name: data.name, quantity: 1, unit: "",
+      category: guessCategory(name.toLowerCase()), checked: false, recipeIds: [], notes: "", source: "manual",
+    }]);
+    toast.success(`Added ${name}`);
+  };
+
   const bulkMarkBought = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
@@ -140,13 +156,23 @@ export default function ShoppingListPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = "/login"; return; }
 
-      // Collect all of the user's list names for the switcher.
-      const { data: nameRows } = await supabase
-        .from("shopping_list").select("list_name").eq("user_id", user.id);
-      if (nameRows) {
-        const names = (nameRows as { list_name: string | null }[])
-          .map((r) => r.list_name).filter((n): n is string => Boolean(n));
-        setLists((prev) => [...new Set([DEFAULT_LIST, ...prev, ...names])]);
+      // Collect all of the user's list names (switcher) + most-bought items.
+      const { data: histRows } = await supabase
+        .from("shopping_list").select("list_name, name").eq("user_id", user.id);
+      if (histRows) {
+        const rows = histRows as { list_name: string | null; name: string | null }[];
+        setLists((prev) => [...new Set([DEFAULT_LIST, ...prev, ...rows.map((r) => r.list_name).filter((n): n is string => Boolean(n))])]);
+
+        const counts = new Map<string, { display: string; n: number }>();
+        for (const r of rows) {
+          const name = (r.name ?? "").trim();
+          if (!name) continue;
+          const key = name.toLowerCase();
+          const cur = counts.get(key);
+          if (cur) cur.n++; else counts.set(key, { display: name, n: 1 });
+        }
+        const top = [...counts.values()].sort((a, b) => b.n - a.n).map((c) => c.display);
+        setFrequent(top.slice(0, 12));
       }
 
       const { data, error } = await supabase
@@ -721,6 +747,25 @@ export default function ShoppingListPage() {
             + New list
           </button>
         </div>
+
+        {/* ── Frequently bought ─────────────────────────────────────────── */}
+        {!selectMode && (() => {
+          const onList = new Set(items.map((i) => i.name.toLowerCase().trim()));
+          const chips = frequent.filter((n) => !onList.has(n.toLowerCase().trim())).slice(0, 8);
+          if (chips.length === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <span className="text-xs font-semibold" style={{ color: "var(--muted)" }}>Frequently bought:</span>
+              {chips.map((name) => (
+                <button key={name} type="button" onClick={() => void quickAdd(name)}
+                  className="text-xs px-2.5 py-1 rounded-full transition"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--foreground)" }}>
+                  + {name}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* ── Inline add form ───────────────────────────────────────────── */}
         <AnimatePresence>
