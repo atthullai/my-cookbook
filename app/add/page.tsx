@@ -151,6 +151,20 @@ export default function AddRecipe() {
     if (!user) { notify({ tone: "error", title: "Not signed in", message: "Please sign in before saving." }); return; }
     if (!title.trim()) { notify({ tone: "error", title: "Title required", message: "Please enter a recipe title." }); return; }
 
+    // Duplicate detection — warn if a same-titled recipe already exists.
+    {
+      const { data: dupes } = await supabase
+        .from("recipes")
+        .select("id")
+        .eq("user_id", user.id)
+        .ilike("title_en", title.trim())
+        .limit(1);
+      if (dupes && dupes.length > 0) {
+        const proceed = window.confirm(`You already have a recipe called "${title.trim()}". Save it again anyway?`);
+        if (!proceed) return;
+      }
+    }
+
     setSaving(true);
 
     const [

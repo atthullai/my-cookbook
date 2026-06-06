@@ -26,7 +26,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import LottieAnimation from "@/components/LottieAnimation";
 import { useLibrary } from "@/components/LibraryProvider";
 import { usePreferences } from "@/components/PreferencesProvider";
-import { logSearchDb } from "@/lib/library";
+import { logSearchDb, fetchSearchHistory } from "@/lib/library";
 import type { DietKey } from "@/lib/preferences";
 
 // Map a diet preference to the recipe tags that satisfy it.
@@ -76,6 +76,7 @@ export default function Home() {
   const [planToday,     setPlanToday]     = useState<{ slot: string; title: string }[]>([]);
   const [groceryCount,  setGroceryCount]  = useState(0);
   const [cookProgress,  setCookProgress]  = useState<{ recipeId: string; title: string; step: number; total: number } | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [user,          setUser]          = useState<AppUser | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
@@ -100,11 +101,13 @@ export default function Home() {
     if (!currentUser) { setPool([]); setPlanToday([]); setGroceryCount(0); return; }
 
     const today = new Date().toISOString().slice(0, 10);
-    const [poolRes, mealRes, groceryRes] = await Promise.all([
+    const [poolRes, mealRes, groceryRes, searches] = await Promise.all([
       supabase.from("recipes").select("*").order("id", { ascending: false }).limit(60),
       supabase.from("planned_meals").select("meal_slot, recipe_id").eq("meal_date", today),
       supabase.from("shopping_list").select("id", { count: "exact", head: true }).eq("checked", false),
+      fetchSearchHistory(8),
     ]);
+    setRecentSearches(searches);
 
     const poolSummaries = poolRes.data ? toRecipeSummaries(mapRecipeRows(poolRes.data)) : [];
     setPool(poolSummaries);
@@ -526,6 +529,18 @@ export default function Home() {
                 >
                   <X size={13} />
                 </button>
+              )}
+              {!search && recentSearches.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-[11px] self-center" style={{ color: "var(--muted)" }}>Recent:</span>
+                  {recentSearches.slice(0, 6).map((term) => (
+                    <button key={term} type="button" onClick={() => setSearch(term)}
+                      className="text-[11px] px-2 py-0.5 rounded-full"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--foreground)" }}>
+                      {term}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
             <span className="text-sm hidden sm:block" style={{ color: "var(--muted)", opacity: 0.7 }}>
