@@ -947,6 +947,17 @@ ul {
   flex-wrap: wrap;
 }
 
+/* On narrower screens stack the title above the action buttons so the
+   actions column can't starve the title column. */
+@media (max-width: 900px) {
+  .hero-panel {
+    grid-template-columns: 1fr;
+  }
+  .hero-actions {
+    justify-content: flex-start;
+  }
+}
+
 .hero-side {
   display: grid;
   justify-items: end;
