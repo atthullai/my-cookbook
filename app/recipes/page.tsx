@@ -92,11 +92,22 @@ export default function RecipesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [tags, setTags]                 = useState<RecipeTag[]>([]);
+  const [category, setCategory]         = useState<string | null>(null);
   const [maxTime, setMaxTime]           = useState<number>(120);
-  const [sortBy, setSortBy]             = useState<"newest" | "oldest" | "name-az" | "time-quick">("newest");
+  const [sortBy, setSortBy]             = useState<"newest" | "oldest" | "name-az" | "time-quick" | "healthiest">("newest");
   const [deleteTarget, setDeleteTarget] = useState<RecipeSummary | null>(null);
   const [isDeleting, setIsDeleting]     = useState(false);
   const [showFilters, setShowFilters]   = useState(false);
+
+  // Apply ?tag= / ?category= / ?q= params (from the Categories page deep-links).
+  useEffect(() => {
+    const tag = searchParams.get("tag");
+    if (tag) setTags([tag as RecipeTag]);
+    const cat = searchParams.get("category");
+    if (cat) setCategory(cat);
+    const q = searchParams.get("q");
+    if (q) setTitleQuery(q);
+  }, [searchParams, setTitleQuery]);
 
   // ── Load recipes ─────────────────────────────────────────────────────────
   const loadRecipes = useCallback(async () => {
@@ -140,19 +151,33 @@ export default function RecipesPage() {
       result = result.filter((r) => tags.some((t) => r.tags.includes(t)));
     }
 
+    // Meal-type / category filter
+    if (category) {
+      const c = category.toLowerCase();
+      result = result.filter((r) => (r.category ?? "").toLowerCase().includes(c));
+    }
+
     // Time filter
     result = result.filter(
       (r) => r.prepTimeMinutes + r.cookTimeMinutes <= maxTime
     );
 
+    // "Healthiest" proxy score: protein + fibre per 100 kcal, minus sugar load.
+    const healthScore = (r: RecipeSummary) => {
+      const n = r.nutrition;
+      if (!n || !n.calories) return -1;
+      return ((n.protein ?? 0) + (n.fiber ?? 0)) / (n.calories / 100) - (n.sugar ?? 0) / 20;
+    };
+
     // Sort
     return [...result].sort((a, b) => {
       if (sortBy === "name-az")    return a.title.localeCompare(b.title);
       if (sortBy === "time-quick") return (a.prepTimeMinutes + a.cookTimeMinutes) - (b.prepTimeMinutes + b.cookTimeMinutes);
+      if (sortBy === "healthiest") return healthScore(b) - healthScore(a);
       if (sortBy === "oldest")     return parseInt(a.id) - parseInt(b.id);
       return parseInt(b.id) - parseInt(a.id); // newest
     });
-  }, [filteredRecipes, cuisines, tags, maxTime, sortBy]);
+  }, [filteredRecipes, cuisines, tags, category, maxTime, sortBy]);
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
@@ -345,7 +370,7 @@ export default function RecipesPage() {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-xs font-semibold uppercase tracking-wide w-16"
                       style={{ color: "var(--muted)" }}>Sort</span>
-                    {(["newest","oldest","name-az","time-quick"] as const).map((s) => (
+                    {(["newest","oldest","name-az","time-quick","healthiest"] as const).map((s) => (
                       <button
                         key={s}
                         type="button"
@@ -357,10 +382,21 @@ export default function RecipesPage() {
                           borderColor: sortBy === s ? "var(--accent)" : "var(--border)",
                         }}
                       >
-                        {{ newest:"Newest", oldest:"Oldest", "name-az":"A→Z", "time-quick":"Quickest" }[s]}
+                        {{ newest:"Newest", oldest:"Oldest", "name-az":"A→Z", "time-quick":"Quickest", healthiest:"Healthiest" }[s]}
                       </button>
                     ))}
                   </div>
+
+                  {category && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide w-16" style={{ color: "var(--muted)" }}>Type</span>
+                      <button type="button" onClick={() => setCategory(null)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ background: "var(--accent)", color: "#fff" }}>
+                        {category} ✕
+                      </button>
+                    </div>
+                  )}
 
                   {/* Time slider */}
                   <div className="flex items-center gap-4">
