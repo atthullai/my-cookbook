@@ -7,6 +7,7 @@
 
 import Image from "next/image";
 import { useState, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 import type { FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
@@ -167,6 +168,30 @@ export default function RecipeForm(props: RecipeFormProps) {
   const [parsePending, setParsePending] = useState<Record<number, boolean>>({});
   // Tap-to-edit: which row is being edited and its current text
   const [editingRow, setEditingRow] = useState<{ gi: number; ii: number; text: string } | null>(null);
+
+  // Cover photo upload → Supabase Storage bucket "recipe-photos".
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const onCoverImageUrlChange = props.onCoverImageUrlChange;
+  const handleCoverUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please sign in first");
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("recipe-photos").upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("recipe-photos").getPublicUrl(path);
+      onCoverImageUrlChange(pub.publicUrl);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingCover(false);
+      event.target.value = "";
+    }
+  }, [onCoverImageUrlChange]);
 
   // Parse text and immediately add — no preview step, no Parse button.
   const handleAddIngredients = useCallback(async (groupIndex: number, text: string) => {
@@ -766,6 +791,14 @@ export default function RecipeForm(props: RecipeFormProps) {
           </button>
         </div>
         <input className="input" value={props.coverImageUrl} onChange={(event) => props.onCoverImageUrlChange(event.target.value)} placeholder="Cover photo URL" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+          <label className="button" style={{ cursor: uploadingCover ? "default" : "pointer" }}>
+            <AppIcon name="recipe" size={16} />
+            {uploadingCover ? "Uploading…" : "Upload from device"}
+            <input type="file" accept="image/*" hidden disabled={uploadingCover} onChange={handleCoverUpload} />
+          </label>
+          {props.coverImageUrl && <span style={{ fontSize: "0.8rem", color: "var(--olive)" }}>✓ cover photo set</span>}
+        </div>
         <p style={{ marginTop: 10, marginBottom: 10 }}>
           Tip: on most recipe websites, right-click the photo and choose “Copy Image Address”, then paste it here.
         </p>
