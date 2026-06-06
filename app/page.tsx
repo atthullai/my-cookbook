@@ -75,6 +75,7 @@ export default function Home() {
   const [pool,          setPool]          = useState<RecipeSummary[]>([]);
   const [planToday,     setPlanToday]     = useState<{ slot: string; title: string }[]>([]);
   const [groceryCount,  setGroceryCount]  = useState(0);
+  const [cookProgress,  setCookProgress]  = useState<{ recipeId: string; title: string; step: number; total: number } | null>(null);
   const [user,          setUser]          = useState<AppUser | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
@@ -130,6 +131,15 @@ export default function Home() {
     void run();
     return () => { alive = false; };
   }, [loadRecipes, loadDashboard, router]);
+
+  // Resume a cooking session if one is in progress (set by the recipe page).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("cookbook:cooking-progress");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (raw) setCookProgress(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
 
   const summaries = useMemo(() => toRecipeSummaries(records), [records]);
 
@@ -385,6 +395,23 @@ export default function Home() {
         {/* ── Dashboard (logged-in) ─────────────────────────────────────── */}
         {!loading && user && (
           <section className="max-w-5xl mx-auto px-4 pb-2">
+
+            {/* Continue cooking */}
+            {cookProgress && (
+              <Link href={`/recipe/${cookProgress.recipeId}`}
+                className="flex items-center gap-3 rounded-2xl p-4 mb-6 border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                style={{ background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%)", color: "#fff8f1" }}>
+                <span className="text-2xl">🍳</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ opacity: 0.8 }}>Continue cooking</p>
+                  <p className="font-semibold truncate">{cookProgress.title}</p>
+                  {cookProgress.total > 0 && (
+                    <p className="text-sm" style={{ opacity: 0.85 }}>Step {cookProgress.step + 1} of {cookProgress.total}</p>
+                  )}
+                </div>
+                <span className="flex-shrink-0 text-sm font-semibold">Resume →</span>
+              </Link>
+            )}
 
             {/* Plan + grocery preview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">

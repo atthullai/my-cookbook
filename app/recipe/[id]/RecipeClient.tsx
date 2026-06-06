@@ -6,7 +6,7 @@
 // If the recipe page looks wrong or you want a new reader feature, this is the file to edit.
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppIcon from "@/components/AppIcon";
 import BadgeChip from "@/components/BadgeChip";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
@@ -38,6 +38,32 @@ import { deriveNutritionMeta } from "@/lib/nutrition-confidence";
 import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
 import { findEquipmentItem } from "@/lib/equipment-library";
 import { useLibrary } from "@/components/LibraryProvider";
+import { logCookDb } from "@/lib/library";
+
+// One running kitchen timer (cooking mode supports several at once).
+interface CookTimer { id: number; label: string; total: number; left: number; running: boolean }
+
+const COOK_PROGRESS_KEY = "cookbook:cooking-progress";
+
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = "sine"; osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.7);
+    osc.start(); osc.stop(ctx.currentTime + 0.7);
+  } catch { /* audio not available */ }
+}
+
+function fmtClock(secs: number): string {
+  const m = Math.floor(secs / 60).toString().padStart(2, "0");
+  const s = (secs % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
 
 type RecipeClientProps = {
   recipe: RecipeRecord;
@@ -63,9 +89,9 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const [lang, setLang] = useState<AppLanguage>("en");
   const [showNutrition, setShowNutrition] = useState(Boolean(recipe.nutrition));
   const [activeStep, setActiveStep] = useState(0);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [timerRunning, setTimerRunning] = useState(false);
   const [isCookingMode, setIsCookingMode] = useState(false);
+  const [timers, setTimers] = useState<CookTimer[]>([]);
+  const timerIdRef = useRef(0);
 
   // Accept strings, numbers, and fractions because stored recipe data may evolve over time.
   const parseAmount = (value: RecipeAmount): number | null => {
@@ -139,7 +165,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const recipeStorage = getRecipeStorage(recipe, lang);
   const recipeNutritionNote = getRecipeNutritionNote(recipe, lang);
   const recipeSections = parseInstructionSections(recipe, lang);
-  const ingredientGroups: RecipeIngredientGroup[] = recipe.ingredients ?? [];
+  const ingredientGroups: RecipeIngredientGroup[] = useMemo(() => recipe.ingredients ?? [], [recipe.ingredients]);
   const recipeLinks = extractLinks(recipe);
   const highlights = buildRecipeHighlights(recipe, lang);
   const faqItems = recipe.faq ?? [];
@@ -178,27 +204,103 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     return () => { document.body.classList.remove("cooking-mode"); };
   }, [isCookingMode]);
 
+  // ── Cooking resume ─────────────────────────────────────────────────────────
+  const stepKey = `cookbook:recipe:${recipe.id}:cook-step`;
+
+  const enterCooking = useCallback(() => {
+    try {
+      const saved = window.localStorage.getItem(stepKey);
+      if (saved) setActiveStep(Math.max(0, parseInt(saved, 10) || 0));
+    } catch { /* ignore */ }
+    setIsCookingMode(true);
+  }, [stepKey]);
+
+  const exitCooking = useCallback(() => setIsCookingMode(false), []);
+
+  const finishCooking = useCallback(() => {
+    void logCookDb(String(recipe.id)); // adds to Recently Cooked
+    try {
+      window.localStorage.removeItem(stepKey);
+      window.localStorage.removeItem(COOK_PROGRESS_KEY);
+    } catch { /* ignore */ }
+    setTimers([]);
+    setIsCookingMode(false);
+    setActiveStep(0);
+  }, [recipe.id, stepKey]);
+
+  // Persist progress while cooking so Home can show "Continue Cooking".
   useEffect(() => {
-    if (!timerRunning) return;
+    if (!isCookingMode) return;
+    try {
+      window.localStorage.setItem(stepKey, String(activeStep));
+      window.localStorage.setItem(COOK_PROGRESS_KEY, JSON.stringify({
+        recipeId: String(recipe.id),
+        title: recipeTitle,
+        step: activeStep,
+        total: allSteps.length,
+        ts: Date.now(),
+      }));
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCookingMode, activeStep]);
+
+  // Ingredients referenced by the current step (for highlighting).
+  const stepIngredients = useMemo(() => {
+    if (!isCookingMode) return [];
+    const text = (allSteps[activeStep]?.step ?? "").toLowerCase();
+    if (!text) return [];
+    const names = new Set<string>();
+    for (const group of ingredientGroups) {
+      for (const item of group.items) {
+        const name = getIngredientLabel(item, lang);
+        const key = name?.trim().toLowerCase();
+        if (key && key.length > 2 && text.includes(key)) names.add(name.trim());
+      }
+    }
+    return [...names].slice(0, 8);
+  }, [isCookingMode, activeStep, allSteps, ingredientGroups, lang]);
+
+  // Tick all running timers once per second; alert when one reaches zero.
+  const anyRunning = timers.some((t) => t.running && t.left > 0);
+  useEffect(() => {
+    if (!anyRunning) return;
     const interval = window.setInterval(() => {
-      setTimerSeconds((current) => {
-        const next = Math.max(0, current - 1);
-        if (next === 0) {
-          window.setTimeout(() => setTimerRunning(false), 0);
+      setTimers((prev) => {
+        const finished: string[] = [];
+        const next = prev.map((t) => {
+          if (!t.running || t.left <= 0) return t;
+          const left = t.left - 1;
+          if (left === 0) { finished.push(t.label); return { ...t, left, running: false }; }
+          return { ...t, left };
+        });
+        if (finished.length > 0) {
+          beep();
+          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+            finished.forEach((label) => new Notification("Timer done", { body: label }));
+          }
         }
         return next;
       });
     }, 1000);
     return () => window.clearInterval(interval);
-  }, [timerRunning]);
+  }, [anyRunning]);
+
+  const addTimer = useCallback((label: string, seconds: number) => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      void Notification.requestPermission();
+    }
+    setTimers((prev) => [...prev, { id: ++timerIdRef.current, label, total: seconds, left: seconds, running: true }]);
+  }, []);
+  const toggleTimer = useCallback((id: number) => {
+    setTimers((prev) => prev.map((t) => t.id === id ? { ...t, running: !t.running && t.left > 0 } : t));
+  }, []);
+  const removeTimer = useCallback((id: number) => {
+    setTimers((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const handlePrint = () => {
     window.print();
   };
-
-  const timerLabel = `${Math.floor(timerSeconds / 60)
-    .toString()
-    .padStart(2, "0")}:${(timerSeconds % 60).toString().padStart(2, "0")}`;
 
   return (
     <div className={isCookingMode ? "cooking-mode-shell" : ""} style={{ marginTop: 16 }}>
@@ -219,7 +321,7 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             <AppIcon name="print" size={16} />
             Print
           </button>
-          <button className="button button-primary" type="button" onClick={() => setIsCookingMode((current) => !current)}>
+          <button className="button button-primary" type="button" onClick={() => (isCookingMode ? exitCooking() : enterCooking())}>
             <AppIcon name="quick" size={16} />
             {isCookingMode ? "Exit Cooking" : "Cooking Mode"}
           </button>
@@ -388,15 +490,38 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           }}>
             Next
           </button>
-          <button className="button button-soft" type="button" onClick={() => { setTimerSeconds(300); setTimerRunning(true); }}>
-            5 min
+          <button className="button button-soft" type="button" onClick={() => addTimer("1 min", 60)}>+1m</button>
+          <button className="button button-soft" type="button" onClick={() => addTimer("5 min", 300)}>+5m</button>
+          <button className="button button-soft" type="button" onClick={() => addTimer("10 min", 600)}>+10m</button>
+          <button className="button button-primary" type="button" onClick={finishCooking}>
+            Done cooking ✓
           </button>
-          <button className="button button-soft" type="button" onClick={() => { setTimerSeconds(600); setTimerRunning(true); }}>
-            10 min
-          </button>
-          <button className="button" type="button" onClick={() => setTimerRunning((current) => !current)} disabled={timerSeconds === 0}>
-            {timerRunning ? "Pause" : "Start"} {timerLabel}
-          </button>
+        </div>
+      )}
+
+      {/* Active timers (multiple supported) */}
+      {isCookingMode && timers.length > 0 && (
+        <div className="card" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
+          {timers.map((t) => (
+            <div key={t.id} style={{
+              display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 999,
+              border: "1px solid var(--border)",
+              background: t.left === 0 ? "rgba(220,80,80,0.12)" : "var(--surface)",
+            }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{t.label}</span>
+              <strong style={{ fontVariantNumeric: "tabular-nums", color: t.left === 0 ? "#c0392b" : "var(--foreground)" }}>
+                {t.left === 0 ? "done!" : fmtClock(t.left)}
+              </strong>
+              {t.left > 0 && (
+                <button className="button button-soft" type="button" style={{ padding: "2px 8px", fontSize: "0.75rem" }}
+                  onClick={() => toggleTimer(t.id)}>
+                  {t.running ? "Pause" : "Start"}
+                </button>
+              )}
+              <button type="button" aria-label="Remove timer" onClick={() => removeTimer(t.id)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}>✕</button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -404,6 +529,17 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div className="card cooking-focus-card">
           <p className="eyebrow">{allSteps[activeStep].section}</p>
           <h2>{allSteps[activeStep].step}</h2>
+          {stepIngredients.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+              <span style={{ fontSize: "0.78rem", color: "var(--muted)", alignSelf: "center" }}>Uses:</span>
+              {stepIngredients.map((name) => (
+                <span key={name} style={{
+                  padding: "3px 10px", borderRadius: 999, fontSize: "0.78rem", fontWeight: 600,
+                  background: "rgba(192,138,45,0.14)", color: "var(--accent-strong)",
+                }}>{name}</span>
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
 
