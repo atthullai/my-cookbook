@@ -98,6 +98,9 @@ export default function ShoppingListPage() {
   // ── Notes expand state & delete ───────────────────────────────────────────
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
 
+  // ── Shopping mode (full-screen, category-by-category) ─────────────────────
+  const [shoppingMode, setShoppingMode] = useState(false);
+
   // ── Load shopping list from Supabase ─────────────────────────────────────
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -510,6 +513,71 @@ export default function ShoppingListPage() {
   return (
     <>
       <Toaster position="top-right" />
+
+      {/* ── Shopping mode (full-screen supermarket walk) ──────────────────── */}
+      {shoppingMode && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto" style={{ background: "var(--background)" }}>
+          <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3"
+            style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Shopping mode</h2>
+              <p className="text-sm" style={{ color: "var(--muted)" }}>{totalCount - checkedCount} of {totalCount} left</p>
+            </div>
+            <button type="button" onClick={() => setShoppingMode(false)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
+              Done
+            </button>
+          </div>
+          <div className="max-w-2xl mx-auto px-4 py-5 space-y-6">
+            {CATEGORY_ORDER.map((cat) => {
+              const group = items.filter((i) => i.category === cat);
+              if (group.length === 0) return null;
+              const { label, icon } = CATEGORY_META[cat];
+              return (
+                <section key={cat}>
+                  <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted)" }}>
+                    <span>{icon}</span> {label}
+                  </h3>
+                  <ul className="space-y-2">
+                    {[...group].sort((a, b) => (a.checked ? 1 : 0) - (b.checked ? 1 : 0)).map((item) => (
+                      <li key={item.id}>
+                        <button type="button" onClick={() => void markChecked(item, !item.checked)}
+                          className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition"
+                          style={{
+                            border: "1px solid var(--border)",
+                            background: item.checked ? "var(--surface-strong)" : "var(--surface)",
+                            opacity: item.checked ? 0.55 : 1,
+                          }}>
+                          <span className="flex items-center justify-center rounded-full flex-shrink-0"
+                            style={{
+                              width: 28, height: 28,
+                              border: `2px solid ${item.checked ? "var(--olive)" : "var(--border)"}`,
+                              background: item.checked ? "var(--olive)" : "transparent", color: "#fff",
+                            }}>
+                            {item.checked ? "✓" : ""}
+                          </span>
+                          <span className="flex-1 text-base font-medium" style={{ textDecoration: item.checked ? "line-through" : "none", color: "var(--foreground)" }}>
+                            {item.name}
+                          </span>
+                          {item.quantity > 0 && (item.quantity !== 1 || (item.unit && item.unit !== "whole")) && (
+                            <span className="text-sm" style={{ color: "var(--muted)" }}>
+                              {item.quantity} {item.unit && item.unit !== "whole" ? item.unit : ""}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+            {totalCount - checkedCount === 0 && (
+              <p className="text-center py-10 text-lg font-semibold" style={{ color: "var(--olive)" }}>🎉 All done!</p>
+            )}
+          </div>
+        </div>
+      )}
+
       <main className="max-w-2xl mx-auto px-4 py-8 min-h-screen">
 
         {/* Header */}
@@ -552,6 +620,16 @@ export default function ShoppingListPage() {
               {copied ? <ClipboardCheck size={14} style={{ color: "var(--olive)" }} /> : <Clipboard size={14} />}
               {copied ? "Copied!" : "Copy"}
             </button>
+            {totalCount - checkedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShoppingMode(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition"
+                style={{ color: "var(--foreground)", border: "1px solid var(--border)", background: "var(--surface)" }}
+              >
+                🛒 Shop
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowAddForm((v) => !v)}
