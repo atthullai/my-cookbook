@@ -16,12 +16,11 @@ import React, { useCallback, useEffect, useMemo, useState, useTransition } from 
 import Link from "next/link";
 import Image from "next/image";
 import {
-  DndContext, DragEndEvent, DragOverlay, DragStartEvent,
-  PointerSensor, useSensor, useSensors, useDroppable, useDraggable,
+  DndContext, DragEndEvent, DragStartEvent,
+  PointerSensor, useSensor, useSensors, useDroppable,
 } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ShoppingCart, X, Search, Minus, Plus, Calendar, UtensilsCrossed, Loader2, Repeat, History } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, X, Minus, Plus, Calendar, UtensilsCrossed, Loader2, Repeat, History } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -30,7 +29,6 @@ import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { RecipeSummary, PlannedMeal, MealSlot, MealEntryType } from "@/types";
-import { CATEGORY_MAP } from "@/lib/pantry-items";
 import { convertToBase } from "@/lib/conversion";
 import { markMealCooked } from "@/app/actions/planner";
 import {
@@ -72,55 +70,6 @@ function addDays(date: Date, days: number): Date {
 }
 function toISO(date: Date): string {
   return date.toISOString().split("T")[0];
-}
-
-// ── Draggable recipe chip ─────────────────────────────────────────────────────
-function DraggableRecipeChip({
-  recipe, isSelected, onSelect,
-}: {
-  recipe: RecipeSummary;
-  isSelected?: boolean;
-  onSelect?: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `recipe-${recipe.id}`,
-    data: { recipeId: recipe.id, title: recipe.title, cuisine: recipe.cuisine },
-  });
-  const theme = getCuisineTheme(recipe.cuisine);
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        ...(isSelected
-          ? { background: "var(--accent)", borderColor: "var(--accent-strong)", color: "#fff" }
-          : {}),
-      }}
-      {...listeners}
-      {...attributes}
-      onClick={onSelect}
-      className={[
-        "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium cursor-grab active:cursor-grabbing",
-        "transition-all duration-150 select-none border",
-        isSelected ? "" : [theme.cardGradient, theme.textColor].join(" "),
-        isDragging ? "opacity-50 shadow-2xl scale-95 rotate-1" : "shadow-sm hover:shadow-md hover:scale-[1.02]",
-      ].join(" ")}
-    >
-      {recipe.imageUrl ? (
-        <Image
-          src={recipe.imageUrl}
-          alt=""
-          width={24}
-          height={24}
-          className="rounded-md object-cover flex-shrink-0"
-        />
-      ) : (
-        <span className="text-sm flex-shrink-0">{theme.emoji}</span>
-      )}
-      <span className="truncate flex-1 leading-tight text-xs">{recipe.title}</span>
-    </div>
-  );
 }
 
 // ── Droppable slot cell ───────────────────────────────────────────────────────
@@ -468,11 +417,9 @@ export default function PlannerPage() {
   const [plannedMeals,  setPlannedMeals]  = useState<PlannedMeal[]>([]);
   const [recipes,       setRecipes]       = useState<RecipeSummary[]>([]);
   const [loadingMeals,  setLoadingMeals]  = useState(true);
-  const [activeId,      setActiveId]      = useState<string | null>(null);
+  const [, setActiveId]      = useState<string | null>(null);
   const [removeTarget,  setRemoveTarget]  = useState<PlannedMeal | null>(null);
   const [isRemoving,    setIsRemoving]    = useState(false);
-  const [sidebarSearch, setSidebarSearch] = useState("");
-  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
 
   // ── Pantry sufficiency ────────────────────────────────────────────────────
   const [, setPantryStock]   = useState<PantryStockItem[]>([]);
@@ -489,17 +436,11 @@ export default function PlannerPage() {
   const [isPendingCooked, startCookedTransition] = useTransition();
   const [migrationNeeded, setMigrationNeeded] = useState(false);
 
-  // ── Expiry suggestions banner ──────────────────────────────────────────────
+  // Used by the (currently dormant) "add to plan" suggestion modal.
   interface ExpirySuggestion {
     items: { name: string; daysLeft: number }[];
     recipe: RecipeSummary;
   }
-  const [expirySuggestions, setExpirySuggestions] = useState<ExpirySuggestion[]>([]);
-  const [expiryBannerDismissed, setExpiryBannerDismissed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const t = localStorage.getItem("planner-expiry-banner-dismissed");
-    return t ? Date.now() - parseInt(t) < 86_400_000 : false;
-  });
   // Day+slot picker for "Add to plan"
   const [addToPlanSuggestion, setAddToPlanSuggestion] = useState<ExpirySuggestion | null>(null);
   const [addToPlanDay, setAddToPlanDay] = useState("");
@@ -518,6 +459,7 @@ export default function PlannerPage() {
 
   // ── Top tabs: Plan / Queue / Previous ──────────────────────────────────────
   const [tab, setTab] = useState<"plan" | "queue" | "previous">("plan");
+  const [planMenuOpen, setPlanMenuOpen] = useState(false);
   const [queueItems, setQueueItems] = useState<{ id: string; recipeId: string; label: string | null }[]>([]);
   const [queueAddRecipe, setQueueAddRecipe] = useState("");
   const [scheduleItem, setScheduleItem] = useState<{ id: string; recipeId: string; label: string | null } | null>(null);
@@ -529,6 +471,7 @@ export default function PlannerPage() {
   const [quickType, setQuickType]   = useState<Exclude<MealEntryType, "recipe">>("restaurant");
   const [quickLabel, setQuickLabel] = useState("");
   const [quickLeftoverFrom, setQuickLeftoverFrom] = useState<string>(""); // source planned_meal id
+  const [quickRecipeId, setQuickRecipeId] = useState<string>(""); // selected saved recipe (recipe add)
   const [isAddingManual, setIsAddingManual] = useState(false);
 
   const sensors = useSensors(
@@ -569,44 +512,6 @@ export default function PlannerPage() {
       setMigrationNeeded(false);
 
       // Load pantry items for expiry suggestions
-      const { data: pantryRows } = await supabase.from("pantry_items")
-        .select("name, expiry_date, storage_location, category")
-        .eq("user_id", user.id);
-
-      const now = Date.now();
-      const expiringPantry = (pantryRows ?? []).filter((p: { expiry_date: string | null; storage_location: string; category: string }) => {
-        if (!p.expiry_date) return false;
-        const daysLeft = Math.ceil((new Date(p.expiry_date).getTime() - now) / 86_400_000);
-        if (daysLeft < 0) return false;
-        const isFridge = p.storage_location === "fridge" || CATEGORY_MAP[p.category]?.openedStorage === "fridge";
-        return isFridge ? daysLeft <= 3 : daysLeft <= 7;
-      });
-
-      const allRecipesForSuggestions = toRecipeSummaries(mapRecipeRows(recipesRes.data ?? []));
-      const rawForSuggestions = mapRecipeRows(recipesRes.data ?? []);
-      // Score each recipe by how many expiring items it uses
-      type ScoredSuggestion = { items: { name: string; daysLeft: number }[]; recipe: RecipeSummary };
-      const scored: ScoredSuggestion[] = [];
-      for (const raw of rawForSuggestions) {
-        const recipe = allRecipesForSuggestions.find((r) => r.id === String(raw.id));
-        if (!recipe) continue;
-        const matchedItems: { name: string; daysLeft: number }[] = [];
-        for (const pantryItem of expiringPantry) {
-          const nameL = (pantryItem.name as string).toLowerCase();
-          const daysLeft = Math.ceil((new Date(pantryItem.expiry_date as string).getTime() - now) / 86_400_000);
-          const matches = raw.ingredients.some((g) =>
-            g.items.some((i) => i.name_en.toLowerCase().includes(nameL) || nameL.includes(i.name_en.toLowerCase()))
-          );
-          if (matches) matchedItems.push({ name: pantryItem.name as string, daysLeft });
-        }
-        if (matchedItems.length > 0) {
-          matchedItems.sort((a, b) => a.daysLeft - b.daysLeft);
-          scored.push({ items: matchedItems, recipe });
-        }
-      }
-      scored.sort((a, b) => b.items.length - a.items.length);
-      setExpirySuggestions(scored.slice(0, 3));
-
       const mealRows: PlannedMeal[] = (mealsRes.data ?? []).map((row) => ({
         id:        row.id as string,
         date:      row.meal_date as string,
@@ -799,45 +704,6 @@ export default function PlannerPage() {
   }, [plannedMeals, recipes]);
 
   // ── Click-to-plan (alternative to drag) ──────────────────────────────────
-  const handleClickPlan = useCallback(async (date: string, slot: MealSlot) => {
-    if (!selectedRecipeId) return;
-    if (plannedMeals.find((m) => m.date === date && m.slot === slot)) {
-      toast.error("Slot already filled — remove the current meal first");
-      return;
-    }
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = "/login"; return; }
-      const { data, error } = await supabase.from("planned_meals").insert({
-        user_id: user.id, meal_date: date, meal_slot: slot,
-        recipe_id: parseInt(selectedRecipeId), servings: 1,
-      }).select().single();
-      if (error) {
-        if (error.message.includes("relation") || error.message.includes("does not exist")) {
-          setMigrationNeeded(true);
-        } else throw error;
-        return;
-      }
-      setPlannedMeals((prev) => [...prev, {
-        id: data.id as string, date: data.meal_date as string,
-        slot: data.meal_slot as MealSlot, recipeId: String(data.recipe_id), servings: 1,
-      }]);
-      const recipe = recipes.find((r) => r.id === selectedRecipeId);
-      toast.success(`${recipe?.title ?? "Recipe"} → ${slot}`, { duration: 2500 });
-      setSelectedRecipeId(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add meal");
-    }
-  }, [selectedRecipeId, plannedMeals, recipes]);
-
-  // ── Empty-slot click: plan selected recipe, else open quick-entry modal ────
-  const handleEmptySlotClick = useCallback((date: string, slot: MealSlot) => {
-    if (selectedRecipeId) { void handleClickPlan(date, slot); return; }
-    setQuickType("restaurant");
-    setQuickLabel("");
-    setQuickLeftoverFrom("");
-    setQuickEntry({ date, slot });
-  }, [selectedRecipeId, handleClickPlan]);
 
   // ── Add a manual (non-recipe) entry ────────────────────────────────────────
   const addManualEntry = useCallback(async () => {
@@ -884,6 +750,32 @@ export default function PlannerPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickEntry, quickType, quickLabel, quickLeftoverFrom, plannedMeals]);
+
+  // Add a saved recipe to the chosen day/slot, else fall through to a manual entry.
+  const confirmQuickAdd = useCallback(async () => {
+    if (!quickEntry) return;
+    if (!quickRecipeId) { await addManualEntry(); return; }
+    setIsAddingManual(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      const { data, error } = await supabase.from("planned_meals").insert({
+        user_id: user.id, meal_date: quickEntry.date, meal_slot: quickEntry.slot,
+        recipe_id: parseInt(quickRecipeId, 10), servings: 1, entry_type: "recipe",
+      }).select().single();
+      if (error) throw error;
+      setPlannedMeals((prev) => [...prev, {
+        id: data.id as string, date: data.meal_date as string, slot: data.meal_slot as MealSlot,
+        recipeId: String(data.recipe_id), servings: 1, entryType: "recipe",
+      }]);
+      toast.success("Added to plan");
+      setQuickEntry(null); setQuickRecipeId("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add recipe");
+    } finally {
+      setIsAddingManual(false);
+    }
+  }, [quickEntry, quickRecipeId, addManualEntry]);
 
   // ── Templates ──────────────────────────────────────────────────────────────
   const fetchTemplates = useCallback(async () => {
@@ -1056,20 +948,6 @@ export default function PlannerPage() {
   }, [tab, loadQueue, loadHistory]);
 
   // ── Plan a recipe directly into a slot (used by empty-day suggestions) ──────
-  const planRecipeDirect = useCallback(async (dateISO: string, slot: MealSlot, recipeId: string) => {
-    if (plannedMeals.find((m) => m.date === dateISO && m.slot === slot)) { toast.error("Slot already filled"); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { window.location.href = "/login"; return; }
-    const { data, error } = await supabase.from("planned_meals")
-      .insert({ user_id: user.id, meal_date: dateISO, meal_slot: slot, recipe_id: parseInt(recipeId), servings: 1 })
-      .select().single();
-    if (error) { toast.error(error.message); return; }
-    setPlannedMeals((prev) => [...prev, {
-      id: data.id as string, date: dateISO, slot, recipeId: String(data.recipe_id), servings: 1, entryType: "recipe",
-    }]);
-    toast.success("Added to plan");
-  }, [plannedMeals]);
-
   // ── Repeat a meal for the next 3 weeks (same weekday + slot) ───────────────
   const repeatMeal = useCallback(async (meal: PlannedMeal) => {
     try {
@@ -1199,28 +1077,11 @@ export default function PlannerPage() {
     plannedMeals.find((m) => m.date === toISO(date) && m.slot === slot);
   const getRecipe = (id: string) => recipes.find((r) => r.id === id);
 
-  const filteredRecipes = sidebarSearch.trim()
-    ? recipes.filter((r) => r.title.toLowerCase().includes(sidebarSearch.toLowerCase()))
-    : recipes;
-
-  const activeRecipe = activeId ? recipes.find((r) => `recipe-${r.id}` === activeId) : null;
-
   const weekLabel = view === "month"
     ? monthAnchor.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
     : view === "day"
     ? weekDates[dayIndex].toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })
     : `${monday.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${addDays(monday, 6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
-
-  // ── Week stats ─────────────────────────────────────────────────────────────
-  const weekStats = useMemo(() => {
-    const totalMeals = plannedMeals.length;
-    const uniqueCuisines = new Set(
-      plannedMeals.map((m) => getRecipe(m.recipeId)?.cuisine).filter(Boolean)
-    ).size;
-    return { totalMeals, uniqueCuisines };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plannedMeals, recipes]);
-
 
   // Per-day calorie totals (per-serving kcal × planned servings), keyed by ISO date.
   const caloriesByDate = useMemo(() => {
@@ -1239,143 +1100,48 @@ export default function PlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekDates, plannedMeals, recipes]);
 
-  // Empty-day suggestions (Day view): if the selected day has no meals, suggest
-  // a few recipes not already on this week's plan.
-  const daySuggestions = useMemo(() => {
-    if (view !== "day") return [];
-    const date = weekDates[dayIndex];
-    if (SLOTS.some((s) => getMeal(date, s))) return [];
-    const planned = new Set(plannedMeals.map((m) => m.recipeId));
-    return recipes.filter((r) => !planned.has(r.id)).slice(0, 3);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, dayIndex, weekDates, plannedMeals, recipes]);
-
   return (
     <>
       <Toaster position="top-right" />
 
       <main className="min-h-screen" style={{ background: "var(--background)" }}>
 
-        {/* ── Page hero ── */}
-        <section
-          className="relative overflow-hidden px-5 pt-10 pb-8 border-b"
-          style={{
-            background: "radial-gradient(ellipse 70% 60% at 80% 0%, rgba(212,168,83,.07) 0%, transparent 60%), radial-gradient(ellipse 50% 80% at 5% 100%, rgba(232,132,74,.05) 0%, transparent 60%), var(--linen)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <div className="max-w-screen-xl mx-auto">
+        <div className="max-w-screen-xl mx-auto px-5 py-6">
 
-            {/* ── Migration banner ── */}
-            <AnimatePresence>
-              {migrationNeeded && (
-                <motion.div
-                  initial={{ opacity: 0, y: -16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -16 }}
-                  className="mb-5 rounded-2xl p-4 flex gap-3 items-start"
-                  style={{ background: "rgba(192,138,45,0.12)", border: "1px solid rgba(192,138,45,0.35)" }}
-                >
-                  <span className="text-2xl flex-shrink-0">⚠️</span>
-                  <div>
-                    <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
-                      One-time setup needed
-                    </p>
-                    <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
-                      The meal planner table doesn&apos;t exist yet. Go to{" "}
-                      <strong>Supabase → SQL Editor → New Query</strong>, paste the contents of{" "}
-                      <code className="text-xs px-1 rounded" style={{ background: "rgba(0,0,0,0.07)" }}>
-                        supabase/migrations/20260528_fix_all_tables.sql
-                      </code>{" "}
-                      and click <strong>Run</strong>. Then refresh this page.
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => setMigrationNeeded(false)} className="ml-auto p-1" style={{ color: "var(--muted)" }}>
-                    <X size={14} />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex items-end justify-between gap-5 flex-wrap">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-px w-5" style={{ background: "var(--saffron)" }} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--saffron)" }}>
-                    Weekly menu
-                  </span>
-                </div>
-                <h1 className="font-bold leading-tight mb-1" style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--foreground)" }}>
-                  This Week&apos;s <em style={{ color: "var(--accent)", fontStyle: "italic" }}>Plan</em>
-                </h1>
-                <p className="text-sm italic" style={{ color: "var(--muted)" }}>
-                  {loadingMeals ? "Loading…" : `${weekStats.totalMeals} meal${weekStats.totalMeals !== 1 ? "s" : ""} planned`}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {plannedMeals.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => void handleClearWeek()}
-                    className="px-3 py-2 rounded-xl text-sm transition"
-                    style={{ color: "var(--muted)", border: "1px solid var(--border)", background: "var(--surface)" }}
-                  >
-                    Clear week
-                  </button>
-                )}
+          {/* ── Tabs + overflow menu ── */}
+          <div className="planner-tabbar">
+            <div className="planner-tabs" role="tablist">
+              {([["plan", "Plan"], ["queue", "Queue"], ["previous", "Previous"]] as const).map(([k, labelText]) => (
                 <button
+                  key={k}
                   type="button"
-                  onClick={openTemplates}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
-                  style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
+                  role="tab"
+                  aria-selected={tab === k}
+                  className={tab === k ? "planner-tab active" : "planner-tab"}
+                  onClick={() => setTab(k)}
                 >
-                  🗂 Templates
+                  {labelText}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void openHistory()}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
-                  style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
-                >
-                  <History size={15} /> History
-                </button>
-                <Link
-                  href="/planner/shopping"
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
-                  style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
-                >
-                  <ShoppingCart size={15} /> Shopping list
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
-                  style={{ background: "var(--accent)", color: "#fff" }}
-                  title="Re-check pantry sufficiency"
-                >
-                  ↻ Check pantry
-                </button>
-              </div>
+              ))}
             </div>
-          </div>
-        </section>
-
-        <div className="max-w-screen-xl mx-auto px-5 py-5">
-
-          {/* ── Plan / Queue / Previous tabs ── */}
-          <div className="planner-tabs" role="tablist">
-            {([["plan", "Plan"], ["queue", "Queue"], ["previous", "Previous"]] as const).map(([k, labelText]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={tab === k}
-                className={tab === k ? "planner-tab active" : "planner-tab"}
-                onClick={() => setTab(k)}
-              >
-                {labelText}
-              </button>
-            ))}
+            <div className="planner-overflow">
+              <button type="button" aria-label="More" className="planner-overflow-btn" onClick={() => setPlanMenuOpen((v) => !v)}>⋯</button>
+              {planMenuOpen && (
+                <div className="planner-overflow-menu" onMouseLeave={() => setPlanMenuOpen(false)}>
+                  <Link href="/planner/shopping" className="planner-overflow-item" onClick={() => setPlanMenuOpen(false)}>
+                    <ShoppingCart size={14} /> Shopping list
+                  </Link>
+                  <button type="button" className="planner-overflow-item" onClick={() => { setPlanMenuOpen(false); openTemplates(); }}>🗂 Templates</button>
+                  <button type="button" className="planner-overflow-item" onClick={() => { setPlanMenuOpen(false); void openHistory(); }}>
+                    <History size={14} /> History
+                  </button>
+                  <button type="button" className="planner-overflow-item" onClick={() => { setPlanMenuOpen(false); void load(); }}>↻ Check pantry</button>
+                  {plannedMeals.length > 0 && (
+                    <button type="button" className="planner-overflow-item" onClick={() => { setPlanMenuOpen(false); void handleClearWeek(); }}>🗑 Clear week</button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {tab === "plan" && (
@@ -1418,97 +1184,7 @@ export default function PlannerPage() {
               )}
             </div>
 
-            {!loadingMeals && weekStats.uniqueCuisines > 0 && (
-              <p className="text-sm" style={{ color: "var(--muted)" }}>
-                <span className="font-semibold" style={{ color: "var(--foreground)" }}>{weekStats.uniqueCuisines}</span>
-                {" "}cuisine{weekStats.uniqueCuisines !== 1 ? "s" : ""} this week
-              </p>
-            )}
           </div>
-
-          {/* ── Week stats bar ─────────────────────────────────────────────── */}
-          {!loadingMeals && (
-            <div className="flex flex-wrap items-center gap-4 mb-6 px-4 py-3 rounded-2xl"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-              <div className="flex items-center gap-2">
-                <Calendar size={14} style={{ color: "var(--accent)", opacity: 0.7 }} />
-                <span className="text-sm" style={{ color: "var(--muted)" }}>
-                  <span className="font-semibold" style={{ color: "var(--foreground)" }}>{weekStats.totalMeals}</span>
-                  {" "}meal{weekStats.totalMeals !== 1 ? "s" : ""} planned
-                </span>
-              </div>
-              {weekStats.uniqueCuisines > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm" style={{ color: "var(--muted)" }}>
-                    <span className="font-semibold" style={{ color: "var(--foreground)" }}>{weekStats.uniqueCuisines}</span>
-                    {" "}cuisine{weekStats.uniqueCuisines !== 1 ? "s" : ""}
-                  </span>
-                </div>
-              )}
-              {weekStats.totalMeals === 0 && (
-                <span className="text-sm italic" style={{ color: "var(--muted)", opacity: 0.7 }}>
-                  Drag recipes from the right panel onto any slot to start planning
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* ── Expiry-driven suggestions banner ─────────────────────────── */}
-          {!expiryBannerDismissed && expirySuggestions.length > 0 && (
-            <div className="rounded-2xl mb-5 overflow-hidden"
-              style={{ border: "1px solid rgba(245,158,11,0.28)" }}>
-              <div className="flex items-center justify-between px-4 py-2.5"
-                style={{ background: "rgba(245,158,11,0.10)" }}>
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#b45309" }}>
-                  ⏰ Use soon
-                </span>
-                <button type="button"
-                  onClick={() => {
-                    setExpiryBannerDismissed(true);
-                    if (typeof window !== "undefined") localStorage.setItem("planner-expiry-banner-dismissed", String(Date.now()));
-                  }}
-                  className="text-xs opacity-50 hover:opacity-100 transition"
-                  style={{ color: "var(--muted)" }}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <div className="divide-y" style={{ borderColor: "rgba(245,158,11,0.12)" }}>
-                {expirySuggestions.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium mb-0.5" style={{ color: "var(--foreground)" }}>
-                        {s.items.map((item, idx) => (
-                          <span key={idx}>
-                            {idx > 0 && <span style={{ color: "var(--muted)" }}>, </span>}
-                            <strong>{item.name}</strong>
-                            <span className="ml-1 font-normal" style={{ color: "#b45309" }}>
-                              ({item.daysLeft === 0 ? "today!" : item.daysLeft === 1 ? "exp tomorrow" : `exp in ${item.daysLeft}d`})
-                            </span>
-                          </span>
-                        ))}
-                      </p>
-                      <p className="text-xs" style={{ color: "var(--muted)" }}>
-                        Suggested: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{s.recipe.title}</span>
-                        {s.items.length > 1 && <span> uses {s.items.length === 2 ? "both" : `all ${s.items.length}`} →</span>}
-                      </p>
-                    </div>
-                    <button type="button"
-                      onClick={() => {
-                        setAddToPlanSuggestion(s);
-                        setAddToPlanDay(toISO(monday));
-                        setAddToPlanSlot("dinner");
-                      }}
-                      className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap"
-                      style={{ background: "var(--accent)", color: "#fff" }}
-                    >
-                      Add to plan ↗
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* ── DnD context ────────────────────────────────────────────────── */}
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={(e) => void handleDragEnd(e)}>
@@ -1575,32 +1251,32 @@ export default function PlannerPage() {
                               <span className="planner-day-cal" style={{ color: calorieColor(kcal) }}>{kcal} Cal</span>
                             )}
                           </div>
-                          <div className="planner-day-slots">
+                          <div className="planner-day-meals">
                             {SLOTS.map((slot) => {
                               const meal = getMeal(date, slot);
-                              const recipe = meal ? getRecipe(meal.recipeId) : undefined;
+                              if (!meal) return null;
+                              const recipe = getRecipe(meal.recipeId);
                               return (
-                                <div key={slot} className="planner-slot-col">
-                                <span className="planner-slot-label">{SLOT_ICONS[slot]} {slot}</span>
                                 <SlotCell
                                   key={slot}
                                   date={date}
                                   slot={slot}
                                   meal={meal}
                                   recipe={recipe}
-                                  onRemove={() => meal && setRemoveTarget(meal)}
-                                  onServings={(delta) => meal && void handleServings(meal.id, delta)}
-                                  onCooked={() => meal && void openCookedModal(meal)}
-                                  onRepeat={() => meal && void repeatMeal(meal)}
-                                  mealStatus={meal ? mealStatuses[meal.id] : undefined}
-                                  expanded={meal ? expandedMealId === meal.id : false}
-                                  onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
-                                  onClickPlan={!meal ? () => handleEmptySlotClick(toISO(date), slot) : undefined}
-                                  hasSelected={!!selectedRecipeId}
+                                  onRemove={() => setRemoveTarget(meal)}
+                                  onServings={(delta) => void handleServings(meal.id, delta)}
+                                  onCooked={() => void openCookedModal(meal)}
+                                  onRepeat={() => void repeatMeal(meal)}
+                                  mealStatus={mealStatuses[meal.id]}
+                                  expanded={expandedMealId === meal.id}
+                                  onExpand={() => setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
+                                  hasSelected={false}
                                 />
-                                </div>
                               );
                             })}
+                            <button type="button" className="planner-day-add" onClick={() => setQuickEntry({ date: iso, slot: "dinner" })}>
+                              <Plus size={15} /> Add meal
+                            </button>
                           </div>
                         </div>
                       );
@@ -1609,100 +1285,7 @@ export default function PlannerPage() {
                 </div>
               </div>
 
-              {/* ── Empty-day suggestions (Day view) ───────────────────────── */}
-              {!loadingMeals && daySuggestions.length > 0 && (
-                <div className="rounded-2xl p-4" style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}>
-                  <p className="text-sm font-semibold mb-1" style={{ color: "var(--foreground)" }}>
-                    Need dinner ideas for {weekDates[dayIndex].toLocaleDateString("en-GB", { weekday: "long" })}?
-                  </p>
-                  <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>Tap to add to dinner.</p>
-                  <div className="flex flex-wrap gap-2">
-                    {daySuggestions.map((r) => {
-                      const t = getCuisineTheme(r.cuisine);
-                      return (
-                        <button key={r.id} type="button"
-                          onClick={() => void planRecipeDirect(toISO(weekDates[dayIndex]), "dinner", r.id)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition hover:scale-[1.02] ${t.cardGradient} ${t.textColor}`}>
-                          <span>{t.emoji}</span>
-                          <span className="truncate max-w-[160px]">{r.title.split("|")[0].trim()}</span>
-                          <Plus size={13} />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Recipe panel (BELOW) ───────────────────────────────────── */}
-              <div>
-                <div className="rounded-2xl p-4 shadow-sm"
-                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  <p className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: "var(--muted)" }}>
-                    Your Recipes
-                  </p>
-
-                  <div className="relative mb-3">
-                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 leading-none"
-                      style={{ color: "var(--muted)", opacity: 0.6 }} />
-                    <input
-                      type="text"
-                      placeholder="Search…"
-                      value={sidebarSearch}
-                      onChange={(e) => setSidebarSearch(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 rounded-xl text-xs focus:outline-none"
-                      style={{ border: "1px solid var(--border)", background: "var(--surface-strong)", color: "var(--foreground)", paddingLeft: "2.5rem" }}
-                    />
-                  </div>
-
-                  <p
-                    className="text-[10px] mb-2 leading-snug transition-colors"
-                    style={{ color: selectedRecipeId ? "var(--accent)" : "var(--muted)", opacity: selectedRecipeId ? 1 : 0.75 }}
-                  >
-                    {selectedRecipeId
-                      ? "✓ Recipe selected — click any empty slot to plan it"
-                      : "Click a recipe then click an empty slot to plan it. Or drag."}
-                  </p>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {filteredRecipes.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-xs" style={{ color: "var(--muted)" }}>
-                          {sidebarSearch ? "No matches" : "No recipes yet"}
-                        </p>
-                        {!sidebarSearch && (
-                          <Link href="/add" className="text-xs mt-2 block hover:underline" style={{ color: "var(--accent)" }}>
-                            + Add a recipe
-                          </Link>
-                        )}
-                      </div>
-                    ) : (
-                      filteredRecipes.map((r) => (
-                        <DraggableRecipeChip
-                          key={r.id}
-                          recipe={r}
-                          isSelected={selectedRecipeId === r.id}
-                          onSelect={() => setSelectedRecipeId((prev) => prev === r.id ? null : r.id)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
             </div>
-
-            {/* Drag overlay */}
-            <DragOverlay>
-              {activeRecipe && (() => {
-                const t = getCuisineTheme(activeRecipe.cuisine);
-                return (
-                  <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium shadow-2xl ${t.cardGradient} ${t.textColor} rotate-2 scale-105`}>
-                    <span>{t.emoji}</span>
-                    <span className="truncate max-w-[160px]">{activeRecipe.title}</span>
-                  </div>
-                );
-              })()}
-            </DragOverlay>
           </DndContext>
 
           {/* ── Meal history modal ─────────────────────────────────────────── */}
@@ -1801,13 +1384,45 @@ export default function PlannerPage() {
                 onClick={(e) => e.stopPropagation()}>
                 <div>
                   <p className="font-semibold" style={{ color: "var(--foreground)" }}>Add a meal</p>
-                  <p className="text-sm mt-0.5 capitalize" style={{ color: "var(--muted)" }}>
-                    {new Date(quickEntry.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })} · {quickEntry.slot}
+                  <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                    {new Date(quickEntry.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}
                   </p>
                 </div>
 
-                {/* Type chips */}
-                <div className="flex flex-wrap gap-1.5">
+                {/* Slot selector */}
+                <div className="flex gap-1.5">
+                  {SLOTS.map((s) => {
+                    const active = quickEntry.slot === s;
+                    return (
+                      <button key={s} type="button" onClick={() => setQuickEntry((q) => (q ? { ...q, slot: s } : q))}
+                        className="flex-1 py-1.5 rounded-lg text-xs font-medium capitalize"
+                        style={{
+                          border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                          background: active ? "var(--accent)" : "var(--surface)",
+                          color: active ? "#fff" : "var(--foreground)",
+                        }}>
+                        {SLOT_ICONS[s]} {s}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Add a saved recipe */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Add a saved recipe</label>
+                  <select value={quickRecipeId} onChange={(e) => setQuickRecipeId(e.target.value)}
+                    className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}>
+                    <option value="">— pick a recipe —</option>
+                    {recipes.map((r) => (
+                      <option key={r.id} value={r.id}>{r.title.split("|")[0].trim()}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Type chips (manual entries) */}
+                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)", opacity: quickRecipeId ? 0.4 : 1 }}>Or add manually</p>
+                <div className="flex flex-wrap gap-1.5" style={{ opacity: quickRecipeId ? 0.4 : 1, pointerEvents: quickRecipeId ? "none" : "auto" }}>
                   {MANUAL_TYPES.map((t) => {
                     const active = quickType === t;
                     return (
@@ -1857,11 +1472,11 @@ export default function PlannerPage() {
                 </div>
 
                 <div className="flex gap-2 justify-end">
-                  <button type="button" onClick={() => setQuickEntry(null)}
+                  <button type="button" onClick={() => { setQuickEntry(null); setQuickRecipeId(""); }}
                     className="px-4 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
                     Cancel
                   </button>
-                  <button type="button" onClick={() => void addManualEntry()} disabled={isAddingManual}
+                  <button type="button" onClick={() => void confirmQuickAdd()} disabled={isAddingManual}
                     className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
                     {isAddingManual ? "Adding…" : "Add"}
                   </button>
