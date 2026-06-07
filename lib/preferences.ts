@@ -15,6 +15,8 @@ export type AllergenKey =
 export type UnitSystem = "metric" | "imperial";
 export type AppLang = "en" | "de";
 
+export type CookingExperience = "beginner" | "intermediate" | "advanced";
+
 export interface UserPreferences {
   diets: DietKey[];
   allergies: AllergenKey[];
@@ -22,6 +24,12 @@ export interface UserPreferences {
   language: AppLang;
   onboarded: boolean;
   notificationsEnabled: boolean;
+  // Settings → Preferences (spec §5.9). Filtering/defaults only, never AI.
+  dislikes: string[];
+  household: number;
+  preferredStore: string;
+  cookingExperience: CookingExperience | "";
+  favouriteCuisines: string[];
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -31,7 +39,18 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   language: "en",
   onboarded: false,
   notificationsEnabled: true,
+  dislikes: [],
+  household: 1,
+  preferredStore: "",
+  cookingExperience: "",
+  favouriteCuisines: [],
 };
+
+export const COOKING_EXPERIENCE_OPTIONS: { key: CookingExperience; label: string; emoji: string }[] = [
+  { key: "beginner",     label: "Beginner",     emoji: "🌱" },
+  { key: "intermediate", label: "Intermediate", emoji: "🍳" },
+  { key: "advanced",     label: "Advanced",     emoji: "👨‍🍳" },
+];
 
 // Option lists for the onboarding UI.
 export const DIET_OPTIONS: { key: DietKey; label: string; emoji: string }[] = [
@@ -58,7 +77,15 @@ type PreferencesRow = {
   language: string | null;
   onboarded: boolean | null;
   notifications_enabled: boolean | null;
+  dislikes?: string[] | null;
+  household?: number | null;
+  preferred_store?: string | null;
+  cooking_experience?: string | null;
+  favourite_cuisines?: string[] | null;
 };
+
+const PREF_COLUMNS =
+  "diets, allergies, units, language, onboarded, notifications_enabled, dislikes, household, preferred_store, cooking_experience, favourite_cuisines";
 
 function rowToPrefs(row: PreferencesRow): UserPreferences {
   return {
@@ -68,20 +95,27 @@ function rowToPrefs(row: PreferencesRow): UserPreferences {
     language: (row.language as AppLang) ?? "en",
     onboarded: Boolean(row.onboarded),
     notificationsEnabled: row.notifications_enabled ?? true,
+    dislikes: row.dislikes ?? [],
+    household: row.household ?? 1,
+    preferredStore: row.preferred_store ?? "",
+    cookingExperience: (row.cooking_experience as CookingExperience) ?? "",
+    favouriteCuisines: row.favourite_cuisines ?? [],
   };
 }
 
-/** Returns the current user's preferences, or null if not logged in / no row yet. */
+const BASE_PREF_COLUMNS = "diets, allergies, units, language, onboarded, notifications_enabled";
+
+/** Returns the current user's preferences, or null if not logged in / no row yet.
+ *  Falls back to base columns if the extra-preferences migration hasn't been run. */
 export async function getPreferences(): Promise<UserPreferences | null> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .select("diets, allergies, units, language, onboarded, notifications_enabled")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
+  const read = (cols: string) =>
+    supabase.from("user_preferences").select(cols).eq("user_id", auth.user!.id).maybeSingle();
+  let { data, error } = await read(PREF_COLUMNS);
+  if (error) ({ data, error } = await read(BASE_PREF_COLUMNS)); // extra columns may not exist yet
   if (error || !data) return null;
-  return rowToPrefs(data as PreferencesRow);
+  return rowToPrefs(data as unknown as PreferencesRow);
 }
 
 /** Upserts a partial set of preference fields for the current user. */
@@ -96,12 +130,16 @@ export async function upsertPreferences(patch: Partial<UserPreferences>): Promis
   if (patch.language !== undefined)             dbPatch.language = patch.language;
   if (patch.onboarded !== undefined)            dbPatch.onboarded = patch.onboarded;
   if (patch.notificationsEnabled !== undefined) dbPatch.notifications_enabled = patch.notificationsEnabled;
+  if (patch.dislikes !== undefined)             dbPatch.dislikes = patch.dislikes;
+  if (patch.household !== undefined)            dbPatch.household = patch.household;
+  if (patch.preferredStore !== undefined)       dbPatch.preferred_store = patch.preferredStore;
+  if (patch.cookingExperience !== undefined)    dbPatch.cooking_experience = patch.cookingExperience || null;
+  if (patch.favouriteCuisines !== undefined)    dbPatch.favourite_cuisines = patch.favouriteCuisines;
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("user_preferences")
-    .upsert(dbPatch, { onConflict: "user_id" })
-    .select("diets, allergies, units, language, onboarded, notifications_enabled")
-    .single();
-  if (error || !data) return null;
-  return rowToPrefs(data as PreferencesRow);
+    .upsert(dbPatch, { onConflict: "user_id" });
+  if (error) return null;
+  // Re-read with the resilient getter (handles pre-migration column absence).
+  return getPreferences();
 }

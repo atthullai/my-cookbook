@@ -9,30 +9,30 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppIcon from "@/components/AppIcon";
 import BadgeChip from "@/components/BadgeChip";
+import IngredientIcon from "@/components/IngredientIcon";
 import type { AppLanguage, RecipeAmount, RecipeIngredientGroup, RecipeRecord } from "@/lib/recipe-types";
 import {
   getEquipmentLabel,
   getIngredientGroupLabel,
   getIngredientLabel,
+  getInstructionStepSections,
   getRecipeDescription,
-  getRecipeNotes,
   getRecipeNutritionNote,
-  getRecipeStorage,
-  getRecipeTips,
   getRecipeTitle,
 } from "@/lib/recipe-types";
 import {
   buildRecipeHighlights,
   deriveNutritionClaimTags,
-  extractLinks,
   getMacroBalance,
+  getNutrientImpactSplit,
   getNutritionHighlights,
   getNutritionItems,
   getRecipeCoverImage,
-  hasNotes,
   parseInstructionSections,
 } from "@/lib/recipe-view";
-import { calculateHealthScore, normalizeRecipeIngredientOntology } from "@/lib/ingredient-ontology";
+import { matchIngredientsInStep } from "@/lib/step-ingredients";
+import { convertForDisplay, type UnitSystem } from "@/lib/unit-display";
+import { calculateHealthScore } from "@/lib/ingredient-ontology";
 import { NutritionBadge } from "@/components/NutritionBadge";
 import { deriveNutritionMeta } from "@/lib/nutrition-confidence";
 import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
@@ -53,6 +53,15 @@ import toast, { Toaster } from "react-hot-toast";
 interface CookTimer { id: number; label: string; total: number; left: number; running: boolean }
 
 const COOK_PROGRESS_KEY = "cookbook:cooking-progress";
+
+const APPLIANCE_LABEL: Record<string, string> = {
+  cooktop: "Cooktop",
+  oven: "Oven",
+  blender: "Blender",
+  "pressure-cooker": "Pressure cooker",
+  microwave: "Microwave",
+  grill: "Grill",
+};
 
 function beep() {
   try {
@@ -97,6 +106,8 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   });
   const [checkedEquipment, setCheckedEquipment] = useState<string[]>([]);
   const [lang, setLang] = useState<AppLanguage>("en");
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>("metric");
+  const [showAllNutrients, setShowAllNutrients] = useState(false);
   const [showNutrition, setShowNutrition] = useState(Boolean(recipe.nutrition));
   const [activeStep, setActiveStep] = useState(0);
   const [isCookingMode, setIsCookingMode] = useState(false);
@@ -170,17 +181,10 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   // All language-sensitive labels flow through helpers so the page component stays readable.
   const recipeTitle = getRecipeTitle(recipe, lang);
   const recipeDescription = getRecipeDescription(recipe, lang);
-  const recipeNotes = getRecipeNotes(recipe, lang);
-  const recipeTips = getRecipeTips(recipe, lang);
-  const recipeStorage = getRecipeStorage(recipe, lang);
   const recipeNutritionNote = getRecipeNutritionNote(recipe, lang);
   const recipeSections = parseInstructionSections(recipe, lang);
   const ingredientGroups: RecipeIngredientGroup[] = useMemo(() => recipe.ingredients ?? [], [recipe.ingredients]);
-  const recipeLinks = extractLinks(recipe);
   const highlights = buildRecipeHighlights(recipe, lang);
-  const faqItems = recipe.faq ?? [];
-  const troubleshootingItems = recipe.troubleshooting ?? [];
-  const stepPhotos = recipe.step_photos ?? [];
   const coverImage = getRecipeCoverImage(recipe);
   const displayBadges = [...new Set([...recipe.badges, ...deriveNutritionClaimTags(recipe, "en")])];
   const nutritionItems = getNutritionItems(recipe, lang);
@@ -189,6 +193,37 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
   const healthScore = calculateHealthScore(recipe.nutrition ?? null);
   const allIngredientItems = (recipe.ingredients ?? []).flatMap((g) => g.items);
   const nutritionMeta = deriveNutritionMeta(allIngredientItems);
+
+  // Structured steps (chips + heat/time/tool cues) — falls back to text-only on legacy recipes.
+  const stepSections = useMemo(() => getInstructionStepSections(recipe, lang), [recipe, lang]);
+  // Canonical-name → ingredient lookup so step `ingredientRefs` resolve to a chip.
+  const ingredientByKey = useMemo(() => {
+    const map = new Map<string, (typeof allIngredientItems)[number]>();
+    for (const item of allIngredientItems) {
+      const key = (item.canonicalName || item.name_en || "").trim().toLowerCase();
+      if (key) map.set(key, item);
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe.ingredients]);
+  const score10 = healthScore !== null ? Math.round(healthScore) / 10 : null;
+  const impactSplit = useMemo(() => getNutrientImpactSplit(recipe, lang), [recipe, lang]);
+
+  // Display string for an ingredient amount, respecting the serving multiplier and the
+  // metric/imperial Convert Units toggle. Returns "" for to-taste / unmeasured items.
+  const ingredientAmountLabel = useCallback(
+    (amount: RecipeAmount, unit: string, isToTaste: boolean): string => {
+      const base = parseAmount(amount);
+      if (base === null || isToTaste) return "";
+      const scaled = base * multiplier;
+      const u = unit?.trim() ?? "";
+      const converted = u ? convertForDisplay(scaled, u, unitSystem) : null;
+      if (converted) return `${formatAmount(converted.amount)} ${converted.unit}`;
+      const unitLabel = u && u !== "whole" && u !== "clove" ? (u === "ml" ? "mL" : u === "l" ? "L" : u) : "";
+      return `${formatAmount(scaled)}${unitLabel ? ` ${unitLabel}` : ""}`;
+    },
+    [multiplier, unitSystem],
+  );
   const allSteps = useMemo(
     () =>
       recipeSections.flatMap((section) =>
@@ -402,6 +437,51 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     <div className={isCookingMode ? "cooking-mode-shell" : ""} style={{ marginTop: 16 }}>
       <Toaster position="top-right" />
 
+      {/* Nutrition balance score — full nutrient breakdown */}
+      {showAllNutrients && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setShowAllNutrients(false)}>
+          <div className="card nutrient-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+              <h3 style={{ margin: 0 }}>{lang === "de" ? "Nährwert-Balance" : "Nutrition balance score"}</h3>
+              <button type="button" aria-label="Close" className="button" onClick={() => setShowAllNutrients(false)}>✕</button>
+            </div>
+            <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: 8 }}>
+              {lang === "de"
+                ? "Nährstoffe werden relativ zur empfohlenen Tagesmenge eingeordnet — grün = positiver Beitrag, rot = in Maßen genießen."
+                : "Nutrients are classified relative to daily values — green = positive impact, red = enjoy in moderation."}
+              {score10 !== null ? ` ${score10.toFixed(1)}/10.` : ""}
+            </p>
+            {impactSplit.positive.length > 0 && (
+              <>
+                <h4 style={{ marginBottom: 8 }}>{lang === "de" ? "Positiver Beitrag" : "Nutrients with positive impact"}</h4>
+                <div className="impact-list">
+                  {impactSplit.positive.map((n) => (
+                    <div key={n.key} className="impact-row">
+                      <span className="impact-name">{n.label} <small>{n.value}{n.unit}</small></span>
+                      <span className="impact-bar"><i className="impact-fill pos" style={{ width: `${n.percent}%` }} /></span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {impactSplit.negative.length > 0 && (
+              <>
+                <h4 style={{ margin: "16px 0 8px" }}>{lang === "de" ? "In Maßen genießen" : "Nutrients with negative impact"}</h4>
+                <div className="impact-list">
+                  {impactSplit.negative.map((n) => (
+                    <div key={n.key} className="impact-row">
+                      <span className="impact-name">{n.label} <small>{n.value}{n.unit}</small></span>
+                      <span className="impact-bar"><i className="impact-fill neg" style={{ width: `${n.percent}%` }} /></span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Add-to-plan picker */}
       {showPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}
@@ -531,105 +611,6 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
       </div>
 
-      {/* Jump links make longer recipes feel closer to the reference food sites. */}
-      <div className="card card-accent" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Springe zu" : "Jump To"}</h3>
-        <div className="section-link-grid">
-          <a className="button" href="#ingredients">
-            <AppIcon name="recipe" size={16} />
-            {lang === "de" ? "Zutaten" : "Ingredients"}
-          </a>
-          {recipe.equipment && recipe.equipment.length > 0 ? (
-            <a className="button" href="#equipment">
-              <AppIcon name="onepot" size={16} />
-              {lang === "de" ? "Equipment" : "Equipment"}
-            </a>
-          ) : null}
-          <a className="button" href="#instructions">
-            <AppIcon name="book" size={16} />
-            {lang === "de" ? "Anleitung" : "Instructions"}
-          </a>
-          {hasNotes(recipe, lang) ? (
-            <a className="button" href="#notes">
-              {lang === "de" ? "Notizen" : "Notes"}
-            </a>
-          ) : null}
-          {recipeTips ? (
-            <a className="button" href="#tips">
-              {lang === "de" ? "Tipps" : "Tips"}
-            </a>
-          ) : null}
-          {recipeStorage ? (
-            <a className="button" href="#storage">
-              {lang === "de" ? "Aufbewahrung" : "Storage"}
-            </a>
-          ) : null}
-          {faqItems.length > 0 ? (
-            <a className="button" href="#faq">
-              FAQ
-            </a>
-          ) : null}
-          {troubleshootingItems.length > 0 ? (
-            <a className="button" href="#troubleshooting">
-              {lang === "de" ? "Fehlersuche" : "Troubleshooting"}
-            </a>
-          ) : null}
-          {stepPhotos.length > 0 ? (
-            <a className="button" href="#step-photos">
-              {lang === "de" ? "Schrittfotos" : "Step Photos"}
-            </a>
-          ) : null}
-          {recipeLinks.length > 0 ? (
-            <a className="button" href="#links">
-              {lang === "de" ? "Links" : "Links"}
-            </a>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Portionen" : "Servings"}</h3>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button
-            type="button"
-            className="button"
-            onClick={() => setMultiplier((m) => Math.max(0.25, parseFloat((m - 0.25).toFixed(2))))}
-            aria-label="Decrease multiplier"
-            style={{ padding: "4px 10px", fontSize: 16, lineHeight: 1 }}
-          >−</button>
-          <input
-            type="number"
-            min={0.25}
-            max={10}
-            step={0.25}
-            value={multiplier}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              if (!isNaN(v) && v >= 0.25 && v <= 10) setMultiplier(v);
-            }}
-            aria-label="Serving multiplier"
-            style={{
-              width: 60, textAlign: "center", fontSize: 14,
-              border: "1px solid var(--border)", borderRadius: 8,
-              background: "var(--surface)", color: "var(--foreground)",
-              padding: "4px 6px",
-            }}
-          />
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>×</span>
-          <button
-            type="button"
-            className="button"
-            onClick={() => setMultiplier((m) => Math.min(10, parseFloat((m + 0.25).toFixed(2))))}
-            aria-label="Increase multiplier"
-            style={{ padding: "4px 10px", fontSize: 16, lineHeight: 1 }}
-          >+</button>
-        </div>
-        <p style={{ marginTop: 10, marginBottom: 0 }}>
-          {lang === "de" ? "Mengen skalieren sauber von der Basisportion." : "Amounts scale cleanly from the base serving size."}
-        </p>
-      </div>
-
       {isCookingMode && (
         <div className="cooking-toolbar" aria-label="Cooking controls">
           <button className="button" type="button" onClick={() => setActiveStep((current) => Math.max(0, current - 1))}>
@@ -700,47 +681,61 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
       <div className="reader-section-grid">
         <div className="reader-stack">
           <div id="ingredients" className="card">
-            <h3>{lang === "de" ? "Zutaten" : "Ingredients"}</h3>
+            <div className="ingredients-head">
+              <h3 style={{ margin: 0 }}>{lang === "de" ? "Zutaten" : "Ingredients"}</h3>
+              <button className="button button-primary" type="button" onClick={() => void addToGrocery()} disabled={actionBusy}>
+                🛒 {lang === "de" ? "Zur Liste" : "Add to list"}
+              </button>
+            </div>
+            <div className="ingredients-controls">
+              <div className="serving-stepper" aria-label={lang === "de" ? "Portionen" : "Servings"}>
+                <button type="button" onClick={() => setMultiplier((m) => Math.max(0.25, parseFloat((m - 0.25).toFixed(2))))} aria-label="Decrease servings">−</button>
+                <span>{formatAmount((recipe.servings || 1) * multiplier)} {lang === "de" ? "Portionen" : "servings"}</span>
+                <button type="button" onClick={() => setMultiplier((m) => Math.min(40, parseFloat((m + 0.25).toFixed(2))))} aria-label="Increase servings">+</button>
+              </div>
+              <button
+                className="button"
+                type="button"
+                onClick={() => setUnitSystem((s) => (s === "metric" ? "imperial" : "metric"))}
+                title={lang === "de" ? "Einheiten umrechnen" : "Convert Units"}
+              >
+                ⇄ {lang === "de" ? "Einheiten" : "Convert Units"} · {unitSystem === "metric" ? "Metric" : "Imperial"}
+              </button>
+            </div>
 
             {ingredientGroups.map((group, groupIndex) => (
               <div key={ingredientGroupId(recipe.id, group.group_en, groupIndex)} style={{ marginBottom: 16 }}>
                 <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{getIngredientGroupLabel(group, lang)}</h4>
 
                 {group.items.map((ingredient, ingredientIndex) => {
-                  const itemId = ingredientRowId(recipe.id, group.group_en, getIngredientLabel(ingredient, lang), ingredientIndex);
+                  const label = getIngredientLabel(ingredient, lang);
+                  const itemId = ingredientRowId(recipe.id, group.group_en, label, ingredientIndex);
                   const isChecked = checked.includes(itemId);
-                  const baseAmount = parseAmount(ingredient.amount);
-                  const scaledAmount = baseAmount === null ? null : baseAmount * multiplier;
                   const isToTaste = ingredient.isToTaste || ingredient.unit === "to taste";
-                  const amountLabel = scaledAmount === null || isToTaste ? "" : formatAmount(scaledAmount);
-                  const ontology = normalizeRecipeIngredientOntology(ingredient);
+                  const amountLabel = ingredientAmountLabel(ingredient.amount, ingredient.unit, isToTaste);
+                  // Grey sub-note line: preparation / optional / garnish / to-taste / free note.
+                  const subParts = [
+                    ingredient.preparation || "",
+                    isToTaste ? (lang === "de" ? "nach Geschmack" : "to taste") : "",
+                    ingredient.optional ? (lang === "de" ? "optional" : "optional") : "",
+                    ingredient.garnish ? (lang === "de" ? "Garnitur" : "garnish") : "",
+                    ingredient.note || "",
+                  ].filter(Boolean);
 
                   return (
-                    <button key={itemId} type="button" onClick={() => toggleCheck(itemId)} className="check-row" aria-pressed={isChecked} style={{ opacity: isChecked ? 0.55 : 1 }}>
+                    <button key={itemId} type="button" onClick={() => toggleCheck(itemId)} className="check-row ingredient-row" aria-pressed={isChecked} style={{ opacity: isChecked ? 0.55 : 1 }}>
                       <span className={isChecked ? "checkmark-box checked" : "checkmark-box"}>{isChecked ? "✓" : ""}</span>
-                      <span style={{ textDecoration: isChecked ? "line-through" : "none" }}>
-                        {amountLabel}
-                        {ingredient.unit && ingredient.unit !== "whole" && ingredient.unit !== "clove" ? ` ${ingredient.unit === "ml" ? "mL" : ingredient.unit === "l" ? "L" : ingredient.unit}` : ""}
-                        {getIngredientLabel(ingredient, lang) ? ` ${getIngredientLabel(ingredient, lang)}` : ""}
-                        {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
-                        {ingredient.optional ? " (optional)" : ""}
-                        {ingredient.garnish ? " (garnish)" : ""}
+                      <span className="ingredient-row-icon" aria-hidden="true">
+                        <IngredientIcon name={ingredient.name_en || label} size={22} />
                       </span>
-                      {(() => {
-                        const w = ontology.estimatedWeightGrams;
-                        const conf = ontology.weightConfidence;
-                        if (!w || w <= 0) return conf === 'unknown' ? (
-                          <span className="ingredient-weight" style={{ color: 'var(--muted)', opacity: 0.5 }}>?</span>
-                        ) : null;
-                        const prefix = conf === 'exact' ? '' : conf === 'measured' ? '~' : '≈';
-                        const color = conf === 'estimated' ? '#b45309' : conf === 'unknown' ? '#dc2626' : 'inherit';
-                        return (
-                          <span className="ingredient-weight" style={{ color }}>{prefix}{w}g est.</span>
-                        );
-                      })()}
-                      {ingredient.note && (
-                        <span className="text-xs italic" style={{ color: 'var(--muted)' }}> ({ingredient.note})</span>
-                      )}
+                      <span className="ingredient-row-text" style={{ textDecoration: isChecked ? "line-through" : "none" }}>
+                        <span className="ingredient-row-main">
+                          {amountLabel ? <strong>{amountLabel}</strong> : null}
+                          {amountLabel ? " " : ""}
+                          {label}
+                        </span>
+                        {subParts.length > 0 ? <small className="ingredient-subnote">{subParts.join(" · ")}</small> : null}
+                      </span>
                     </button>
                   );
                 })}
@@ -857,126 +852,85 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         <div id="instructions" className="card">
           <h3>{lang === "de" ? "Anleitung" : "Instructions"}</h3>
 
-          {recipeSections.map((section, sectionIndex) => (
+          {stepSections.map((section, sectionIndex) => (
             <div key={stableCompositeId(recipe.id, "section", section.title, sectionIndex)} style={{ marginBottom: 16 }}>
-              {section.title && recipeSections.length > 1 ? <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{section.title}</h4> : null}
+              {section.title && stepSections.length > 1 ? <h4 style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{section.title}</h4> : null}
               <ol className="instruction-list">
-                {section.steps.map((step, index) => (
-                  <li key={cookingStepId(recipe.id, section.title, step, index)} className={allSteps[activeStep]?.step === step ? "active-step" : ""} style={{ listStyle: "decimal" }}>
-                    {step}
-                  </li>
-                ))}
+                {section.steps.map((step, index) => {
+                  const refKeys = step.ingredientRefs.length > 0
+                    ? step.ingredientRefs
+                    : matchIngredientsInStep(step.text, allIngredientItems);
+                  const chips = refKeys
+                    .map((k) => ingredientByKey.get(k))
+                    .filter((it): it is NonNullable<typeof it> => Boolean(it));
+                  const heatLabel = step.heat
+                    ? (lang === "de"
+                        ? { low: "Niedrig", medium: "Mittel", high: "Hoch" }[step.heat]
+                        : { low: "Low", medium: "Med", high: "High" }[step.heat])
+                    : null;
+                  const cues = [
+                    step.appliance ? APPLIANCE_LABEL[step.appliance] ?? step.appliance : null,
+                    heatLabel,
+                    step.durationMin ? `${step.durationMin} min` : null,
+                  ].filter(Boolean) as string[];
+                  return (
+                    <li key={cookingStepId(recipe.id, section.title, step.text, index)} className={allSteps[activeStep]?.step === step.text ? "active-step" : ""} style={{ listStyle: "decimal" }}>
+                      <div className="step-text">{step.text}</div>
+                      {(chips.length > 0 || cues.length > 0 || step.tools.length > 0) && (
+                        <div className="step-meta">
+                          {chips.map((it, ci) => {
+                            const amt = ingredientAmountLabel(it.amount, it.unit, it.isToTaste || it.unit === "to taste");
+                            return (
+                              <span key={`chip-${ci}`} className="step-chip">
+                                <IngredientIcon name={it.name_en || getIngredientLabel(it, lang)} size={15} />
+                                {getIngredientLabel(it, lang)}{amt ? <em>{amt}</em> : null}
+                              </span>
+                            );
+                          })}
+                          {cues.length > 0 && <span className="step-cue">{cues.join(" · ")}</span>}
+                          {step.tools.map((t) => (
+                            <span key={`tool-${t}`} className="step-tool">🔧 {t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           ))}
         </div>
       </div>
 
-      {stepPhotos.length > 0 ? (
-        <div id="step-photos" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Schritt-fur-Schritt Fotos" : "Step-by-Step Photos"}</h3>
-          <div className="photo-grid">
-            {stepPhotos.map((item, index) => (
-              <div key={stableCompositeId(recipe.id, "step-photo", item.image_url, item.step_number, index)}>
-                <Image
-                  src={item.image_url}
-                  alt={`${recipeTitle} step ${item.step_number || index + 1}`}
-                  className="recipe-photo"
-                  width={1200}
-                  height={800}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
-                <p style={{ marginTop: 8, marginBottom: 0 }}>
-                  {item.step_number ? `${lang === "de" ? "Schritt" : "Step"} ${item.step_number}: ` : ""}
-                  {lang === "de" ? item.caption_de || item.caption_en : item.caption_en}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {recipeTips ? (
-        <div id="tips" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Tipps und Tricks" : "Tips and Tricks"}</h3>
-          <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeTips}</p>
-        </div>
-      ) : null}
-
-      {recipeStorage ? (
-        <div id="storage" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Aufbewahrung" : "Storage"}</h3>
-          <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeStorage}</p>
-        </div>
-      ) : null}
-
-      {faqItems.length > 0 ? (
-        <div id="faq" className="card" style={{ marginBottom: 20 }}>
-          <h3>FAQ</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {faqItems.map((item, index) => (
-              <div key={stableCompositeId(recipe.id, "faq", item.question_en, index)}>
-                <h4 style={{ marginBottom: 6 }}>{lang === "de" ? item.question_de || item.question_en : item.question_en}</h4>
-                <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
-                  {lang === "de" ? item.answer_de || item.answer_en : item.answer_en}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {troubleshootingItems.length > 0 ? (
-        <div id="troubleshooting" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Fehlersuche" : "Troubleshooting"}</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {troubleshootingItems.map((item, index) => (
-              <div key={stableCompositeId(recipe.id, "troubleshooting", item.issue_en, index)}>
-                <h4 style={{ marginBottom: 6 }}>{lang === "de" ? item.issue_de || item.issue_en : item.issue_en}</h4>
-                <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
-                  {lang === "de" ? item.fix_de || item.fix_en : item.fix_en}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {recipeNotes ? (
-        <div id="notes" className="card" style={{ marginBottom: 20 }}>
-          <h3>{lang === "de" ? "Notizen" : "Notes"}</h3>
-          <p style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{recipeNotes}</p>
-        </div>
-      ) : null}
-
-      {recipeLinks.length > 0 ? (
-        <div id="links" className="card">
-          <h3>{lang === "de" ? "Links" : "Links"}</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {recipeLinks.map((link) => (
-              <a key={link} href={link} target="_blank" rel="noreferrer">
-                {link}
-              </a>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-
       <div className="card nutrition-panel" style={{ marginTop: 20 }}>
         <div className="nutrition-panel-header">
-          <div>
-            <h3 style={{ marginBottom: 8 }}>{lang === "de" ? "Nahrwerte" : "Nutrition Facts"}</h3>
-            <p style={{ marginBottom: 0 }}>
-              {lang === "de"
-                ? "Die Nahrwerte werden fur dieses Rezept manuell eingetragen und pro Portion angezeigt."
-                : "Nutrition values are entered manually for this recipe and shown per serving."}
-            </p>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            {score10 !== null && (
+              <div className="nutrition-score-badge" title={lang === "de" ? "Nährwert-Balance" : "Nutrition balance score"}>
+                <strong>{score10.toFixed(1)}</strong>
+                <small>/10</small>
+              </div>
+            )}
+            <div>
+              <h3 style={{ marginBottom: 4 }}>{lang === "de" ? "Nährwert-Balance" : "Nutrition balance score"}</h3>
+              <p style={{ marginBottom: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
+                {lang === "de"
+                  ? "Auf einer Skala von 1–10, basierend auf der Nährstoffdichte. Pro Portion."
+                  : "On a 1–10 scale, based on nutrient density. Per serving."}
+              </p>
+            </div>
           </div>
-          <button className="button button-primary" type="button" onClick={() => setShowNutrition((current) => !current)}>
-            <AppIcon name="protein" size={16} />
-            {lang === "de" ? (showNutrition ? "Nahrwerte ausblenden" : "Nahrwerte anzeigen") : showNutrition ? "Hide Nutrition" : "Show Nutrition"}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(impactSplit.positive.length > 0 || impactSplit.negative.length > 0) && (
+              <button className="button" type="button" onClick={() => setShowAllNutrients(true)}>
+                {lang === "de" ? "Alle Nährstoffe" : "View all nutrients"}
+              </button>
+            )}
+            <button className="button button-primary" type="button" onClick={() => setShowNutrition((current) => !current)}>
+              <AppIcon name="protein" size={16} />
+              {lang === "de" ? (showNutrition ? "Nahrwerte ausblenden" : "Nahrwerte anzeigen") : showNutrition ? "Hide Nutrition" : "Show Nutrition"}
+            </button>
+          </div>
         </div>
 
         {showNutrition ? (

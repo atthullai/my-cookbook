@@ -45,6 +45,8 @@ const SLOT_ICONS: Record<MealSlot, string> = { breakfast: "🌅", lunch: "☀️
 
 // Manual (non-recipe) entry kinds — icon + label.
 const ENTRY_META: Record<Exclude<MealEntryType, "recipe">, { icon: string; label: string }> = {
+  food:       { icon: "🥕", label: "Food" },
+  note:       { icon: "📝", label: "Note" },
   restaurant: { icon: "🍽", label: "Restaurant" },
   delivery:   { icon: "🛵", label: "Delivery" },
   leftover:   { icon: "♻️", label: "Leftover" },
@@ -523,6 +525,14 @@ export default function PlannerPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory]         = useState<{ date: string; slot: string; title: string }[]>([]);
 
+  // ── Top tabs: Plan / Queue / Previous ──────────────────────────────────────
+  const [tab, setTab] = useState<"plan" | "queue" | "previous">("plan");
+  const [queueItems, setQueueItems] = useState<{ id: string; recipeId: string; label: string | null }[]>([]);
+  const [queueAddRecipe, setQueueAddRecipe] = useState("");
+  const [scheduleItem, setScheduleItem] = useState<{ id: string; recipeId: string; label: string | null } | null>(null);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleSlot, setScheduleSlot] = useState<MealSlot>("dinner");
+
   // ── Quick (manual / non-recipe) entry modal ───────────────────────────────
   const [quickEntry, setQuickEntry] = useState<{ date: string; slot: MealSlot } | null>(null);
   const [quickType, setQuickType]   = useState<Exclude<MealEntryType, "recipe">>("restaurant");
@@ -963,8 +973,7 @@ export default function PlannerPage() {
   };
 
   // ── Meal history (past planned meals) ──────────────────────────────────────
-  const openHistory = async () => {
-    setShowHistory(true);
+  const loadHistory = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data } = await supabase.from("planned_meals")
@@ -981,7 +990,79 @@ export default function PlannerPage() {
         ? (titleById.get(String(r.recipe_id)) ?? "Recipe").split("|")[0].trim()
         : (r.label as string | null) ?? "Meal",
     })));
-  };
+  }, [recipes]);
+  const openHistory = async () => { setShowHistory(true); await loadHistory(); };
+
+  // ── Queue (undated staging) ────────────────────────────────────────────────
+  const loadQueue = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase.from("planner_queue")
+      .select("id, recipe_id, label")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (error) return; // table may not exist until migration is run
+    setQueueItems((data ?? []).map((r) => ({
+      id: r.id as string,
+      recipeId: r.recipe_id != null ? String(r.recipe_id) : "",
+      label: (r.label as string | null) ?? null,
+    })));
+  }, []);
+
+  const addRecipeToQueue = useCallback(async () => {
+    if (!queueAddRecipe) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase.from("planner_queue")
+      .insert({ user_id: user.id, recipe_id: parseInt(queueAddRecipe, 10), entry_type: "recipe" })
+      .select().single();
+    if (error) { toast.error("Run the planner_queue migration first."); return; }
+    setQueueItems((p) => [{ id: data.id as string, recipeId: String(data.recipe_id), label: null }, ...p]);
+    setQueueAddRecipe("");
+    toast.success("Added to queue");
+  }, [queueAddRecipe]);
+
+  const removeFromQueue = useCallback(async (id: string) => {
+    setQueueItems((p) => p.filter((q) => q.id !== id));
+    await supabase.from("planner_queue").delete().eq("id", id);
+  }, []);
+
+  const scheduleFromQueue = useCallback(async () => {
+    if (!scheduleItem || !scheduleDate) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from("planned_meals").insert({
+      user_id: user.id, meal_date: scheduleDate, meal_slot: scheduleSlot,
+      recipe_id: scheduleItem.recipeId ? parseInt(scheduleItem.recipeId, 10) : null,
+      servings: 1, entry_type: "recipe",
+    });
+    if (error) { toast.error(error.message); return; }
+    await supabase.from("planner_queue").delete().eq("id", scheduleItem.id);
+    setQueueItems((p) => p.filter((q) => q.id !== scheduleItem.id));
+    setScheduleItem(null);
+    toast.success("Scheduled ✓");
+    void load();
+  }, [scheduleItem, scheduleDate, scheduleSlot, load]);
+
+  const addQueueItemToList = useCallback(async (recipeId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !recipeId) return;
+    const { data: ings } = await supabase.from("recipe_ingredients")
+      .select("name").eq("recipe_id", parseInt(recipeId, 10));
+    const rows = (ings ?? []).filter((i) => i.name).map((i) => ({
+      user_id: user.id, name: i.name as string, list_name: "My List", source: "planner", checked: false,
+    }));
+    if (rows.length === 0) { toast("No ingredients to add"); return; }
+    const { error } = await supabase.from("shopping_list").insert(rows);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Added ${rows.length} items to shopping list`);
+  }, []);
+
+  // Lazy-load queue / history when their tab opens.
+  useEffect(() => {
+    if (tab === "queue") void loadQueue();
+    if (tab === "previous") void loadHistory();
+  }, [tab, loadQueue, loadHistory]);
 
   // ── Plan a recipe directly into a slot (used by empty-day suggestions) ──────
   const planRecipeDirect = useCallback(async (dateISO: string, slot: MealSlot, recipeId: string) => {
@@ -1291,6 +1372,24 @@ export default function PlannerPage() {
 
         <div className="max-w-screen-xl mx-auto px-5 py-5">
 
+          {/* ── Plan / Queue / Previous tabs ── */}
+          <div className="planner-tabs" role="tablist">
+            {([["plan", "Plan"], ["queue", "Queue"], ["previous", "Previous"]] as const).map(([k, labelText]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                className={tab === k ? "planner-tab active" : "planner-tab"}
+                onClick={() => setTab(k)}
+              >
+                {labelText}
+              </button>
+            ))}
+          </div>
+
+          {tab === "plan" && (
+          <div>
           {/* ── Navigation + view toggle ── */}
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-2">
@@ -1916,6 +2015,140 @@ export default function PlannerPage() {
                   + Add your first recipe
                 </Link>
               )}
+            </div>
+          )}
+          </div>
+          )}{/* end Plan tab */}
+
+          {/* ── Queue tab ── */}
+          {tab === "queue" && (
+            <div>
+              <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>
+                This is where your unscheduled meals go. Stage recipes here, then schedule them onto a day.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-5">
+                <select
+                  value={queueAddRecipe}
+                  onChange={(e) => setQueueAddRecipe(e.target.value)}
+                  className="rounded-xl px-3 py-2 text-sm"
+                  style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)", minWidth: 220 }}
+                >
+                  <option value="">Add a recipe to the queue…</option>
+                  {recipes.map((r) => (
+                    <option key={r.id} value={r.id}>{r.title.split("|")[0].trim()}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => void addRecipeToQueue()} disabled={!queueAddRecipe}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                  style={{ background: "var(--accent)", color: "#fff" }}>
+                  + Add to queue
+                </button>
+              </div>
+              {queueItems.length === 0 ? (
+                <div className="text-center py-10 rounded-2xl" style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}>
+                  <p className="text-3xl mb-2">🗂</p>
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>Your queue is empty.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {queueItems.map((q) => {
+                    const r = getRecipe(q.recipeId);
+                    return (
+                      <div key={q.id} className="flex items-center gap-3 p-3 rounded-2xl"
+                        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                        <span className="text-xl">{getCuisineTheme(r?.cuisine ?? "").emoji}</span>
+                        <span className="flex-1 font-medium text-sm" style={{ color: "var(--foreground)" }}>
+                          {r ? r.title.split("|")[0].trim() : (q.label ?? "Meal")}
+                        </span>
+                        <button type="button" title="Schedule"
+                          onClick={() => { setScheduleItem(q); setScheduleDate(toISO(weekDates[0])); setScheduleSlot("dinner"); }}
+                          className="p-2 rounded-lg" style={{ border: "1px solid var(--border)", color: "var(--accent)" }}>
+                          <Calendar size={15} />
+                        </button>
+                        <button type="button" title="Add to shopping list"
+                          onClick={() => void addQueueItemToList(q.recipeId)}
+                          className="p-2 rounded-lg" style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                          <ShoppingCart size={15} />
+                        </button>
+                        <button type="button" title="Remove from queue"
+                          onClick={() => void removeFromQueue(q.id)}
+                          className="p-2 rounded-lg" style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                          <X size={15} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Previous tab ── */}
+          {tab === "previous" && (
+            <div>
+              <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>
+                These are the meals you&apos;ve planned in the past.
+              </p>
+              {history.length === 0 ? (
+                <div className="text-center py-10 rounded-2xl" style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}>
+                  <p className="text-3xl mb-2">🕓</p>
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>No past meals yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {history.map((h, i) => (
+                    <div key={i} className="flex items-center gap-3 text-sm p-3 rounded-2xl"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                      <span className="tabular-nums flex-shrink-0" style={{ color: "var(--muted)", width: 84 }}>
+                        {new Date(h.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      </span>
+                      <span className="capitalize flex-shrink-0" style={{ color: "var(--muted)", width: 70 }}>{h.slot}</span>
+                      <span className="font-medium" style={{ color: "var(--foreground)" }}>{h.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Schedule-from-queue modal ── */}
+          {scheduleItem && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setScheduleItem(null)}>
+              <div className="rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}>
+                <p className="font-semibold" style={{ color: "var(--foreground)" }}>Schedule meal</p>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Date</label>
+                  <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)}
+                    className="rounded-xl px-3 py-2 text-sm"
+                    style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Slot</label>
+                  <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    {SLOTS.map((s, i) => (
+                      <button key={s} type="button" onClick={() => setScheduleSlot(s)}
+                        className="flex-1 py-2 text-xs font-medium transition capitalize"
+                        style={{
+                          background: scheduleSlot === s ? "var(--accent)" : "var(--surface)",
+                          color: scheduleSlot === s ? "#fff" : "var(--foreground)",
+                          borderRight: i < SLOTS.length - 1 ? "1px solid var(--border)" : undefined,
+                        }}>
+                        {SLOT_ICONS[s]} {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setScheduleItem(null)}
+                    className="px-4 py-2 rounded-xl text-sm" style={{ color: "var(--muted)" }}>Cancel</button>
+                  <button type="button" onClick={() => void scheduleFromQueue()}
+                    className="px-4 py-2 rounded-xl text-sm font-medium"
+                    style={{ background: "var(--accent)", color: "#fff" }}>✓ Schedule</button>
+                </div>
+              </div>
             </div>
           )}
         </div>{/* end page content */}

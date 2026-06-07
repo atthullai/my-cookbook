@@ -21,6 +21,7 @@ import type {
   IngredientDraft,
   IngredientGroupDraft,
   InstructionSectionDraft,
+  InstructionStepDraft,
   NutritionDraft,
   RecipeRecord,
   StepPhotoDraft,
@@ -176,6 +177,15 @@ export default function EditRecipe() {
               title_de: section.title_de,
               steps_en: section.steps_en.join("\n"),
               steps_de: section.steps_de.join("\n"),
+              steps: (section.steps ?? []).map((s) => ({
+                text_en: s.text_en,
+                text_de: s.text_de,
+                appliance: s.appliance ?? "",
+                heat: s.heat ?? "",
+                durationMin: s.durationMin != null ? String(s.durationMin) : "",
+                tools: s.tools ?? [],
+                ingredientRefs: s.ingredientRefs ?? [],
+              })),
             }))
           : [{ ...EMPTY_INSTRUCTION_SECTION }]
       );
@@ -261,6 +271,9 @@ export default function EditRecipe() {
       )
     );
   };
+  const updateInstructionSteps = (index: number, steps: InstructionStepDraft[], stepsEnMirror: string) => {
+    setInstructionSections((cur) => cur.map((s, i) => (i === index ? { ...s, steps, steps_en: stepsEnMirror } : s)));
+  };
   const updateInstructionSection = (index: number, field: keyof InstructionSectionDraft, value: string) => {
     setInstructionSections((current) => current.map((section, currentIndex) => (currentIndex === index ? { ...section, [field]: value } : section)));
   };
@@ -328,12 +341,32 @@ export default function EditRecipe() {
     );
 
     const translatedInstructionSections = await Promise.all(
-      instructionSections.map(async (section) => ({
-        title_en: section.title_en,
-        title_de: section.title_de || (section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : ""),
-        steps_en: section.steps_en,
-        steps_de: section.steps_de || (section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : ""),
-      }))
+      instructionSections.map(async (section) => {
+        const title_de = section.title_de || (section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : "");
+        if (section.steps && section.steps.length > 0) {
+          const steps = await Promise.all(
+            section.steps
+              .filter((s) => s.text_en.trim())
+              .map(async (s) => ({
+                ...s,
+                text_de: s.text_de?.trim() || (s.text_en.trim() ? await translateEnglishToGerman(s.text_en) : ""),
+              })),
+          );
+          return {
+            title_en: section.title_en,
+            title_de,
+            steps_en: steps.map((s) => s.text_en).join("\n"),
+            steps_de: steps.map((s) => s.text_de).join("\n"),
+            steps,
+          };
+        }
+        return {
+          title_en: section.title_en,
+          title_de,
+          steps_en: section.steps_en,
+          steps_de: section.steps_de || (section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : ""),
+        };
+      }),
     );
 
     const translatedEquipment = await Promise.all(
@@ -646,6 +679,7 @@ export default function EditRecipe() {
           })
         }
         onInstructionSectionChange={updateInstructionSection}
+        onInstructionStepsChange={updateInstructionSteps}
         onNotesEnChange={setNotesEn}
         onNotesDeChange={setNotesDe}
         onTipsEnChange={setTipsEn}

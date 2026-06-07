@@ -17,13 +17,15 @@ import type {
   IngredientDraft,
   IngredientGroupDraft,
   InstructionSectionDraft,
+  InstructionStepDraft,
   NutritionDraft,
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
 import EquipmentPicker from "@/components/EquipmentPicker";
-import { BADGE_OPTIONS, DIFFICULTY_OPTIONS } from "@/lib/recipe-types";
+import InstructionStepsEditor, { type StepIngredientOption } from "@/components/InstructionStepsEditor";
+import { BADGE_OPTIONS, DIFFICULTY_OPTIONS, EMPTY_INSTRUCTION_STEP } from "@/lib/recipe-types";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
 const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
@@ -118,6 +120,7 @@ type RecipeFormProps = {
   onInstructionSectionAdd: () => void;
   onInstructionSectionRemove: (index: number) => void;
   onInstructionSectionChange: (index: number, field: keyof InstructionSectionDraft, value: string) => void;
+  onInstructionStepsChange: (index: number, steps: InstructionStepDraft[], stepsEnMirror: string) => void;
   onNotesEnChange: (value: string) => void;
   onNotesDeChange: (value: string) => void;
   onTipsEnChange: (value: string) => void;
@@ -162,7 +165,39 @@ function draftToText(ing: import("@/lib/recipe-types").IngredientDraft): string 
   return parts.join(" ");
 }
 
+// Parse a free time string ("1h 30m", "45 min", "20") into hours/minutes fields.
+function parseHM(value: string): { h: string; m: string } {
+  const h = value.match(/(\d+)\s*h/i);
+  const m = value.match(/(\d+)\s*m/i);
+  if (h || m) return { h: h ? h[1] : "", m: m ? m[1] : "" };
+  const bare = value.match(/\d+/);
+  return { h: "", m: bare ? bare[0] : "" };
+}
+function composeHM(h: string, m: string): string {
+  const hh = parseInt(h, 10) || 0;
+  const mm = parseInt(m, 10) || 0;
+  if (!hh && !mm) return "";
+  if (hh && mm) return `${hh}h ${mm}m`;
+  return hh ? `${hh}h` : `${mm} min`;
+}
+
 export default function RecipeForm(props: RecipeFormProps) {
+  // Ingredient options for per-step "ingredients used" chips (deduped by canonical key).
+  const stepIngredientOptions: StepIngredientOption[] = (() => {
+    const seen = new Set<string>();
+    const out: StepIngredientOption[] = [];
+    for (const group of props.ingredientGroups) {
+      for (const it of group.items) {
+        const name = it.name_en.trim();
+        const key = name.toLowerCase();
+        if (name && !seen.has(key)) {
+          seen.add(key);
+          out.push({ key, label: name, name_en: name });
+        }
+      }
+    }
+    return out;
+  })();
   // Per-section input text (the "Add one or paste multiple items" field)
   const [inputText, setInputText] = useState<Record<number, string>>({});
   const [parsePending, setParsePending] = useState<Record<number, boolean>>({});
@@ -324,11 +359,35 @@ export default function RecipeForm(props: RecipeFormProps) {
           <input className="input" value={props.difficultyDe} onChange={(event) => props.onDifficultyDeChange(event.target.value)} placeholder="Difficulty (DE)" />
         </div>
 
-        <div className="form-grid-compact">
-          <input className="input" value={props.prepTime} onChange={(event) => props.onPrepTimeChange(event.target.value)} placeholder="Prep time" />
-          <input className="input" value={props.cookTime} onChange={(event) => props.onCookTimeChange(event.target.value)} placeholder="Cooking time" />
-          <input className="input" value={props.totalTime} onChange={(event) => props.onTotalTimeChange(event.target.value)} placeholder="Total time" />
-          <input className="input" value={props.servings} onChange={(event) => props.onServingsChange(event.target.value)} placeholder="Servings" />
+        <div className="time-picker-grid">
+          <div className="time-field">
+            <span className="time-field-label">Prep time</span>
+            <div className="hm-row">
+              <input className="input" type="number" min={0} value={parseHM(props.prepTime).h}
+                onChange={(e) => props.onPrepTimeChange(composeHM(e.target.value, parseHM(props.prepTime).m))} placeholder="0" /><small>h</small>
+              <input className="input" type="number" min={0} value={parseHM(props.prepTime).m}
+                onChange={(e) => props.onPrepTimeChange(composeHM(parseHM(props.prepTime).h, e.target.value))} placeholder="0" /><small>min</small>
+            </div>
+          </div>
+          <div className="time-field">
+            <span className="time-field-label">Cook time</span>
+            <div className="hm-row">
+              <input className="input" type="number" min={0} value={parseHM(props.cookTime).h}
+                onChange={(e) => props.onCookTimeChange(composeHM(e.target.value, parseHM(props.cookTime).m))} placeholder="0" /><small>h</small>
+              <input className="input" type="number" min={0} value={parseHM(props.cookTime).m}
+                onChange={(e) => props.onCookTimeChange(composeHM(parseHM(props.cookTime).h, e.target.value))} placeholder="0" /><small>min</small>
+            </div>
+          </div>
+          <div className="time-field">
+            <span className="time-field-label">Servings</span>
+            <div className="serving-stepper">
+              <button type="button" aria-label="Decrease servings"
+                onClick={() => props.onServingsChange(String(Math.max(1, (parseInt(props.servings, 10) || 1) - 1)))}>−</button>
+              <span>{props.servings || "—"}</span>
+              <button type="button" aria-label="Increase servings"
+                onClick={() => props.onServingsChange(String((parseInt(props.servings, 10) || 0) + 1))}>+</button>
+            </div>
+          </div>
         </div>
 
         <input className="input" value={props.tags} onChange={(event) => props.onTagsChange(event.target.value)} placeholder="Tags (comma separated)" />
@@ -554,18 +613,22 @@ export default function RecipeForm(props: RecipeFormProps) {
                 Remove Section
               </button>
             </div>
-            <textarea
-              className="input"
-              value={section.steps_en}
-              onChange={(event) => props.onInstructionSectionChange(index, "steps_en", event.target.value)}
-              placeholder={"Step 1 in English\nStep 2 in English\nStep 3 in English"}
+            <InstructionStepsEditor
+              steps={
+                section.steps && section.steps.length > 0
+                  ? section.steps
+                  : section.steps_en
+                      .split("\n")
+                      .map((l) => l.replace(/^\s*\d+[.)]\s*/, "").trim())
+                      .filter(Boolean)
+                      .map((text) => ({ ...EMPTY_INSTRUCTION_STEP, text_en: text }))
+              }
+              ingredientOptions={stepIngredientOptions}
+              onChange={(steps, mirror) => props.onInstructionStepsChange(index, steps, mirror)}
             />
-            <textarea
-              className="input"
-              value={section.steps_de}
-              onChange={(event) => props.onInstructionSectionChange(index, "steps_de", event.target.value)}
-              placeholder={"Auto-translated on save — or type German steps here."}
-            />
+            <p style={{ marginTop: 8, marginBottom: 0, fontSize: 12, color: "var(--muted)" }}>
+              German steps are auto-translated on save.
+            </p>
           </div>
         ))}
       </div>

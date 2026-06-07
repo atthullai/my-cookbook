@@ -138,9 +138,24 @@ function DropdownMenu({
 
 function UserMenu() {
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState("Cook");
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  // Show the user's real display name (falls back to the email handle).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !alive) return;
+      const { data } = await supabase.from("user_profiles").select("display_name").eq("id", user.id).maybeSingle();
+      if (!alive) return;
+      const display = (data?.display_name as string | undefined)?.trim();
+      setName(display || user.email?.split("@")[0] || "Cook");
+    })();
+    return () => { alive = false; };
+  }, [pathname]);
 
   const handleLogout = useCallback(async () => {
     setOpen(false);
@@ -182,7 +197,7 @@ function UserMenu() {
         type="button"
       >
         <span className="nav-user-avatar">👤</span>
-        <span className="nav-user-name">Atthullai</span>
+        <span className="nav-user-name">{name}</span>
         <span className={`nav-chevron${open ? " open" : ""}`}>▾</span>
       </button>
 
@@ -192,8 +207,8 @@ function UserMenu() {
           <div className="nav-user-card">
             <span className="nav-user-card-avatar">👤</span>
             <div>
-              <div className="nav-user-card-name">Atthullai</div>
-              <div className="nav-user-card-role">Chef &amp; Developer</div>
+              <div className="nav-user-card-name">{name}</div>
+              <div className="nav-user-card-role">Home cook</div>
             </div>
           </div>
           <div className="nav-dropdown-divider" />

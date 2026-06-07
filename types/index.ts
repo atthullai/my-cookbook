@@ -165,6 +165,8 @@ export type MealEntryType =
   | "delivery"
   | "leftover"
   | "frozen"
+  | "food"
+  | "note"
   | "other";
 
 export interface PlannedMeal {

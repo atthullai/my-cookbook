@@ -5,11 +5,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { usePreferences } from "@/components/PreferencesProvider";
+import { ALL_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
+import PrivacyTab from "@/app/about/PrivacyTab";
 import {
   ALLERGEN_OPTIONS,
+  COOKING_EXPERIENCE_OPTIONS,
   DIET_OPTIONS,
   type AllergenKey,
   type AppLang,
@@ -60,6 +64,15 @@ export default function SettingsPage() {
     <main className="container" style={{ maxWidth: 620, paddingTop: "2rem", paddingBottom: "4rem" }}>
       <h1 style={{ fontSize: "1.6rem", fontWeight: 700, marginBottom: "1.5rem" }}>Settings</h1>
 
+      {/* Profile */}
+      <Link href="/about" style={{ ...sectionStyle, display: "flex", alignItems: "center", justifyContent: "space-between", textDecoration: "none", color: "inherit" }}>
+        <div>
+          <p style={{ fontWeight: 700, marginBottom: 2 }}>Profile</p>
+          <p style={{ color: "var(--muted)", fontSize: "0.82rem" }}>Edit your name, bio and avatar.</p>
+        </div>
+        <span style={{ color: "var(--muted)" }}>›</span>
+      </Link>
+
       {/* Diet */}
       <div style={sectionStyle}>
         <p style={{ fontWeight: 700, marginBottom: 4 }}>Dietary preferences</p>
@@ -85,6 +98,70 @@ export default function SettingsPage() {
               <span>{o.emoji}</span>{o.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Dislikes */}
+      <div style={sectionStyle}>
+        <p style={{ fontWeight: 700, marginBottom: 4 }}>Dislikes</p>
+        <p style={{ color: "var(--muted)", fontSize: "0.82rem", marginBottom: 12 }}>Comma-separated foods you&apos;d rather avoid.</p>
+        <input
+          className="input" defaultValue={prefs.dislikes.join(", ")}
+          placeholder="e.g. cilantro, blue cheese"
+          onBlur={(e) => save({ dislikes: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }, "Dislikes")}
+          style={{ width: "100%" }}
+        />
+      </div>
+
+      {/* Household + Preferred store */}
+      <div style={sectionStyle}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <p style={{ fontWeight: 700 }}>Household size</p>
+          <div className="serving-stepper">
+            <button type="button" aria-label="Fewer" disabled={saving}
+              onClick={() => save({ household: Math.max(1, prefs.household - 1) }, "Household")}>−</button>
+            <span>{prefs.household} {prefs.household === 1 ? "person" : "people"}</span>
+            <button type="button" aria-label="More" disabled={saving}
+              onClick={() => save({ household: prefs.household + 1 }, "Household")}>+</button>
+          </div>
+        </div>
+        <p style={{ fontWeight: 700, marginBottom: 8 }}>Preferred store</p>
+        <input
+          className="input" defaultValue={prefs.preferredStore}
+          placeholder="e.g. REWE, Aldi"
+          onBlur={(e) => save({ preferredStore: e.target.value.trim() }, "Preferred store")}
+          style={{ width: "100%" }}
+        />
+      </div>
+
+      {/* Cooking experience */}
+      <div style={sectionStyle}>
+        <p style={{ fontWeight: 700, marginBottom: 12 }}>Cooking experience</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {COOKING_EXPERIENCE_OPTIONS.map((o) => (
+            <button key={o.key} type="button" style={chip(prefs.cookingExperience === o.key)} disabled={saving}
+              onClick={() => save({ cookingExperience: prefs.cookingExperience === o.key ? "" : o.key }, "Cooking experience")}>
+              <span>{o.emoji}</span>{o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Favourite cuisines */}
+      <div style={sectionStyle}>
+        <p style={{ fontWeight: 700, marginBottom: 4 }}>Favourite cuisines</p>
+        <p style={{ color: "var(--muted)", fontSize: "0.82rem", marginBottom: 12 }}>Used to surface recommendations you&apos;ll like.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {ALL_CUISINE_ORIGINS.map((origin) => {
+            const active = prefs.favouriteCuisines.includes(origin);
+            const theme = getCuisineTheme(origin);
+            return (
+              <button key={origin} type="button" style={chip(active)} disabled={saving}
+                onClick={() => save({ favouriteCuisines: toggleInArray(prefs.favouriteCuisines, origin) }, "Favourite cuisines")}>
+                <span>{theme.emoji}</span>{theme.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -143,6 +220,12 @@ export default function SettingsPage() {
           style={{ color: "var(--berry)", borderColor: "var(--border)" }}>
           Sign out
         </button>
+      </div>
+
+      {/* Privacy */}
+      <div style={sectionStyle}>
+        <p style={{ fontWeight: 700, marginBottom: 12 }}>Privacy</p>
+        <PrivacyTab />
       </div>
     </main>
   );

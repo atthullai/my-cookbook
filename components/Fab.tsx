@@ -5,18 +5,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Plus, PencilLine, Link2, ScanLine, CalendarPlus, ShoppingCart } from "lucide-react";
+import { Plus, PencilLine, ScanLine, CalendarPlus, ShoppingCart } from "lucide-react";
 
 const HIDDEN_ON = ["/login", "/onboarding", "/welcome"];
 
 type Action = { icon: React.ReactNode; label: string; go: string };
 
 const ACTIONS: Action[] = [
-  { icon: <PencilLine size={16} />,   label: "Add recipe",     go: "/add" },
-  { icon: <Link2 size={16} />,        label: "Import from URL", go: "/add?source=url" },
-  { icon: <ScanLine size={16} />,     label: "Scan",            go: "/pantry?scan=1" },
-  { icon: <CalendarPlus size={16} />, label: "Plan a meal",     go: "/planner" },
-  { icon: <ShoppingCart size={16} />, label: "Add grocery",     go: "/planner/shopping" },
+  { icon: <PencilLine size={16} />,   label: "Add recipe",  go: "/add" },
+  { icon: <ScanLine size={16} />,     label: "Scan",        go: "/pantry?scan=1" },
+  { icon: <CalendarPlus size={16} />, label: "Plan a meal", go: "/planner" },
+  { icon: <ShoppingCart size={16} />, label: "Add grocery", go: "/planner/shopping" },
 ];
 
 export default function Fab() {

@@ -11,6 +11,7 @@ import type {
   RecipeInstructionSection,
   RecipeNutritionFacts,
   RecipeRecord,
+  RecipeStep,
   RecipeStepPhoto,
   RecipeTroubleshootingItem,
   StepPhotoDraft,
@@ -92,14 +93,46 @@ export function buildEquipmentPayload(equipment: EquipmentDraft[]): RecipeEquipm
 export function buildInstructionSectionPayload(sections: InstructionSectionDraft[]): RecipeInstructionSection[] {
   return sections
     .map((section, index) => {
-      const stepsEn = splitRecipeSteps(section.steps_en);
-      const stepsDe = splitRecipeSteps(section.steps_de);
+      // Prefer structured per-step drafts when the form provides them; otherwise
+      // fall back to splitting the legacy multiline strings.
+      const structured = (section.steps ?? [])
+        .filter((s) => s.text_en.trim())
+        .map<RecipeStep>((s) => {
+          const heat = s.heat === "low" || s.heat === "medium" || s.heat === "high" ? s.heat : null;
+          const duration = Number(s.durationMin);
+          return {
+            text_en: s.text_en.trim(),
+            text_de: s.text_de.trim() || s.text_en.trim(),
+            appliance: s.appliance.trim() || null,
+            heat,
+            durationMin: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null,
+            tools: (s.tools ?? []).map((t) => t.trim()).filter(Boolean),
+            ingredientRefs: (s.ingredientRefs ?? []).map((r) => r.trim().toLowerCase()).filter(Boolean),
+          };
+        });
+
+      const useStructured = structured.length > 0;
+      const stepsEn = useStructured ? structured.map((s) => s.text_en) : splitRecipeSteps(section.steps_en);
+      const stepsDeRaw = useStructured ? structured.map((s) => s.text_de) : splitRecipeSteps(section.steps_de);
+      const stepsDe = stepsDeRaw.length > 0 ? stepsDeRaw : stepsEn;
+      const steps = useStructured
+        ? structured
+        : stepsEn.map((text, i) => ({
+            text_en: text,
+            text_de: stepsDe[i] || text,
+            appliance: null,
+            heat: null,
+            durationMin: null,
+            tools: [],
+            ingredientRefs: [],
+          }));
 
       return {
         title_en: section.title_en.trim() || (index === 0 ? "Method" : `Section ${index + 1}`),
         title_de: section.title_de.trim() || section.title_en.trim() || (index === 0 ? "Methode" : `Abschnitt ${index + 1}`),
         steps_en: stepsEn,
-        steps_de: stepsDe.length > 0 ? stepsDe : stepsEn,
+        steps_de: stepsDe,
+        steps,
       };
     })
     .filter((section) => section.steps_en.length > 0);

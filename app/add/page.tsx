@@ -22,10 +22,12 @@ import type {
   IngredientDraft,
   IngredientGroupDraft,
   InstructionSectionDraft,
+  InstructionStepDraft,
   NutritionDraft,
   StepPhotoDraft,
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
+import { deriveStepDrafts } from "@/lib/step-metadata";
 import {
   EMPTY_EQUIPMENT,
   EMPTY_FAQ,
@@ -126,6 +128,9 @@ export default function AddRecipe() {
   const updateInstructionSection = (index: number, field: keyof InstructionSectionDraft, value: string) => {
     setInstructionSections((cur) => cur.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
   };
+  const updateInstructionSteps = (index: number, steps: InstructionStepDraft[], stepsEnMirror: string) => {
+    setInstructionSections((cur) => cur.map((s, i) => (i === index ? { ...s, steps, steps_en: stepsEnMirror } : s)));
+  };
   const updateEquipment = (index: number, field: keyof EquipmentDraft, value: string) => {
     setEquipment((cur) => cur.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
@@ -195,12 +200,32 @@ export default function AddRecipe() {
     );
 
     const translatedInstructionSections = await Promise.all(
-      instructionSections.map(async (section) => ({
-        title_en: section.title_en,
-        title_de: section.title_de || (section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : ""),
-        steps_en: section.steps_en,
-        steps_de: section.steps_de || (section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : ""),
-      }))
+      instructionSections.map(async (section) => {
+        const title_de = section.title_de || (section.title_en.trim() ? await translateEnglishToGerman(section.title_en) : "");
+        if (section.steps && section.steps.length > 0) {
+          const steps = await Promise.all(
+            section.steps
+              .filter((s) => s.text_en.trim())
+              .map(async (s) => ({
+                ...s,
+                text_de: s.text_de?.trim() || (s.text_en.trim() ? await translateEnglishToGerman(s.text_en) : ""),
+              })),
+          );
+          return {
+            title_en: section.title_en,
+            title_de,
+            steps_en: steps.map((s) => s.text_en).join("\n"),
+            steps_de: steps.map((s) => s.text_de).join("\n"),
+            steps,
+          };
+        }
+        return {
+          title_en: section.title_en,
+          title_de,
+          steps_en: section.steps_en,
+          steps_de: section.steps_de || (section.steps_en.trim() ? await translateEnglishToGerman(section.steps_en) : ""),
+        };
+      }),
     );
 
     const translatedEquipment = await Promise.all(
@@ -409,12 +434,19 @@ export default function AddRecipe() {
       }
 
       if (draft.instructionSections?.length > 0) {
+        const importIngredients = (draft.ingredients ?? [])
+          .flatMap((g) => g.items ?? [])
+          .map((it) => ({ name_en: it.name_en || "", canonicalName: (it.name_en || "").trim().toLowerCase() }));
         setInstructionSections(
-          draft.instructionSections.map((s) => ({
-            ...EMPTY_INSTRUCTION_SECTION,
-            title_en: s.title_en || "",
-            steps_en: Array.isArray(s.steps_en) ? s.steps_en.join("\n") : (s.steps_en || ""),
-          }))
+          draft.instructionSections.map((s) => {
+            const steps = deriveStepDrafts(s.steps_en ?? [], importIngredients);
+            return {
+              ...EMPTY_INSTRUCTION_SECTION,
+              title_en: s.title_en || "",
+              steps_en: steps.map((st) => st.text_en).join("\n"),
+              steps,
+            };
+          })
         );
       }
 
@@ -589,6 +621,7 @@ export default function AddRecipe() {
             })
           }
           onInstructionSectionChange={updateInstructionSection}
+          onInstructionStepsChange={updateInstructionSteps}
           onNotesEnChange={setNotesEn}
           onNotesDeChange={setNotesDe}
           onTipsEnChange={setTipsEn}

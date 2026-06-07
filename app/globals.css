@@ -6,90 +6,35 @@
    If only one page looks wrong, check that page's JSX first, then come back here for shared class styles. */
 
 /* Shared design tokens for the cookbook color palette and depth. */
+/* Clean, light "calm & premium" palette — white cards on light grey, one warm
+   orange accent (per the design reference / spec §2.2). Light only. */
 :root {
-  --background: #f4ead8;
-  --paper: #fff8ea;
-  --parchment: #f7ecd6;
-  --oat: #ead9bd;
-  --linen: #fbf4e6;
-  --surface: #fffaf0;
-  --surface-strong: #fff4df;
-  --surface-soft: #f8ead1;
-  --foreground: #2d2018;
-  --muted: #6f5747;
-  --border: rgba(83, 55, 38, 0.22);
-  --accent: #b85d36;
-  --accent-strong: #843a21;
-  --accent-soft: rgba(184, 93, 54, 0.16);
-  --olive: #667445;
-  --olive-soft: rgba(102, 116, 69, 0.16);
-  --saffron: #c08a2d;
-  --saffron-soft: rgba(192, 138, 45, 0.17);
-  --teal: #3d7770;
-  --teal-soft: rgba(61, 119, 112, 0.14);
-  --berry: #9c4c5f;
-  --berry-soft: rgba(156, 76, 95, 0.13);
-  --gold: #a97624;
-  --shadow: 0 18px 38px rgba(64, 42, 27, 0.14);
-  --shadow-soft: 0 10px 24px rgba(64, 42, 27, 0.1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #211913;
-    --paper: #33251c;
-    --parchment: #2b2018;
-    --oat: #493725;
-    --linen: #2a211a;
-    --surface: #31251d;
-    --surface-strong: #3a2a20;
-    --surface-soft: #2b2119;
-    --foreground: #fff1de;
-    --muted: #d6bea5;
-    --border: rgba(244, 226, 205, 0.16);
-    --accent: #df8054;
-    --accent-strong: #f1a06d;
-    --accent-soft: rgba(216, 117, 77, 0.18);
-    --teal: #70b7ae;
-    --teal-soft: rgba(112, 183, 174, 0.14);
-    --shadow: 0 20px 50px rgba(0, 0, 0, 0.34);
-  }
-
-  body {
-    background:
-      repeating-linear-gradient(90deg, rgba(255, 241, 222, 0.018) 0 1px, transparent 1px 5px),
-      linear-gradient(180deg, #241b14 0%, var(--background) 58%, #17110d 100%);
-  }
-
-  .site-topbar,
-  .hero-panel,
-  .card,
-  .stat-tile,
-  .meal-day,
-  .meal-slot,
-  .pantry-row,
-  .empty-state,
-  .input,
-  textarea.input,
-  textarea,
-  input:not([type="checkbox"]),
-  select {
-    background: var(--surface);
-  }
-
-  .button,
-  .site-nav-link,
-  .chip,
-  .meta-pill {
-    background: var(--surface-strong);
-    color: var(--foreground);
-  }
-
-  .hero-panel {
-    background:
-      linear-gradient(135deg, #31251d, #3a2a20),
-      linear-gradient(135deg, rgba(112, 183, 174, 0.12), rgba(216, 117, 77, 0.14));
-  }
+  color-scheme: light;
+  --background: #f4f4f3;
+  --paper: #ffffff;
+  --parchment: #ffffff;
+  --oat: #ededeb;
+  --linen: #fafafa;
+  --surface: #ffffff;
+  --surface-strong: #f4f4f3;
+  --surface-soft: #f7f7f6;
+  --foreground: #1f2024;
+  --muted: #6b7280;
+  --border: #e6e6e3;
+  --accent: #e8772e;
+  --accent-strong: #c2410c;
+  --accent-soft: rgba(232, 119, 46, 0.12);
+  --olive: #5d7a3a;
+  --olive-soft: rgba(93, 122, 58, 0.14);
+  --saffron: #e0a52e;
+  --saffron-soft: rgba(224, 165, 46, 0.16);
+  --teal: #2f8f86;
+  --teal-soft: rgba(47, 143, 134, 0.12);
+  --berry: #b14a63;
+  --berry-soft: rgba(177, 74, 99, 0.12);
+  --gold: #b58026;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 /* Keep width/height calculations consistent across all elements. */
@@ -107,11 +52,10 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    repeating-linear-gradient(90deg, rgba(86, 57, 38, 0.018) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, var(--linen) 0%, var(--background) 46%, #ecddc5 100%);
+  background: var(--background);
   color: var(--foreground);
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
 }
 
 /* Outer shell used by the root layout before individual page containers start. */
@@ -2892,3 +2836,196 @@ main.container > p {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
+
+/* ── Recipe view Phase 1: ingredient panel, step chips, nutrition score ── */
+.ingredients-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.ingredients-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.serving-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 6px;
+}
+.serving-stepper button {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.serving-stepper span { font-size: 0.9rem; font-weight: 600; min-width: 92px; text-align: center; }
+
+.ingredient-row { align-items: flex-start; gap: 10px; }
+.ingredient-row-icon { display: inline-flex; flex: 0 0 auto; margin-top: 1px; }
+.ingredient-row-text { display: flex; flex-direction: column; gap: 1px; }
+.ingredient-row-main { line-height: 1.35; }
+.ingredient-subnote { color: var(--muted); font-size: 0.8rem; }
+
+/* Instruction steps */
+.instruction-list li { margin-bottom: 14px; }
+.step-text { line-height: 1.55; }
+.step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.step-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(192, 138, 45, 0.12);
+  color: var(--accent-strong);
+}
+.step-chip em { font-style: normal; font-weight: 700; opacity: 0.85; }
+.step-cue {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: var(--surface-2, rgba(0,0,0,0.05));
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.step-tool {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+}
+
+/* Nutrition score badge + balance modal */
+.nutrition-score-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2e9e5b 0%, #1f7a44 100%);
+  color: #fff;
+  line-height: 1;
+}
+.nutrition-score-badge strong { font-size: 1.45rem; }
+.nutrition-score-badge small { font-size: 0.7rem; opacity: 0.9; }
+
+.nutrient-modal {
+  max-width: 520px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.impact-list { display: flex; flex-direction: column; gap: 8px; }
+.impact-row { display: grid; grid-template-columns: minmax(120px, 0.7fr) 1.3fr; align-items: center; gap: 12px; }
+.impact-name { font-size: 0.85rem; font-weight: 600; }
+.impact-name small { color: var(--muted); font-weight: 400; }
+.impact-bar { height: 12px; border-radius: 999px; background: rgba(0,0,0,0.06); overflow: hidden; }
+.impact-fill { display: block; height: 100%; border-radius: 999px; }
+.impact-fill.pos { background: #2e9e5b; }
+.impact-fill.neg { background: #d9534f; }
+
+@media (max-width: 640px) {
+  .ingredients-controls { flex-direction: column; align-items: stretch; }
+  .serving-stepper { justify-content: space-between; }
+}
+
+/* ── Add/Edit recipe: structured step editor ── */
+.steps-editor { display: flex; flex-direction: column; gap: 12px; }
+.steps-paste { display: flex; flex-direction: column; gap: 6px; }
+.steps-paste .button { align-self: flex-start; }
+.step-editor-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.step-editor-head { display: flex; align-items: flex-start; gap: 8px; }
+.step-editor-head textarea { flex: 1; }
+.step-editor-num {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 0.85rem;
+  margin-top: 4px;
+}
+.step-editor-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.step-editor-meta label { display: flex; flex-direction: column; gap: 3px; font-size: 0.72rem; color: var(--muted); }
+.step-editor-meta .input { padding: 6px 8px; font-size: 0.85rem; }
+.step-editor-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.step-editor-links-label { font-size: 0.76rem; color: var(--muted); }
+.step-link-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--foreground); font-size: 0.78rem; cursor: pointer;
+}
+.step-link-chip.active { background: rgba(192,138,45,0.16); border-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
+@media (max-width: 640px) {
+  .step-editor-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── Add/Edit recipe: time pickers + servings ── */
+.time-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.time-field { display: flex; flex-direction: column; gap: 5px; }
+.time-field-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+.hm-row { display: flex; align-items: center; gap: 6px; }
+.hm-row .input { width: 64px; }
+.hm-row small { color: var(--muted); font-size: 0.78rem; }
+@media (max-width: 640px) { .time-picker-grid { grid-template-columns: 1fr; } }
+
+/* ── Planner Plan/Queue/Previous tabs ── */
+.planner-tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.planner-tab {
+  background: none;
+  border: none;
+  padding: 8px 2px 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.planner-tab.active { color: var(--accent); border-bottom-color: var(--accent); }

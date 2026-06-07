@@ -221,6 +221,43 @@ export function getMacroBalance(recipe: RecipeRecord) {
   ].filter((item) => item.value > 0);
 }
 
+// Nutrient impact split for the "Nutrition balance score" view (spec §5.6).
+// Positive-impact nutrients render green; to-limit nutrients render red. Each bar's
+// fill is the value as a % of its daily value (capped at 100).
+const POSITIVE_KEYS: Array<keyof typeof DAILY_VALUES> = ["protein_g", "fiber_g", "potassium_mg", "magnesium_mg"];
+const NEGATIVE_KEYS: Array<{ key: keyof RecipeNutritionFacts; dv: number }> = [
+  { key: "carbs_g", dv: DAILY_VALUES.carbs_g },
+  { key: "saturated_fat_g", dv: DAILY_VALUES.saturated_fat_g },
+  { key: "sugar_g", dv: 50 },
+  { key: "sodium_mg", dv: DAILY_VALUES.sodium_mg },
+  { key: "cholesterol_mg", dv: 300 },
+];
+
+export type NutrientImpactRow = { key: string; label: string; value: number; unit: string; percent: number };
+
+export function getNutrientImpactSplit(
+  recipe: RecipeRecord,
+  lang: AppLanguage,
+): { positive: NutrientImpactRow[]; negative: NutrientImpactRow[] } {
+  const labelMap = new Map(NUTRITION_LABELS.map((l) => [l.key, lang === "de" ? l.label_de : l.label_en]));
+  const unitMap = new Map(NUTRITION_LABELS.map((l) => [l.key, l.unit]));
+  const build = (key: keyof RecipeNutritionFacts, dv: number): NutrientImpactRow | null => {
+    const value = parseNutrientValue(recipe.nutrition?.[key] as string | undefined);
+    if (value === null || value <= 0) return null;
+    return {
+      key: String(key),
+      label: labelMap.get(key as never) ?? String(key),
+      value,
+      unit: unitMap.get(key as never) ?? "",
+      percent: Math.min(Math.round((value / dv) * 100), 100),
+    };
+  };
+  return {
+    positive: POSITIVE_KEYS.map((k) => build(k, DAILY_VALUES[k])).filter((r): r is NutrientImpactRow => r !== null),
+    negative: NEGATIVE_KEYS.map(({ key, dv }) => build(key, dv)).filter((r): r is NutrientImpactRow => r !== null),
+  };
+}
+
 export function getNutritionHighlights(recipe: RecipeRecord, lang: AppLanguage) {
   const items = getNutritionItems(recipe, lang);
 

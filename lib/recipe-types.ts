@@ -92,11 +92,28 @@ export type RecipeEquipmentItem = {
   image?: string; // path relative to /public, e.g. /equipment/wok.jpg
 };
 
+/**
+ * A single, structured instruction step. `steps_en`/`steps_de` on the section are
+ * kept as plain-string mirrors (for search + legacy readers); `steps` is the
+ * structured source of truth carrying appliance/heat/time/tools and the
+ * ingredient chips used in that step (`ingredientRefs` = canonicalName keys).
+ */
+export type RecipeStep = {
+  text_en: string;
+  text_de: string;
+  appliance?: string | null;            // 'cooktop'|'oven'|'blender'|'pressure-cooker'|'microwave'|'grill'
+  heat?: "low" | "medium" | "high" | null;
+  durationMin?: number | null;
+  tools?: string[];
+  ingredientRefs?: string[];            // canonicalName keys of ingredients used here
+};
+
 export type RecipeInstructionSection = {
   title_en: string;
   title_de: string;
   steps_en: string[];
   steps_de: string[];
+  steps?: RecipeStep[];                 // structured steps (always present after normalize)
 };
 
 export type RecipeStepPhoto = {
@@ -336,24 +353,76 @@ function inferEquipmentFromRecipe(raw: Record<string, unknown>, ingredients: Rec
   }));
 }
 
+function normalizeStep(value: unknown): RecipeStep {
+  const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  const text_en = normalizeString(raw.text_en) || normalizeString(raw.text);
+  const heatRaw = normalizeString(raw.heat).toLowerCase();
+  const heat = heatRaw === "low" || heatRaw === "medium" || heatRaw === "high" ? heatRaw : null;
+  const durationNum = Number(raw.durationMin);
+  return {
+    text_en,
+    text_de: normalizeString(raw.text_de) || text_en,
+    appliance: normalizeString(raw.appliance) || null,
+    heat,
+    durationMin: Number.isFinite(durationNum) && durationNum > 0 ? Math.round(durationNum) : null,
+    tools: Array.isArray(raw.tools) ? raw.tools.map((t) => normalizeString(t).trim()).filter(Boolean) : [],
+    ingredientRefs: Array.isArray(raw.ingredientRefs)
+      ? raw.ingredientRefs.map((r) => normalizeString(r).trim().toLowerCase()).filter(Boolean)
+      : [],
+  };
+}
+
+/** Build text-only structured steps from legacy string arrays (no metadata). */
+function synthesizeSteps(stepsEn: string[], stepsDe: string[]): RecipeStep[] {
+  return stepsEn.map((text, i) => ({
+    text_en: text,
+    text_de: stepsDe[i] || text,
+    appliance: null,
+    heat: null,
+    durationMin: null,
+    tools: [],
+    ingredientRefs: [],
+  }));
+}
+
 function normalizeInstructionSection(value: unknown): RecipeInstructionSection {
   const item = value && typeof value === "object" ? value : {};
   const raw = item as Record<string, unknown>;
   const legacyTitle = normalizeString(raw.title) || "Method";
-  const stepsEn = Array.isArray(raw.steps_en)
+
+  // `raw.steps` is ambiguous: in the new shape it's an array of step OBJECTS;
+  // in old data it was sometimes a string[] alias for steps_en. Disambiguate.
+  const structuredRaw =
+    Array.isArray(raw.steps) && raw.steps.some((s) => s && typeof s === "object")
+      ? (raw.steps as unknown[])
+      : null;
+  const structured = structuredRaw ? structuredRaw.map(normalizeStep).filter((s) => s.text_en) : null;
+
+  let stepsEn = Array.isArray(raw.steps_en)
     ? raw.steps_en.map((step) => normalizeString(step).trim()).filter(Boolean)
-    : Array.isArray(raw.steps)
+    : !structuredRaw && Array.isArray(raw.steps)
       ? raw.steps.map((step) => normalizeString(step).trim()).filter(Boolean)
       : [];
-  const stepsDe = Array.isArray(raw.steps_de)
+  let stepsDe = Array.isArray(raw.steps_de)
     ? raw.steps_de.map((step) => normalizeString(step).trim()).filter(Boolean)
     : [];
+
+  if (structured && structured.length > 0) {
+    if (stepsEn.length === 0) stepsEn = structured.map((s) => s.text_en);
+    if (stepsDe.length === 0) stepsDe = structured.map((s) => s.text_de);
+  }
+
+  const steps =
+    structured && structured.length > 0
+      ? structured
+      : synthesizeSteps(stepsEn, stepsDe.length > 0 ? stepsDe : stepsEn);
 
   return {
     title_en: normalizeString(raw.title_en) || legacyTitle,
     title_de: normalizeString(raw.title_de) || legacyTitle,
     steps_en: stepsEn,
     steps_de: stepsDe.length > 0 ? stepsDe : stepsEn,
+    steps,
   };
 }
 
@@ -476,12 +545,16 @@ function normalizeInstructionSections(raw: Record<string, unknown>, stepsEn: str
     const englishSections = parseLegacySections(stepsEn, stepsEn);
     const germanSections = parseLegacySections(stepsDe || stepsEn, stepsEn);
 
-    return englishSections.map((section, index) => ({
-      title_en: section.title,
-      title_de: germanSections[index]?.title || section.title,
-      steps_en: section.steps,
-      steps_de: germanSections[index]?.steps.length ? germanSections[index].steps : section.steps,
-    }));
+    return englishSections.map((section, index) => {
+      const sectionStepsDe = germanSections[index]?.steps.length ? germanSections[index].steps : section.steps;
+      return {
+        title_en: section.title,
+        title_de: germanSections[index]?.title || section.title,
+        steps_en: section.steps,
+        steps_de: sectionStepsDe,
+        steps: synthesizeSteps(section.steps, sectionStepsDe),
+      };
+    });
   }
 
   const englishSteps = splitRecipeSteps(stepsEn);
@@ -491,12 +564,14 @@ function normalizeInstructionSections(raw: Record<string, unknown>, stepsEn: str
     return [];
   }
 
+  const methodStepsDe = germanSteps.length > 0 ? germanSteps : englishSteps;
   return [
     {
       title_en: "Method",
       title_de: "Methode",
       steps_en: englishSteps,
-      steps_de: germanSteps.length > 0 ? germanSteps : englishSteps,
+      steps_de: methodStepsDe,
+      steps: synthesizeSteps(englishSteps, methodStepsDe),
     },
   ];
 }
@@ -775,6 +850,41 @@ export function getInstructionSections(recipe: RecipeRecord, lang: AppLanguage):
   return [];
 }
 
+/** A language-resolved structured step for rendering (chips + cues). */
+export type ResolvedStep = {
+  text: string;
+  appliance: string | null;
+  heat: "low" | "medium" | "high" | null;
+  durationMin: number | null;
+  tools: string[];
+  ingredientRefs: string[];
+};
+
+export function getInstructionStepSections(
+  recipe: RecipeRecord,
+  lang: AppLanguage,
+): Array<{ title: string; steps: ResolvedStep[] }> {
+  if (recipe.instruction_sections.length === 0) return [];
+  return recipe.instruction_sections
+    .map((section) => {
+      const title = lang === "de" ? section.title_de || section.title_en : section.title_en;
+      const stringSteps = lang === "de" ? (section.steps_de.length > 0 ? section.steps_de : section.steps_en) : section.steps_en;
+      const structured = section.steps && section.steps.length > 0 ? section.steps : null;
+      const steps: ResolvedStep[] = structured
+        ? structured.map((s) => ({
+            text: lang === "de" ? s.text_de || s.text_en : s.text_en,
+            appliance: s.appliance ?? null,
+            heat: s.heat ?? null,
+            durationMin: s.durationMin ?? null,
+            tools: s.tools ?? [],
+            ingredientRefs: s.ingredientRefs ?? [],
+          }))
+        : stringSteps.map((t) => ({ text: t, appliance: null, heat: null, durationMin: null, tools: [], ingredientRefs: [] }));
+      return { title, steps };
+    })
+    .filter((section) => section.steps.length > 0);
+}
+
 export function splitRecipeSteps(text: string): string[] {
   return text
     .split("\n")
@@ -873,11 +983,35 @@ export const EMPTY_EQUIPMENT: EquipmentDraft = {
   label_de: "",
 };
 
+/** A single structured step in the create/edit form. durationMin is a string for input friendliness. */
+export type InstructionStepDraft = {
+  text_en: string;
+  text_de: string;
+  appliance: string;        // "" = none
+  heat: string;             // "" | "low" | "medium" | "high"
+  durationMin: string;      // "" or a number as text
+  tools: string[];
+  ingredientRefs: string[]; // canonicalName keys
+};
+
+export const EMPTY_INSTRUCTION_STEP: InstructionStepDraft = {
+  text_en: "",
+  text_de: "",
+  appliance: "",
+  heat: "",
+  durationMin: "",
+  tools: [],
+  ingredientRefs: [],
+};
+
 export type InstructionSectionDraft = {
   title_en: string;
   title_de: string;
   steps_en: string;
   steps_de: string;
+  /** Structured per-step drafts. When present (and non-empty) they win over the
+   *  multiline steps_en/steps_de strings in buildInstructionSectionPayload. */
+  steps?: InstructionStepDraft[];
 };
 
 export const EMPTY_INSTRUCTION_SECTION: InstructionSectionDraft = {
