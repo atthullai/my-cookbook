@@ -9,7 +9,6 @@ import Image from "next/image";
 import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { FormEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import type {
   EquipmentDraft,
   FaqDraft,
@@ -23,24 +22,8 @@ import type {
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
 import InstructionStepsEditor, { type StepIngredientOption } from "@/components/InstructionStepsEditor";
-import { BADGE_OPTIONS, EMPTY_INSTRUCTION_STEP } from "@/lib/recipe-types";
+import { EMPTY_INSTRUCTION_STEP } from "@/lib/recipe-types";
 
-// ── Badge metadata ─────────────────────────────────────────────────────────────
-const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
-  "Veg":          { emoji: "🌿", bg: "bg-green-100",   text: "text-green-800",   ring: "ring-green-400" },
-  "Non-Veg":      { emoji: "🍗", bg: "bg-red-100",     text: "text-red-800",     ring: "ring-red-400" },
-  "Egg":          { emoji: "🥚", bg: "bg-yellow-100",  text: "text-yellow-800",  ring: "ring-yellow-400" },
-  "Vegan":        { emoji: "🌱", bg: "bg-emerald-100", text: "text-emerald-800", ring: "ring-emerald-400" },
-  "Spicy":        { emoji: "🌶️", bg: "bg-orange-100",  text: "text-orange-800",  ring: "ring-orange-400" },
-  "High Protein": { emoji: "💪", bg: "bg-blue-100",    text: "text-blue-800",    ring: "ring-blue-400" },
-  "Quick Meal":   { emoji: "⚡", bg: "bg-indigo-100",  text: "text-indigo-800",  ring: "ring-indigo-400" },
-  "One Pot":      { emoji: "🥘", bg: "bg-amber-100",   text: "text-amber-800",   ring: "ring-amber-400" },
-  "Festival":     { emoji: "🎉", bg: "bg-purple-100",  text: "text-purple-800",  ring: "ring-purple-400" },
-  "Breakfast":    { emoji: "🌅", bg: "bg-sky-100",     text: "text-sky-800",     ring: "ring-sky-400" },
-  "Lunch":        { emoji: "☀️", bg: "bg-yellow-50",   text: "text-yellow-900",  ring: "ring-yellow-300" },
-  "Dinner":       { emoji: "🌙", bg: "bg-violet-100",  text: "text-violet-800",  ring: "ring-violet-400" },
-  "Dessert":      { emoji: "🍰", bg: "bg-pink-100",    text: "text-pink-800",    ring: "ring-pink-400" },
-};
 
 // ── Unit options ───────────────────────────────────────────────────────────────
 
@@ -347,65 +330,6 @@ export default function RecipeForm(props: RecipeFormProps) {
 
       </div>
 
-      <div className="card" style={{ marginBottom: 0, display: "none" }}>
-        <h3 style={{ marginBottom: 6 }}>Quick Badge Filters</h3>
-        <p style={{ marginBottom: 14, fontSize: 13, color: "#6b7280" }}>
-          Tap to toggle. Selected badges appear highlighted with a check — they show as filter chips across the app.
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {BADGE_OPTIONS.map((badge) => {
-            const isActive = props.badges.includes(badge);
-            const meta = BADGE_META[badge] ?? { emoji: "🏷️", bg: "bg-gray-100", text: "text-gray-700", ring: "ring-gray-300" };
-
-            return (
-              <motion.button
-                key={badge}
-                type="button"
-                onClick={() => props.onBadgeToggle(badge)}
-                whileHover={{ scale: 1.07, y: -1 }}
-                whileTap={{ scale: 0.91 }}
-                animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
-                transition={{ type: "spring", stiffness: 420, damping: 18 }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "7px 13px",
-                  borderRadius: 9999,
-                  border: "2px solid transparent",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  userSelect: "none",
-                  outline: "none",
-                  transition: "background 0.15s, box-shadow 0.15s",
-                  ...(isActive
-                    ? { boxShadow: `0 0 0 2px rgba(0,0,0,0.06)` }
-                    : { background: "#f9fafb", border: "2px solid #e5e7eb", color: "#6b7280" }),
-                }}
-                className={isActive ? `${meta.bg} ${meta.text} ring-2 ${meta.ring}` : ""}
-              >
-                <span style={{ fontSize: 15, lineHeight: 1 }}>{meta.emoji}</span>
-                <span>{badge}</span>
-                <AnimatePresence>
-                  {isActive && (
-                    <motion.span
-                      key="check"
-                      initial={{ scale: 0, opacity: 0, width: 0 }}
-                      animate={{ scale: 1, opacity: 1, width: "auto" }}
-                      exit={{ scale: 0, opacity: 0, width: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                      style={{ fontSize: 12, fontWeight: 700, overflow: "hidden" }}
-                    >
-                      ✓
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Ingredient sections are nested so the editor matches the structure shown on the recipe page. */}
       <div className="card" style={{ marginBottom: 0 }}>
