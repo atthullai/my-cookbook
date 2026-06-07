@@ -55,14 +55,6 @@ const ENTRY_META: Record<Exclude<MealEntryType, "recipe">, { icon: string; label
 };
 const MANUAL_TYPES = Object.keys(ENTRY_META) as Exclude<MealEntryType, "recipe">[];
 
-// CSS-var-based semantic slot styles (dark mode aware)
-const SLOT_STYLES: Record<MealSlot, React.CSSProperties> = {
-  breakfast: { background: "rgba(192,138,45,0.12)",  border: "1px solid rgba(192,138,45,0.3)",  color: "var(--saffron)" },
-  lunch:     { background: "rgba(61,119,112,0.10)",   border: "1px solid rgba(61,119,112,0.28)", color: "var(--teal)" },
-  dinner:    { background: "rgba(156,76,95,0.10)",    border: "1px solid rgba(156,76,95,0.26)",  color: "var(--berry)" },
-  snack:     { background: "rgba(102,116,69,0.10)",   border: "1px solid rgba(102,116,69,0.26)", color: "var(--olive)" },
-};
-
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function getMondayOfWeek(offsetWeeks = 0): Date {
   const today = new Date();
@@ -433,7 +425,6 @@ export default function PlannerPage() {
   const [monthData, setMonthData] = useState<Record<string, { count: number; kcal: number }>>({});
 
   const visibleDates = view === "day" ? [weekDates[dayIndex]] : weekDates;
-  const gridCols = `60px repeat(${visibleDates.length}, 1fr)`;
 
   // Step forward/back: by month / week / day depending on the active view.
   const stepBack = () => {
@@ -471,7 +462,7 @@ export default function PlannerPage() {
     d.setHours(0, 0, 0, 0);
     setWeekOffset(Math.round((d.getTime() - todayMon) / (7 * 86_400_000)));
     setDayIndex(wd === 0 ? 6 : wd - 1);
-    setView("day");
+    setView("week");
   };
 
   const [plannedMeals,  setPlannedMeals]  = useState<PlannedMeal[]>([]);
@@ -1230,7 +1221,6 @@ export default function PlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plannedMeals, recipes]);
 
-  const mealCountForDate = (date: Date) => SLOTS.filter((slot) => getMeal(date, slot)).length;
 
   // Per-day calorie totals (per-serving kcal × planned servings), keyed by ISO date.
   const caloriesByDate = useMemo(() => {
@@ -1428,19 +1418,6 @@ export default function PlannerPage() {
               )}
             </div>
 
-            {/* Week / Day / Month toggle */}
-            <div className="inline-flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-              {(["week", "day", "month"] as const).map((v) => (
-                <button key={v} type="button" onClick={() => setView(v)}
-                  className="px-3 py-1.5 text-xs font-semibold capitalize transition"
-                  style={{
-                    background: view === v ? "var(--accent)" : "var(--surface)",
-                    color: view === v ? "#fff" : "var(--muted)",
-                  }}>
-                  {v}
-                </button>
-              ))}
-            </div>
             {!loadingMeals && weekStats.uniqueCuisines > 0 && (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
                 <span className="font-semibold" style={{ color: "var(--foreground)" }}>{weekStats.uniqueCuisines}</span>
@@ -1537,148 +1514,99 @@ export default function PlannerPage() {
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={(e) => void handleDragEnd(e)}>
             <div className="flex flex-col gap-5">
 
-              {/* ── Weekly grid ────────────────────────────────────────────── */}
-              <div className="flex-1 overflow-x-auto">
-                {loadingMeals ? (
-                  <div className="animate-pulse space-y-2">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="grid grid-cols-8 gap-2">
-                        <div className="h-16 rounded-xl" style={{ background: "var(--border)" }} />
-                        {[...Array(7)].map((_, j) => (
-                          <div key={j} className="h-16 rounded-xl" style={{ background: "var(--surface-strong)" }} />
-                        ))}
-                      </div>
+              {/* ── Calendar + vertical day list ─────────────────────────────── */}
+              <div className="planner-2col">
+                {/* Mini month calendar */}
+                <aside className="planner-cal">
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {DAYS.map((d) => (
+                      <div key={d} className="text-center text-[10px] font-semibold uppercase" style={{ color: "var(--muted)" }}>{d}</div>
                     ))}
                   </div>
-                ) : view === "month" ? (
-                  <div style={{ minWidth: 320 }}>
-                    {/* Weekday header */}
-                    <div className="grid grid-cols-7 gap-1.5 mb-1">
-                      {DAYS.map((d) => (
-                        <div key={d} className="text-center text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>{d}</div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {monthCells.map((date, i) => {
+                      if (!date) return <div key={i} />;
+                      const iso = toISO(date);
+                      const isToday = iso === toISO(new Date());
+                      const inWeek = visibleDates.some((w) => toISO(w) === iso);
+                      const has = (monthData[iso]?.count ?? 0) > 0;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => openDayFromMonth(date)}
+                          className="planner-cal-day"
+                          style={{
+                            background: inWeek ? "var(--accent-soft)" : "transparent",
+                            color: isToday ? "var(--accent)" : "var(--foreground)",
+                            fontWeight: isToday ? 700 : 400,
+                          }}
+                          title="Jump to this week"
+                        >
+                          {date.getDate()}
+                          {has && <span className="planner-cal-dot" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </aside>
+
+                {/* Vertical list of the current week's days */}
+                <div className="planner-daylist">
+                  {loadingMeals ? (
+                    <div className="animate-pulse space-y-2">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-24 rounded-2xl" style={{ background: "var(--surface-strong)" }} />
                       ))}
                     </div>
-                    {/* Day cells */}
-                    <div className="grid grid-cols-7 gap-1.5">
-                      {monthCells.map((date, i) => {
-                        if (!date) return <div key={i} />;
-                        const iso = toISO(date);
-                        const info = monthData[iso];
-                        const isToday = iso === toISO(new Date());
-                        const dotColor = calorieColor(info?.kcal ?? 0);
-                        return (
-                          <button key={i} type="button" onClick={() => openDayFromMonth(date)}
-                            className="rounded-xl p-1.5 text-left transition min-h-[62px] flex flex-col hover:shadow-sm"
-                            style={{ border: `1px solid ${isToday ? "var(--accent)" : "var(--border)"}`, background: "var(--surface)" }}
-                            title="Open day">
-                            <span className="text-xs font-bold" style={{ color: isToday ? "var(--accent)" : "var(--foreground)" }}>
-                              {date.getDate()}
+                  ) : (
+                    visibleDates.map((date) => {
+                      const iso = toISO(date);
+                      const isToday = iso === toISO(new Date());
+                      const kcal = caloriesByDate[iso] ?? 0;
+                      return (
+                        <div key={iso} className="planner-day">
+                          <div className="planner-day-head">
+                            <span className="planner-day-name" style={{ color: isToday ? "var(--accent)" : "var(--foreground)" }}>
+                              {date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}
+                              {isToday ? " · Today" : ""}
                             </span>
-                            {info && info.count > 0 && (
-                              <>
-                                <div className="flex gap-0.5 mt-1 flex-wrap">
-                                  {[...Array(Math.min(info.count, 4))].map((_, d) => (
-                                    <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }} />
-                                  ))}
-                                </div>
-                                {info.kcal > 0 && (
-                                  <span className="text-[9px] mt-auto font-semibold tabular-nums" style={{ color: dotColor }}>
-                                    {info.kcal} kcal
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ minWidth: 560 }}>
-                    {/* Day headers */}
-                    <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: gridCols }}>
-                      <div />
-                      {visibleDates.map((date, i) => {
-                        const isToday = toISO(date) === toISO(new Date());
-                        const mealCount = mealCountForDate(date);
-                        const kcal = caloriesByDate[toISO(date)] ?? 0;
-                        const dotColor = calorieColor(kcal);
-                        return (
-                          <div key={i} className="text-center pb-1">
-                            <span
-                              className="text-[10px] font-semibold uppercase tracking-wide"
-                              style={{ color: isToday ? "var(--accent)" : "var(--muted)" }}
-                            >
-                              {DAYS[i]}
-                            </span>
-                            <div
-                              className="w-7 h-7 rounded-full flex items-center justify-center mx-auto mt-0.5 text-sm font-bold"
-                              style={isToday
-                                ? { background: "var(--accent)", color: "#fff" }
-                                : { color: "var(--foreground)" }}
-                            >
-                              {date.getDate()}
-                            </div>
-                            {mealCount > 0 && (
-                              <div className="flex justify-center gap-0.5 mt-1">
-                                {[...Array(Math.min(mealCount, 4))].map((_, d) => (
-                                  <div key={d} className="w-1 h-1 rounded-full" style={{ background: dotColor }} />
-                                ))}
-                              </div>
-                            )}
                             {kcal > 0 && (
-                              <div className="text-[9px] font-semibold mt-0.5 tabular-nums" style={{ color: dotColor }}>
-                                {kcal} kcal
-                              </div>
+                              <span className="planner-day-cal" style={{ color: calorieColor(kcal) }}>{kcal} Cal</span>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Slot rows */}
-                    {SLOTS.map((slot) => (
-                      <div
-                        key={slot}
-                        className="grid gap-1.5 mb-1.5"
-                        style={{ gridTemplateColumns: gridCols }}
-                      >
-                        {/* Slot label — sticky so it remains visible when grid scrolls horizontally */}
-                        <div
-                          className="flex flex-col items-center justify-center rounded-xl px-1 py-2"
-                          style={{ ...SLOT_STYLES[slot], position: "sticky", left: 0, zIndex: 2 }}
-                        >
-                          <span className="text-lg leading-none">{SLOT_ICONS[slot]}</span>
-                          <span className="text-[8px] font-semibold capitalize mt-0.5 opacity-70">{slot}</span>
+                          <div className="planner-day-slots">
+                            {SLOTS.map((slot) => {
+                              const meal = getMeal(date, slot);
+                              const recipe = meal ? getRecipe(meal.recipeId) : undefined;
+                              return (
+                                <div key={slot} className="planner-slot-col">
+                                <span className="planner-slot-label">{SLOT_ICONS[slot]} {slot}</span>
+                                <SlotCell
+                                  key={slot}
+                                  date={date}
+                                  slot={slot}
+                                  meal={meal}
+                                  recipe={recipe}
+                                  onRemove={() => meal && setRemoveTarget(meal)}
+                                  onServings={(delta) => meal && void handleServings(meal.id, delta)}
+                                  onCooked={() => meal && void openCookedModal(meal)}
+                                  onRepeat={() => meal && void repeatMeal(meal)}
+                                  mealStatus={meal ? mealStatuses[meal.id] : undefined}
+                                  expanded={meal ? expandedMealId === meal.id : false}
+                                  onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
+                                  onClickPlan={!meal ? () => handleEmptySlotClick(toISO(date), slot) : undefined}
+                                  hasSelected={!!selectedRecipeId}
+                                />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-
-                        {/* Day cells */}
-                        {visibleDates.map((date, i) => {
-                          const meal   = getMeal(date, slot);
-                          const recipe = meal ? getRecipe(meal.recipeId) : undefined;
-                          return (
-                            <SlotCell
-                              key={i}
-                              date={date}
-                              slot={slot}
-                              meal={meal}
-                              recipe={recipe}
-                              onRemove={() => meal && setRemoveTarget(meal)}
-                              onServings={(delta) => meal && void handleServings(meal.id, delta)}
-                              onCooked={() => meal && void openCookedModal(meal)}
-                              onRepeat={() => meal && void repeatMeal(meal)}
-                              mealStatus={meal ? mealStatuses[meal.id] : undefined}
-                              expanded={meal ? expandedMealId === meal.id : false}
-                              onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
-                              onClickPlan={!meal ? () => handleEmptySlotClick(toISO(date), slot) : undefined}
-                              hasSelected={!!selectedRecipeId}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               {/* ── Empty-day suggestions (Day view) ───────────────────────── */}
