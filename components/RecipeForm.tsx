@@ -10,7 +10,6 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ALL_CUISINE_ORIGINS, INDIAN_CUISINE_ORIGINS, getCuisineTheme } from "@/lib/cuisine-themes";
 import type {
   EquipmentDraft,
   FaqDraft,
@@ -23,9 +22,8 @@ import type {
   TroubleshootingDraft,
 } from "@/lib/recipe-types";
 import AppIcon from "@/components/AppIcon";
-import EquipmentPicker from "@/components/EquipmentPicker";
 import InstructionStepsEditor, { type StepIngredientOption } from "@/components/InstructionStepsEditor";
-import { BADGE_OPTIONS, DIFFICULTY_OPTIONS, EMPTY_INSTRUCTION_STEP } from "@/lib/recipe-types";
+import { BADGE_OPTIONS, EMPTY_INSTRUCTION_STEP } from "@/lib/recipe-types";
 
 // ── Badge metadata ─────────────────────────────────────────────────────────────
 const BADGE_META: Record<string, { emoji: string; bg: string; text: string; ring: string }> = {
@@ -304,59 +302,16 @@ export default function RecipeForm(props: RecipeFormProps) {
             <p>Start with the identity, story, and quick labels people use while browsing.</p>
           </div>
         </div>
-        <div className="form-grid">
-          <input className="input" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="Title (EN)" />
-          <input className="input" value={props.titleDe} onChange={(event) => props.onTitleDeChange(event.target.value)} placeholder="Title (DE)" />
-          <input className="input" value={props.authorName} onChange={(event) => props.onAuthorNameChange(event.target.value)} placeholder="Author name" />
-          <input
-            className="input"
-            value={props.learnedFrom}
-            onChange={(event) => props.onLearnedFromChange(event.target.value)}
-            placeholder="Learned from (mom, dad, granny, teacher...)"
-          />
-        </div>
+        <input className="input" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="Recipe title" />
+        <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--muted)" }}>
+          Recipe language: English — German is auto-translated on save.
+        </p>
 
-        <textarea className="input" value={props.descriptionEn} onChange={(event) => props.onDescriptionEnChange(event.target.value)} placeholder="Description (EN)" />
-        <textarea className="input" value={props.descriptionDe} onChange={(event) => props.onDescriptionDeChange(event.target.value)} placeholder="Description (DE)" />
+        <textarea className="input" value={props.descriptionEn} onChange={(event) => props.onDescriptionEnChange(event.target.value)} placeholder="Description — notes, cooking tips, serving suggestions…" />
 
         <div className="form-grid">
-          <input className="input" value={props.category} onChange={(event) => props.onCategoryChange(event.target.value)} placeholder="Category" />
-          {/* ── Cuisine origin: grouped dropdown ─────────────────────── */}
-          <select
-            className="input"
-            value={props.cuisine}
-            onChange={(event) => props.onCuisineChange(event.target.value)}
-          >
-            <option value="">— Select Cuisine —</option>
-            <optgroup label="🇮🇳 Indian Regional">
-              {INDIAN_CUISINE_ORIGINS.map((o) => {
-                const t = getCuisineTheme(o);
-                return (
-                  <option key={o} value={o}>{t.emoji} {t.label}</option>
-                );
-              })}
-            </optgroup>
-            <optgroup label="🌍 World Kitchen">
-              {ALL_CUISINE_ORIGINS.filter((o) => !INDIAN_CUISINE_ORIGINS.includes(o)).map((o) => {
-                const t = getCuisineTheme(o);
-                return (
-                  <option key={o} value={o}>{t.emoji} {t.label}</option>
-                );
-              })}
-            </optgroup>
-          </select>
-          <input className="input" value={props.cuisineDe} onChange={(event) => props.onCuisineDeChange(event.target.value)} placeholder="Cuisine (DE)" />
-          <input className="input" value={props.course} onChange={(event) => props.onCourseChange(event.target.value)} placeholder="Course" />
-          <input className="input" value={props.courseDe} onChange={(event) => props.onCourseDeChange(event.target.value)} placeholder="Course (DE)" />
-          <select className="input" value={props.difficulty} onChange={(event) => props.onDifficultyChange(event.target.value)}>
-            <option value="">Difficulty</option>
-            {DIFFICULTY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <input className="input" value={props.difficultyDe} onChange={(event) => props.onDifficultyDeChange(event.target.value)} placeholder="Difficulty (DE)" />
+          <input className="input" value={props.sourceUrl} onChange={(event) => props.onSourceUrlChange(event.target.value)} placeholder="Source URL (optional)" />
+          <input className="input" value={props.videoUrl} onChange={(event) => props.onVideoUrlChange(event.target.value)} placeholder="Video URL (optional)" />
         </div>
 
         <div className="time-picker-grid">
@@ -390,11 +345,9 @@ export default function RecipeForm(props: RecipeFormProps) {
           </div>
         </div>
 
-        <input className="input" value={props.tags} onChange={(event) => props.onTagsChange(event.target.value)} placeholder="Tags (comma separated)" />
       </div>
 
-      <div className="card" style={{ marginBottom: 0 }}>
-        {/* Badges are quick filters. They are not required, but they make browsing much nicer. */}
+      <div className="card" style={{ marginBottom: 0, display: "none" }}>
         <h3 style={{ marginBottom: 6 }}>Quick Badge Filters</h3>
         <p style={{ marginBottom: 14, fontSize: 13, color: "#6b7280" }}>
           Tap to toggle. Selected badges appear highlighted with a check — they show as filter chips across the app.
@@ -633,215 +586,8 @@ export default function RecipeForm(props: RecipeFormProps) {
         ))}
       </div>
 
-      <div className="card" style={{ marginBottom: 0 }}>
-        {/* Step photos are optional. Leave this empty unless a recipe really benefits from process images. */}
-        <div className="form-row-actions">
-          <div>
-            <h3 style={{ marginBottom: 8 }}>Step-by-Step Photos</h3>
-            <p style={{ marginBottom: 0 }}>Add these manually when you really want process photos. Imported recipes no longer auto-fill them.</p>
-          </div>
-          <button className="button" type="button" onClick={props.onStepPhotoAdd}>
-            <AppIcon name="add" size={16} />
-            Add Step Photo
-          </button>
-        </div>
 
-        {props.stepPhotos.map((item, index) => (
-          <div key={`step-photo-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
-            <div className="step-photo-row">
-              <input
-                className="input"
-                value={item.step_number}
-                onChange={(event) => props.onStepPhotoChange(index, "step_number", event.target.value)}
-                placeholder="Step #"
-              />
-              <input
-                className="input"
-                value={item.image_url}
-                onChange={(event) => props.onStepPhotoChange(index, "image_url", event.target.value)}
-                placeholder="Photo URL"
-              />
-              <button className="button" type="button" onClick={() => props.onStepPhotoRemove(index)}>
-                <AppIcon name="delete" size={16} />
-                Remove
-              </button>
-            </div>
-            <input
-              className="input"
-              value={item.caption_en}
-              onChange={(event) => props.onStepPhotoChange(index, "caption_en", event.target.value)}
-              placeholder="Caption (EN)"
-            />
-            <input
-              className="input"
-              value={item.caption_de}
-              onChange={(event) => props.onStepPhotoChange(index, "caption_de", event.target.value)}
-              placeholder="Caption (DE)"
-            />
-          </div>
-        ))}
-      </div>
 
-      {/* Equipment — searchable picker backed by the canonical equipment library */}
-      <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 10 }}>Equipment</h3>
-        <EquipmentPicker selected={props.equipment} onChange={props.onEquipmentSet} />
-      </div>
-
-      <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 8 }}>Tips and Tricks</h3>
-        <textarea className="input" value={props.tipsEn} onChange={(event) => props.onTipsEnChange(event.target.value)} placeholder="Tips & Tricks (EN)" />
-        <textarea className="input" value={props.tipsDe} onChange={(event) => props.onTipsDeChange(event.target.value)} placeholder="Tips & Tricks (DE)" />
-      </div>
-
-      <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 8 }}>Storage</h3>
-        <textarea className="input" value={props.storageEn} onChange={(event) => props.onStorageEnChange(event.target.value)} placeholder="Storage Instructions (EN)" />
-        <textarea className="input" value={props.storageDe} onChange={(event) => props.onStorageDeChange(event.target.value)} placeholder="Storage Instructions (DE)" />
-      </div>
-
-      <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 8 }}>Nutrition Facts</h3>
-        <div className="form-row-actions">
-          <p style={{ marginBottom: 0 }}>
-            Enter per-serving nutrition values manually, or estimate them from the ingredient list. The estimator works best when amounts and units are filled in.
-          </p>
-          <button className="button" type="button" onClick={props.onEstimateNutrition} disabled={props.estimatingNutrition}>
-            <AppIcon name="protein" size={16} />
-            {props.estimatingNutrition ? "Estimating..." : "Estimate From Ingredients"}
-          </button>
-        </div>
-        {(props.nutritionEstimateMessage || props.nutrition.note_en) && (
-          <div className="nutrition-estimate-status" role="status">
-            <strong>Estimate status</strong>
-            <span>{props.nutritionEstimateMessage || props.nutrition.note_en}</span>
-          </div>
-        )}
-        <div className="form-grid-compact">
-          <input className="input" value={props.nutrition.calories_kcal} onChange={(event) => props.onNutritionChange("calories_kcal", event.target.value)} placeholder="Calories (kcal)" />
-          <input className="input" value={props.nutrition.fat_g} onChange={(event) => props.onNutritionChange("fat_g", event.target.value)} placeholder="Fat (g)" />
-          <input className="input" value={props.nutrition.saturated_fat_g} onChange={(event) => props.onNutritionChange("saturated_fat_g", event.target.value)} placeholder="Saturated Fat (g)" />
-          <input className="input" value={props.nutrition.carbs_g} onChange={(event) => props.onNutritionChange("carbs_g", event.target.value)} placeholder="Carbs (g)" />
-          <input className="input" value={props.nutrition.fiber_g} onChange={(event) => props.onNutritionChange("fiber_g", event.target.value)} placeholder="Fiber (g)" />
-          <input className="input" value={props.nutrition.sugar_g} onChange={(event) => props.onNutritionChange("sugar_g", event.target.value)} placeholder="Sugar (g)" />
-          <input className="input" value={props.nutrition.protein_g} onChange={(event) => props.onNutritionChange("protein_g", event.target.value)} placeholder="Protein (g)" />
-          <input className="input" value={props.nutrition.sodium_mg} onChange={(event) => props.onNutritionChange("sodium_mg", event.target.value)} placeholder="Sodium (mg)" />
-          <input className="input" value={props.nutrition.cholesterol_mg} onChange={(event) => props.onNutritionChange("cholesterol_mg", event.target.value)} placeholder="Cholesterol (mg)" />
-          <input className="input" value={props.nutrition.potassium_mg} onChange={(event) => props.onNutritionChange("potassium_mg", event.target.value)} placeholder="Potassium (mg)" />
-          <input className="input" value={props.nutrition.calcium_mg} onChange={(event) => props.onNutritionChange("calcium_mg", event.target.value)} placeholder="Calcium (mg)" />
-          <input className="input" value={props.nutrition.iron_mg} onChange={(event) => props.onNutritionChange("iron_mg", event.target.value)} placeholder="Iron (mg)" />
-          <input className="input" value={props.nutrition.magnesium_mg} onChange={(event) => props.onNutritionChange("magnesium_mg", event.target.value)} placeholder="Magnesium (mg)" />
-          <input className="input" value={props.nutrition.phosphorus_mg} onChange={(event) => props.onNutritionChange("phosphorus_mg", event.target.value)} placeholder="Phosphorus (mg)" />
-          <input className="input" value={props.nutrition.zinc_mg} onChange={(event) => props.onNutritionChange("zinc_mg", event.target.value)} placeholder="Zinc (mg)" />
-          <input className="input" value={props.nutrition.vitamin_a_mcg} onChange={(event) => props.onNutritionChange("vitamin_a_mcg", event.target.value)} placeholder="Vitamin A (mcg)" />
-          <input className="input" value={props.nutrition.vitamin_c_mg} onChange={(event) => props.onNutritionChange("vitamin_c_mg", event.target.value)} placeholder="Vitamin C (mg)" />
-          <input className="input" value={props.nutrition.vitamin_d_mcg} onChange={(event) => props.onNutritionChange("vitamin_d_mcg", event.target.value)} placeholder="Vitamin D (mcg)" />
-          <input className="input" value={props.nutrition.vitamin_e_mg} onChange={(event) => props.onNutritionChange("vitamin_e_mg", event.target.value)} placeholder="Vitamin E (mg)" />
-          <input className="input" value={props.nutrition.vitamin_k_mcg} onChange={(event) => props.onNutritionChange("vitamin_k_mcg", event.target.value)} placeholder="Vitamin K (mcg)" />
-          <input className="input" value={props.nutrition.vitamin_b6_mg} onChange={(event) => props.onNutritionChange("vitamin_b6_mg", event.target.value)} placeholder="Vitamin B6 (mg)" />
-          <input className="input" value={props.nutrition.vitamin_b12_mcg} onChange={(event) => props.onNutritionChange("vitamin_b12_mcg", event.target.value)} placeholder="Vitamin B12 (mcg)" />
-          <input className="input" value={props.nutrition.folate_mcg} onChange={(event) => props.onNutritionChange("folate_mcg", event.target.value)} placeholder="Folate (mcg)" />
-        </div>
-        <textarea className="input" value={props.nutrition.note_en} onChange={(event) => props.onNutritionChange("note_en", event.target.value)} placeholder="Nutrition note (EN)" />
-        <textarea className="input" value={props.nutrition.note_de} onChange={(event) => props.onNutritionChange("note_de", event.target.value)} placeholder="Nutrition note (DE)" />
-      </div>
-
-      <div className="card" style={{ marginBottom: 0 }}>
-        <div className="form-row-actions">
-          <div>
-            <h3 style={{ marginBottom: 8 }}>FAQ</h3>
-            <p style={{ marginBottom: 0 }}>Add common questions and answers for the recipe.</p>
-          </div>
-          <button className="button" type="button" onClick={props.onFaqAdd}>
-            <AppIcon name="add" size={16} />
-            Add FAQ
-          </button>
-        </div>
-
-        {props.faq.map((item, index) => (
-          <div key={`faq-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
-            <input
-              className="input"
-              value={item.question_en}
-              onChange={(event) => props.onFaqChange(index, "question_en", event.target.value)}
-              placeholder="Question (EN)"
-            />
-            <input
-              className="input"
-              value={item.question_de}
-              onChange={(event) => props.onFaqChange(index, "question_de", event.target.value)}
-              placeholder="Question (DE)"
-            />
-            <textarea
-              className="input"
-              value={item.answer_en}
-              onChange={(event) => props.onFaqChange(index, "answer_en", event.target.value)}
-              placeholder="Answer (EN)"
-            />
-            <textarea
-              className="input"
-              value={item.answer_de}
-              onChange={(event) => props.onFaqChange(index, "answer_de", event.target.value)}
-              placeholder="Answer (DE)"
-            />
-            <button className="button" type="button" onClick={() => props.onFaqRemove(index)}>
-              <AppIcon name="delete" size={16} />
-              Remove FAQ
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="card" style={{ marginBottom: 0 }}>
-        <div className="form-row-actions">
-          <div>
-            <h3 style={{ marginBottom: 8 }}>Troubleshooting</h3>
-            <p style={{ marginBottom: 0 }}>List common problems and how to fix them.</p>
-          </div>
-          <button className="button" type="button" onClick={props.onTroubleshootingAdd}>
-            <AppIcon name="add" size={16} />
-            Add Issue
-          </button>
-        </div>
-
-        {props.troubleshooting.map((item, index) => (
-          <div key={`troubleshooting-${index}`} className="card editor-subcard" style={{ marginBottom: 12, padding: 16 }}>
-            <input
-              className="input"
-              value={item.issue_en}
-              onChange={(event) => props.onTroubleshootingChange(index, "issue_en", event.target.value)}
-              placeholder="Problem (EN)"
-            />
-            <input
-              className="input"
-              value={item.issue_de}
-              onChange={(event) => props.onTroubleshootingChange(index, "issue_de", event.target.value)}
-              placeholder="Problem (DE)"
-            />
-            <textarea
-              className="input"
-              value={item.fix_en}
-              onChange={(event) => props.onTroubleshootingChange(index, "fix_en", event.target.value)}
-              placeholder="Fix (EN)"
-            />
-            <textarea
-              className="input"
-              value={item.fix_de}
-              onChange={(event) => props.onTroubleshootingChange(index, "fix_de", event.target.value)}
-              placeholder="Fix (DE)"
-            />
-            <button className="button" type="button" onClick={() => props.onTroubleshootingRemove(index)}>
-              <AppIcon name="delete" size={16} />
-              Remove Issue
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <textarea className="input" value={props.notesEn} onChange={(event) => props.onNotesEnChange(event.target.value)} placeholder="Notes (EN)" />
-      <textarea className="input" value={props.notesDe} onChange={(event) => props.onNotesDeChange(event.target.value)} placeholder="Notes (DE)" />
-      <input className="input" value={props.sourceUrl} onChange={(event) => props.onSourceUrlChange(event.target.value)} placeholder="Source URL" />
-      <input className="input" value={props.videoUrl} onChange={(event) => props.onVideoUrlChange(event.target.value)} placeholder="Video URL" />
       <div className="card" style={{ marginBottom: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
           <div>
