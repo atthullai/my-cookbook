@@ -9,10 +9,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Bookmark, MoreHorizontal } from "lucide-react";
+import { Pencil, Trash2, Bookmark, MoreHorizontal, Copy } from "lucide-react";
 import type { RecipeSummary } from "@/types";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import { getCurrentUserId } from "@/lib/current-user";
+import { duplicateRecipe } from "@/lib/recipe-duplicate";
 import { useLibrary } from "@/components/LibraryProvider";
 import AddToModal from "@/components/AddToModal";
 
@@ -41,6 +42,19 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
 
   const showEdit = Boolean(onEdit) || isOwner;
   const editRecipe = () => { setMenuOpen(false); if (onEdit) onEdit(); else router.push(`/edit/${recipe.id}`); };
+
+  const [duplicating, setDuplicating] = useState(false);
+  const duplicate = async () => {
+    setMenuOpen(false);
+    setDuplicating(true);
+    try {
+      const newId = await duplicateRecipe(recipe.id);
+      router.push(`/edit/${newId}`);
+    } catch (err) {
+      console.error(err);
+      setDuplicating(false);
+    }
+  };
 
   const { isSaved, save, unsave } = useLibrary();
   const saved = isSaved(recipe.id);
@@ -84,7 +98,9 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
           {menuOpen && (
             <div className="recipe-card-menu-pop" onMouseLeave={() => setMenuOpen(false)}>
               <button type="button" onClick={() => { setMenuOpen(false); setShowAddTo(true); }}>Add to…</button>
-              {showEdit && <button type="button" onClick={editRecipe}><Pencil size={13} /> Edit</button>}
+              {showEdit
+                ? <button type="button" onClick={editRecipe}><Pencil size={13} /> Edit</button>
+                : <button type="button" onClick={duplicate} disabled={duplicating}><Copy size={13} /> {duplicating ? "Duplicating…" : "Duplicate to edit"}</button>}
               {onDelete && <button type="button" className="danger" onClick={() => { setMenuOpen(false); onDelete(); }}><Trash2 size={13} /> Delete</button>}
             </div>
           )}

@@ -31,6 +31,7 @@ import {
   parseInstructionSections,
 } from "@/lib/recipe-view";
 import { matchIngredientsInStep } from "@/lib/step-ingredients";
+import { duplicateRecipe } from "@/lib/recipe-duplicate";
 import { convertForDisplay, type UnitSystem } from "@/lib/unit-display";
 import { calculateHealthScore } from "@/lib/ingredient-ontology";
 import { NutritionBadge } from "@/components/NutritionBadge";
@@ -109,6 +110,19 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     })();
     return () => { alive = false; };
   }, [recipe.user_id]);
+
+  const [duplicating, setDuplicating] = useState(false);
+  const handleDuplicate = useCallback(async () => {
+    setDuplicating(true);
+    try {
+      const newId = await duplicateRecipe(String(recipe.id));
+      toast.success("Copied to your recipes");
+      window.location.href = `/edit/${newId}`;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not duplicate");
+      setDuplicating(false);
+    }
+  }, [recipe.id]);
 
   const handleDeleteRecipe = useCallback(async () => {
     setDeleting(true);
@@ -578,6 +592,12 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
             <button className="button" type="button" onClick={() => setConfirmDelete(true)} style={{ color: "var(--berry)" }}>
               <AppIcon name="delete" size={16} />
               Delete
+            </button>
+          )}
+          {!canEdit && (
+            <button className="button" type="button" onClick={() => void handleDuplicate()} disabled={duplicating}>
+              <AppIcon name="recipe" size={16} />
+              {duplicating ? "Duplicating…" : "Duplicate to edit"}
             </button>
           )}
           <button className="button" type="button" onClick={handlePrint}>
