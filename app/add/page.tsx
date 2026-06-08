@@ -52,7 +52,6 @@ export default function AddRecipe() {
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [nutritionEstimateMessage, setNutritionEstimateMessage] = useState("");
   const [refreshingCoverPhoto, setRefreshingCoverPhoto] = useState(false);
-  const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
 
   // ── Form state (identical shape to Edit page) ───────────────────────────────
@@ -389,8 +388,8 @@ export default function AddRecipe() {
   };
 
   // ── Import recipe from URL ─────────────────────────────────────────────────
-  const handleImportFromUrl = async () => {
-    const url = importUrl.trim();
+  const handleImportFromUrl = async (urlArg?: string) => {
+    const url = (urlArg ?? "").trim();
     if (!url) { notify({ tone: "info", title: "Paste a recipe URL first" }); return; }
     setImporting(true);
     try {
@@ -470,6 +469,14 @@ export default function AddRecipe() {
     }
   };
 
+  // Auto-import when arriving from the "Add recipe from URL" modal (/add?import=<url>).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URLSearchParams(window.location.search).get("import");
+    if (url) void handleImportFromUrl(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <main className="edit-shell max-w-3xl mx-auto px-4 py-8 min-h-screen">
@@ -492,32 +499,12 @@ export default function AddRecipe() {
           </div>
         </div>
 
-        {/* Import from URL panel */}
-        <div className="card import-panel mb-6">
-          <p className="eyebrow mb-2">Import from URL</p>
-          <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>
-            Paste a recipe URL to auto-fill the form from another blog or website.
-          </p>
-          <div className="import-row">
-            <input
-              type="url"
-              className="input"
-              placeholder="https://example.com/recipe/..."
-              value={importUrl}
-              onChange={(e) => setImportUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleImportFromUrl(); } }}
-            />
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={() => void handleImportFromUrl()}
-              disabled={importing}
-              style={{ whiteSpace: "nowrap" }}
-            >
-              {importing ? "Importing…" : "Import Recipe"}
-            </button>
+        {importing && (
+          <div className="card import-panel mb-6" role="status" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className="inline-block w-4 h-4 rounded-full border-2 animate-spin" style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }} />
+            <span style={{ color: "var(--muted)" }}>Importing recipe…</span>
           </div>
-        </div>
+        )}
 
         <RecipeForm
           title={title}

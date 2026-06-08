@@ -5,14 +5,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Plus, PencilLine, ScanLine, CalendarPlus, ShoppingCart } from "lucide-react";
+import { Plus, PencilLine, Link2, ScanLine, CalendarPlus, ShoppingCart } from "lucide-react";
+import AddFromUrlModal from "@/components/AddFromUrlModal";
 
 const HIDDEN_ON = ["/login", "/onboarding", "/welcome"];
 
-type Action = { icon: React.ReactNode; label: string; go: string };
+type Action = { icon: React.ReactNode; label: string; go?: string; action?: "url" };
 
 const ACTIONS: Action[] = [
-  { icon: <PencilLine size={16} />,   label: "Add recipe",  go: "/add" },
+  { icon: <PencilLine size={16} />,   label: "Create new recipe",  go: "/add" },
+  { icon: <Link2 size={16} />,        label: "Add recipe from URL", action: "url" },
   { icon: <ScanLine size={16} />,     label: "Scan",        go: "/pantry?scan=1" },
   { icon: <CalendarPlus size={16} />, label: "Plan a meal", go: "/planner" },
   { icon: <ShoppingCart size={16} />, label: "Add grocery", go: "/planner/shopping" },
@@ -22,6 +24,7 @@ export default function Fab() {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [showUrl, setShowUrl] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,13 +37,18 @@ export default function Fab() {
   if (pathname && HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
 
   const go = (href: string) => { setOpen(false); router.push(href); };
+  const runAction = (a: Action) => {
+    if (a.action === "url") { setOpen(false); setShowUrl(true); return; }
+    if (a.go) go(a.go);
+  };
 
   return (
     <div ref={ref} className="fab-root" style={{ position: "fixed", right: 20, bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)", zIndex: 60 }}>
+      {showUrl && <AddFromUrlModal onClose={() => setShowUrl(false)} />}
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, alignItems: "flex-end" }}>
           {ACTIONS.map((a) => (
-            <button key={a.go} type="button" onClick={() => go(a.go)}
+            <button key={a.label} type="button" onClick={() => runAction(a)}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 10, padding: "9px 14px",
                 borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface)",

@@ -11,6 +11,7 @@ import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { useLibrary } from "@/components/LibraryProvider";
 import RecipeCard from "@/components/RecipeCard";
 import CreateCollectionModal from "@/components/CreateCollectionModal";
+import AddFromUrlModal from "@/components/AddFromUrlModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { RecipeSummary } from "@/types";
 
@@ -33,6 +34,7 @@ export default function LibraryPage() {
   const [sort, setSort]                 = useState<"newest" | "az">("newest");
   const [showAddMenu, setShowAddMenu]   = useState(false);
   const [showCreate, setShowCreate]     = useState(false);
+  const [showUrl, setShowUrl]           = useState(false);
   const [deleteColId, setDeleteColId]   = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RecipeSummary | null>(null);
 
@@ -114,7 +116,7 @@ export default function LibraryPage() {
           </button>
           {showAddMenu && (
             <div className="library-add-menu">
-              <button className="library-add-menu-item" onClick={() => { setShowAddMenu(false); router.push("/add?source=url"); }}>
+              <button className="library-add-menu-item" onClick={() => { setShowAddMenu(false); setShowUrl(true); }}>
                 Add recipe from URL
               </button>
               <button className="library-add-menu-item" onClick={() => { setShowAddMenu(false); router.push("/add"); }}>
@@ -241,6 +243,7 @@ export default function LibraryPage() {
       </section>
 
       {showCreate && <CreateCollectionModal onClose={() => setShowCreate(false)} />}
+      {showUrl && <AddFromUrlModal onClose={() => setShowUrl(false)} />}
 
       {deleteColId && (
         <ConfirmDialog
