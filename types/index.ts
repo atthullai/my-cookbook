@@ -151,6 +151,8 @@ export type RecipeSummary = Pick<
 > & {
   /** Flat list of ingredient links used for ingredient-based filtering in the recipe search. */
   ingredientLinks: { libraryId: string | null; name_en: string }[];
+  /** Owner's user id — used to show Edit/Delete only to the recipe's owner. */
+  ownerId: string | null;
 };
 
 // ---------------------------------------------------------------------------

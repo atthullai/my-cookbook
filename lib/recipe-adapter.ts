@@ -216,6 +216,7 @@ export function toRecipeSummary(record: RecipeRecord): RecipeSummary {
 
   return {
     id:              String(record.id),
+    ownerId:         record.user_id ?? null,
     title:           record.title_en,
     cuisine:         toCuisineOrigin(record),
     tags:            toRecipeTags(record.badges),
