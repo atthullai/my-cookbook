@@ -58,7 +58,7 @@ function EquipmentCard({
         overflow: "hidden",
         border: selected ? "3px solid var(--color-primary, #e67e22)" : "3px solid transparent",
         cursor: "pointer",
-        background: "#f3f4f6",
+        background: "#ffffff",
         padding: 0,
         transition: "border-color 0.15s, box-shadow 0.15s",
         boxShadow: selected ? "0 0 0 2px var(--color-primary, #e67e22)" : "none",
@@ -70,7 +70,7 @@ function EquipmentCard({
         alt={item.name_en}
         fill
         sizes="(max-width: 600px) 28vw, 120px"
-        style={{ objectFit: "cover" }}
+        style={{ objectFit: "contain", padding: 10 }}
         unoptimized
       />
       {/* overlay label */}
@@ -345,8 +345,8 @@ function SelectedChip({
   draft: EquipmentDraft;
   onRemove: () => void;
 }) {
-  // Prefer stored image, fall back to library lookup for existing recipes saved before backfill
-  const imageSrc = draft.image ?? findEquipmentItem(draft.label_en)?.image ?? null;
+  // Prefer the canonical library icon (authoritative); fall back to any stored image.
+  const imageSrc = findEquipmentItem(draft.label_en)?.image ?? draft.image ?? null;
 
   return (
     <div
@@ -365,8 +365,8 @@ function SelectedChip({
       }}
     >
       {imageSrc && (
-        <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative" }}>
-          <Image src={imageSrc} alt={draft.label_en} fill style={{ objectFit: "cover" }} unoptimized />
+        <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: "#fff" }}>
+          <Image src={imageSrc} alt={draft.label_en} fill style={{ objectFit: "contain", padding: 2 }} unoptimized />
         </div>
       )}
       <span>{draft.label_en}</span>

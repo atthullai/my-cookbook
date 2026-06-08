@@ -2915,12 +2915,68 @@ main.container > p {
 .step-tool {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 0.76rem;
   color: var(--muted);
   border: 1px dashed var(--border);
+  text-transform: capitalize;
 }
+.step-tool img { flex-shrink: 0; object-fit: contain; }
+
+/* Equipment shown as icon + label chips (not photo tiles) */
+.equipment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.equipment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--foreground);
+  transition: border-color 0.15s, opacity 0.2s, background 0.15s;
+}
+.equipment-chip:hover { border-color: var(--accent); }
+.equipment-chip-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f4f4f3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.equipment-chip-icon img { width: 36px; height: 36px; object-fit: contain; }
+.equipment-chip-label { white-space: nowrap; }
+.equipment-chip-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 2px;
+}
+.equipment-chip.checked {
+  opacity: 0.6;
+  border-color: var(--accent);
+}
+.equipment-chip.checked .equipment-chip-label { text-decoration: line-through; }
 
 /* Nutrition score badge + balance modal */
 .nutrition-score-badge {

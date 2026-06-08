@@ -37,7 +37,7 @@ import { calculateHealthScore } from "@/lib/ingredient-ontology";
 import { NutritionBadge } from "@/components/NutritionBadge";
 import { deriveNutritionMeta } from "@/lib/nutrition-confidence";
 import { cookingStepId, ingredientGroupId, ingredientRowId, nutritionTagId, recipeBadgeId, recipeTimingId, stableCompositeId } from "@/lib/stable-ids";
-import { findEquipmentItem } from "@/lib/equipment-library";
+import { findEquipmentItem, resolveEquipmentItems } from "@/lib/equipment-library";
 import { useLibrary } from "@/components/LibraryProvider";
 import { logCookDb } from "@/lib/library";
 import { supabase } from "@/lib/supabase";
@@ -62,6 +62,16 @@ const APPLIANCE_LABEL: Record<string, string> = {
   "pressure-cooker": "Pressure cooker",
   microwave: "Microwave",
   grill: "Grill",
+};
+
+// Maps the appliance keys above to a term the equipment library can resolve to an icon.
+const APPLIANCE_SYNONYM: Record<string, string> = {
+  cooktop: "cooktop",
+  oven: "oven",
+  blender: "hand blender",
+  "pressure-cooker": "pressure cooker",
+  microwave: "microwave",
+  grill: "grill pan",
 };
 
 function beep() {
@@ -824,104 +834,63 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           {recipe.equipment && recipe.equipment.length > 0 ? (
             <div id="equipment" className="card">
               <h3>Equipment</h3>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
-                  gap: 10,
-                }}
-              >
-                {recipe.equipment.map((item) => {
-                  const label = getEquipmentLabel(item, lang);
-                  const isChecked = checkedEquipment.includes(item.label_en);
-                  // Resolve image: stored image > canonical library lookup > null
-                  const imageSrc = item.image ?? findEquipmentItem(item.label_en)?.image ?? null;
-                  return (
-                    <button
-                      key={stableCompositeId(recipe.id, "equipment", item.label_en)}
-                      type="button"
-                      aria-pressed={isChecked}
-                      aria-label={`${getEquipmentLabel(item, lang)} — ${isChecked ? "ready" : "not ready"}`}
-                      onClick={() => toggleEquipmentCheck(item.label_en)}
-                      style={{
-                        position: "relative",
-                        width: "100%",
-                        aspectRatio: "1 / 1",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        border: isChecked
-                          ? "3px solid var(--color-primary, #e67e22)"
-                          : "3px solid transparent",
-                        cursor: "pointer",
-                        background: "#f3f4f6",
-                        padding: 0,
-                        opacity: isChecked ? 0.55 : 1,
-                        transition: "opacity 0.2s, border-color 0.15s",
-                      }}
-                      title={label}
-                    >
-                      {imageSrc ? (
-                        <Image
-                          src={imageSrc}
-                          alt={label}
-                          fill
-                          sizes="(max-width: 600px) 28vw, 110px"
-                          style={{ objectFit: "cover" }}
-                          unoptimized
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                        />
-                      ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
-                          🔧
-                        </div>
-                      )}
-                      {/* gradient label */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          padding: "6px 4px 6px",
-                          background: isChecked
-                            ? "rgba(0,0,0,0.6)"
-                            : "linear-gradient(transparent, rgba(0,0,0,0.7))",
-                          color: "#fff",
-                          fontSize: 10,
-                          fontWeight: 600,
-                          lineHeight: 1.25,
-                          textAlign: "center",
-                          wordBreak: "break-word",
-                          textDecoration: isChecked ? "line-through" : "none",
-                        }}
+              <div className="equipment-list">
+                {(() => {
+                  // Expand each entry into one chip per resolved item, so combined
+                  // labels like "Knife and board" render as two icons. Dedupe by key.
+                  const seen = new Set<string>();
+                  const chips: { key: string; label: string; image: string | null }[] = [];
+                  for (const item of recipe.equipment ?? []) {
+                    const resolved = resolveEquipmentItems(item.label_en);
+                    if (resolved.length > 1) {
+                      for (const e of resolved) {
+                        if (seen.has(e.name_en)) continue;
+                        seen.add(e.name_en);
+                        chips.push({ key: e.name_en, label: lang === "de" ? e.name_de : e.name_en, image: e.image });
+                      }
+                    } else {
+                      if (seen.has(item.label_en)) continue;
+                      seen.add(item.label_en);
+                      chips.push({
+                        key: item.label_en,
+                        label: getEquipmentLabel(item, lang),
+                        image: resolved[0]?.image ?? item.image ?? null,
+                      });
+                    }
+                  }
+                  return chips.map((chip) => {
+                    const isChecked = checkedEquipment.includes(chip.key);
+                    return (
+                      <button
+                        key={stableCompositeId(recipe.id, "equipment", chip.key)}
+                        type="button"
+                        aria-pressed={isChecked}
+                        aria-label={`${chip.label} — ${isChecked ? "ready" : "not ready"}`}
+                        onClick={() => toggleEquipmentCheck(chip.key)}
+                        className={isChecked ? "equipment-chip checked" : "equipment-chip"}
+                        title={chip.label}
                       >
-                        {label}
-                      </div>
-                      {/* check badge */}
-                      {isChecked && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: 5,
-                            right: 5,
-                            width: 20,
-                            height: 20,
-                            borderRadius: "50%",
-                            background: "var(--color-primary, #e67e22)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#fff",
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          ✓
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                        <span className="equipment-chip-icon">
+                          {chip.image ? (
+                            <Image
+                              src={chip.image}
+                              alt=""
+                              width={38}
+                              height={38}
+                              unoptimized
+                              style={{ objectFit: "contain" }}
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                            />
+                          ) : (
+                            <span aria-hidden="true" style={{ fontSize: 20 }}>🔧</span>
+                          )}
+                        </span>
+                        <span className="equipment-chip-label">{chip.label}</span>
+                        {isChecked && <span className="equipment-chip-check" aria-hidden="true">✓</span>}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
           ) : null}
@@ -946,15 +915,17 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                         ? { low: "Niedrig", medium: "Mittel", high: "Hoch" }[step.heat]
                         : { low: "Low", medium: "Med", high: "High" }[step.heat])
                     : null;
+                  const applianceKey = step.appliance && step.appliance !== "none" ? step.appliance : null;
+                  const applianceLabel = applianceKey ? APPLIANCE_LABEL[applianceKey] ?? applianceKey : null;
+                  const applianceIcon = applianceKey ? findEquipmentItem(APPLIANCE_SYNONYM[applianceKey] ?? applianceKey)?.image ?? null : null;
                   const cues = [
-                    step.appliance ? APPLIANCE_LABEL[step.appliance] ?? step.appliance : null,
                     heatLabel,
                     step.durationMin ? `${step.durationMin} min` : null,
                   ].filter(Boolean) as string[];
                   return (
                     <li key={cookingStepId(recipe.id, section.title, step.text, index)} className={allSteps[activeStep]?.step === step.text ? "active-step" : ""} style={{ listStyle: "decimal" }}>
                       <div className="step-text">{step.text}</div>
-                      {(chips.length > 0 || cues.length > 0 || step.tools.length > 0) && (
+                      {(chips.length > 0 || cues.length > 0 || applianceLabel || step.tools.length > 0) && (
                         <div className="step-meta">
                           {chips.map((it, ci) => {
                             const amt = ingredientAmountLabel(it.amount, it.unit, it.isToTaste || it.unit === "to taste");
@@ -965,10 +936,26 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
                               </span>
                             );
                           })}
+                          {applianceLabel && (
+                            <span className="step-tool">
+                              {applianceIcon
+                                ? <Image src={applianceIcon} alt="" width={16} height={16} unoptimized style={{ objectFit: "contain" }} />
+                                : <span aria-hidden="true">🔧</span>}
+                              {applianceLabel}
+                            </span>
+                          )}
                           {cues.length > 0 && <span className="step-cue">{cues.join(" · ")}</span>}
-                          {step.tools.map((t) => (
-                            <span key={`tool-${t}`} className="step-tool">🔧 {t}</span>
-                          ))}
+                          {step.tools.map((t) => {
+                            const toolIcon = findEquipmentItem(t)?.image ?? null;
+                            return (
+                              <span key={`tool-${t}`} className="step-tool">
+                                {toolIcon
+                                  ? <Image src={toolIcon} alt="" width={16} height={16} unoptimized style={{ objectFit: "contain" }} />
+                                  : <span aria-hidden="true">🔧</span>}
+                                {t}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </li>
