@@ -494,7 +494,7 @@ export default function PlannerPage() {
           .eq("user_id", user.id)
           .gte("meal_date", weekStart)
           .lte("meal_date", weekEnd),
-        supabase.from("recipes").select("*").eq("user_id", user.id),
+        supabase.from("recipes").select("*").or(`is_public.eq.true,user_id.eq.${user.id}`),
       ]);
 
       if (mealsRes.error) {
