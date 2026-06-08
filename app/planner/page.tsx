@@ -460,6 +460,7 @@ export default function PlannerPage() {
   // ── Top tabs: Plan / Queue / Previous ──────────────────────────────────────
   const [tab, setTab] = useState<"plan" | "queue" | "previous">("plan");
   const [planMenuOpen, setPlanMenuOpen] = useState(false);
+  const [dayMenuIso, setDayMenuIso] = useState<string | null>(null);
   const [queueItems, setQueueItems] = useState<{ id: string; recipeId: string; label: string | null }[]>([]);
   const [queueAddRecipe, setQueueAddRecipe] = useState("");
   const [scheduleItem, setScheduleItem] = useState<{ id: string; recipeId: string; label: string | null } | null>(null);
@@ -1238,46 +1239,66 @@ export default function PlannerPage() {
                   ) : (
                     visibleDates.map((date) => {
                       const iso = toISO(date);
-                      const isToday = iso === toISO(new Date());
+                      const todayIso = toISO(new Date());
+                      const isToday = iso === todayIso;
                       const kcal = caloriesByDate[iso] ?? 0;
+                      const label = iso === todayIso ? "Today"
+                        : iso === toISO(addDays(new Date(), 1)) ? "Tomorrow"
+                        : iso === toISO(addDays(new Date(), -1)) ? "Yesterday"
+                        : date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+                      const dayMeals = SLOTS.map((slot) => ({ slot, meal: getMeal(date, slot) })).filter((x) => x.meal);
+                      const openAdd = (preset: { type?: Exclude<MealEntryType, "recipe">; recipe?: boolean }) => {
+                        setDayMenuIso(null);
+                        setQuickRecipeId("");
+                        setQuickLabel("");
+                        setQuickLeftoverFrom("");
+                        setQuickType(preset.type ?? "food");
+                        setQuickEntry({ date: iso, slot: "dinner" });
+                      };
                       return (
                         <div key={iso} className="planner-day">
                           <div className="planner-day-head">
                             <span className="planner-day-name" style={{ color: isToday ? "var(--accent)" : "var(--foreground)" }}>
-                              {date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}
-                              {isToday ? " · Today" : ""}
+                              {label} <ChevronRight size={14} style={{ display: "inline", verticalAlign: "-2px", opacity: 0.5 }} />
+                              {kcal > 0 && <span className="planner-day-cal" style={{ color: calorieColor(kcal), marginLeft: 8 }}>{kcal} Cal</span>}
                             </span>
-                            {kcal > 0 && (
-                              <span className="planner-day-cal" style={{ color: calorieColor(kcal) }}>{kcal} Cal</span>
-                            )}
+                            <div className="planner-day-addwrap">
+                              <button type="button" className="planner-day-plus" aria-label="Add to this day"
+                                onClick={() => setDayMenuIso((cur) => (cur === iso ? null : iso))}>
+                                <Plus size={16} />
+                              </button>
+                              {dayMenuIso === iso && (
+                                <div className="planner-overflow-menu" onMouseLeave={() => setDayMenuIso(null)}>
+                                  <button type="button" className="planner-overflow-item" onClick={() => openAdd({ recipe: true })}>🔖 Add saved recipe</button>
+                                  <button type="button" className="planner-overflow-item" onClick={() => openAdd({ type: "food" })}>🥕 Add food</button>
+                                  <button type="button" className="planner-overflow-item" onClick={() => openAdd({ type: "note" })}>📝 Add note</button>
+                                  <a className="planner-overflow-item" href="/add?source=url" onClick={() => setDayMenuIso(null)}>🔗 Save recipe link</a>
+                                  <a className="planner-overflow-item" href="/add" onClick={() => setDayMenuIso(null)}>＋ Create new recipe</a>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="planner-day-meals">
-                            {SLOTS.map((slot) => {
-                              const meal = getMeal(date, slot);
-                              if (!meal) return null;
-                              const recipe = getRecipe(meal.recipeId);
-                              return (
+                          {dayMeals.length > 0 && (
+                            <div className="planner-day-meals">
+                              {dayMeals.map(({ slot, meal }) => (
                                 <SlotCell
                                   key={slot}
                                   date={date}
                                   slot={slot}
                                   meal={meal}
-                                  recipe={recipe}
-                                  onRemove={() => setRemoveTarget(meal)}
-                                  onServings={(delta) => void handleServings(meal.id, delta)}
-                                  onCooked={() => void openCookedModal(meal)}
-                                  onRepeat={() => void repeatMeal(meal)}
-                                  mealStatus={mealStatuses[meal.id]}
-                                  expanded={expandedMealId === meal.id}
-                                  onExpand={() => setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
+                                  recipe={meal ? getRecipe(meal.recipeId) : undefined}
+                                  onRemove={() => meal && setRemoveTarget(meal)}
+                                  onServings={(delta) => meal && void handleServings(meal.id, delta)}
+                                  onCooked={() => meal && void openCookedModal(meal)}
+                                  onRepeat={() => meal && void repeatMeal(meal)}
+                                  mealStatus={meal ? mealStatuses[meal.id] : undefined}
+                                  expanded={meal ? expandedMealId === meal.id : false}
+                                  onExpand={() => meal && setExpandedMealId((prev) => prev === meal.id ? null : meal.id)}
                                   hasSelected={false}
                                 />
-                              );
-                            })}
-                            <button type="button" className="planner-day-add" onClick={() => setQuickEntry({ date: iso, slot: "dinner" })}>
-                              <Plus size={15} /> Add meal
-                            </button>
-                          </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })

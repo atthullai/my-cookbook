@@ -3047,15 +3047,14 @@ main.container > p {
 .planner-day-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .planner-day-name { font-weight: 600; font-size: 0.95rem; }
 .planner-day-cal { font-size: 0.8rem; font-weight: 600; }
-.planner-day-meals { display: flex; flex-direction: column; gap: 8px; }
-.planner-day-add {
-  align-self: flex-start;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: 999px;
-  border: 1px dashed var(--border); background: transparent;
-  color: var(--muted); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+.planner-day-meals { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.planner-day-addwrap { position: relative; }
+.planner-day-plus {
+  width: 30px; height: 30px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
 }
-.planner-day-add:hover { color: var(--accent); border-color: var(--accent); }
+.planner-day-plus:hover { background: var(--surface-strong); color: var(--accent); }
 
 .planner-tabbar { display: flex; align-items: center; justify-content: space-between; }
 .planner-overflow { position: relative; }
