@@ -30,6 +30,7 @@ export default function LibraryPage() {
   const [allRecipes, setAllRecipes]     = useState<RecipeSummary[]>([]);
   const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState("");
+  const [sort, setSort]                 = useState<"newest" | "az">("newest");
   const [showAddMenu, setShowAddMenu]   = useState(false);
   const [showCreate, setShowCreate]     = useState(false);
   const [deleteColId, setDeleteColId]   = useState<string | null>(null);
@@ -65,10 +66,19 @@ export default function LibraryPage() {
   );
 
   const displayRecipes = useMemo(() => {
-    if (!search.trim()) return savedRecipes;
-    const q = search.toLowerCase();
-    return savedRecipes.filter((r) => r.title.toLowerCase().includes(q));
-  }, [savedRecipes, search]);
+    let r = !search.trim() ? savedRecipes : savedRecipes.filter((x) => x.title.toLowerCase().includes(search.toLowerCase()));
+    if (sort === "az") r = [...r].sort((a, b) => a.title.localeCompare(b.title));
+    return r;
+  }, [savedRecipes, search, sort]);
+
+  // First available recipe image among a set of ids — used as a collection cover.
+  const coverFor = useMemo(() => {
+    const byId = new Map(allRecipes.map((r) => [r.id, r]));
+    return (ids: string[]): string | null => {
+      for (const id of ids) { const img = byId.get(id)?.imageUrl; if (img) return img; }
+      return null;
+    };
+  }, [allRecipes]);
 
   async function handleDeleteRecipe(recipe: RecipeSummary) {
     await supabase.from("recipes").delete().eq("id", parseInt(recipe.id));
@@ -138,47 +148,60 @@ export default function LibraryPage() {
         </button>
       </div>
 
-      {/* ── Collections ────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: "2.5rem" }}>
+      {/* ── Collections (horizontal carousel) ──────────────────────────── */}
+      <section style={{ marginBottom: "2.25rem" }}>
         <h2 className="library-section-title">Collections</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-
-          {SYSTEM_COLLECTIONS.map((col) => (
-            <div key={col.key} className="collection-card">
-              <div className="collection-card-icon">{col.icon}</div>
-              <div className="collection-card-name">{col.label}</div>
-              <div className="collection-card-count">
-                {systemCounts[col.key] ?? 0} recipe{(systemCounts[col.key] ?? 0) !== 1 ? "s" : ""}
+        <div className="library-collections-row">
+          {SYSTEM_COLLECTIONS.map((col) => {
+            const ids = col.key === "recently-viewed" ? recentlyViewedIds
+              : col.key === "made-it" ? recentlyCookedIds
+              : col.key === "my-recipes" ? [...savedIds] : [];
+            const cover = coverFor(ids);
+            const count = systemCounts[col.key] ?? 0;
+            return (
+              <div key={col.key} className="library-collection">
+                <div className="library-collection-cover" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
+                  {!cover && <span className="library-collection-icon">{col.icon}</span>}
+                </div>
+                <div className="library-collection-name">{col.label}</div>
+                <div className="library-collection-count">{count} recipe{count !== 1 ? "s" : ""}</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
-          {collections.map((col) => (
-            <div key={col.id} className="collection-card collection-card--user">
-              <div className="collection-card-icon"><FolderHeart size={20} /></div>
-              <div className="collection-card-name">{col.name}</div>
-              <div className="collection-card-count">
-                {col.recipeIds.length} recipe{col.recipeIds.length !== 1 ? "s" : ""}
+          {collections.map((col) => {
+            const cover = coverFor(col.recipeIds);
+            return (
+              <div key={col.id} className="library-collection">
+                <div className="library-collection-cover" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
+                  {!cover && <span className="library-collection-icon"><FolderHeart size={22} /></span>}
+                  <button className="library-collection-delete" onClick={() => setDeleteColId(col.id)} aria-label="Delete collection"><X size={11} /></button>
+                </div>
+                <div className="library-collection-name">{col.name}</div>
+                <div className="library-collection-count">{col.recipeIds.length} recipe{col.recipeIds.length !== 1 ? "s" : ""}</div>
               </div>
-              <button className="collection-card-delete" onClick={() => setDeleteColId(col.id)} aria-label="Delete">
-                <X size={12} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
 
-          <button className="collection-card collection-card--create" onClick={() => setShowCreate(true)}>
-            <div className="collection-card-icon"><Plus size={20} /></div>
-            <div className="collection-card-name">Create collection</div>
+          <button className="library-collection library-collection--create" onClick={() => setShowCreate(true)}>
+            <div className="library-collection-cover"><span className="library-collection-icon"><Plus size={22} /></span></div>
+            <div className="library-collection-name">New collection</div>
           </button>
         </div>
       </section>
 
-      {/* ── Saved Recipes ──────────────────────────────────────────────── */}
+      {/* ── Recipes ────────────────────────────────────────────────────── */}
       <section>
-        <h2 className="library-section-title">
-          Saved Recipes
-          {savedRecipes.length > 0 && <span className="library-count">{savedRecipes.length}</span>}
-        </h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 className="library-section-title" style={{ marginBottom: 0 }}>
+            Recipes
+            {savedRecipes.length > 0 && <span className="library-count">{savedRecipes.length}</span>}
+          </h2>
+          <button type="button" className="discover-control" style={{ padding: "6px 12px" }}
+            onClick={() => setSort((s) => (s === "newest" ? "az" : "newest"))}>
+            {sort === "newest" ? "Newest" : "A to Z"}
+          </button>
+        </div>
 
         {loading ? (
           <p style={{ color: "var(--muted)" }}>Loading…</p>
