@@ -96,6 +96,34 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     // Only track once per mount per recipe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe.id]);
+
+  // Show Edit / Delete only to the recipe's owner.
+  const [canEdit, setCanEdit] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (alive) setCanEdit(Boolean(user && recipe.user_id && user.id === recipe.user_id));
+    })();
+    return () => { alive = false; };
+  }, [recipe.user_id]);
+
+  const handleDeleteRecipe = useCallback(async () => {
+    setDeleting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      const { error } = await supabase.from("recipes").delete().eq("id", recipe.id).eq("user_id", user.id);
+      if (error) throw error;
+      toast.success("Recipe deleted");
+      window.location.href = "/library";
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+      setDeleting(false);
+    }
+  }, [recipe.id]);
   // These local UI states are purely for the reader experience and are not persisted to the database.
   const [multiplier, setMultiplier] = useState(1);
   const checkedStorageKey = `cookbook:recipe:${recipe.id}:checked-ingredients`;
@@ -437,6 +465,24 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     <div className={isCookingMode ? "cooking-mode-shell" : ""} style={{ marginTop: 16 }}>
       <Toaster position="top-right" />
 
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => !deleting && setConfirmDelete(false)}>
+          <div className="card" style={{ maxWidth: 360, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>Delete this recipe?</h3>
+            <p style={{ color: "var(--muted)" }}>This permanently removes &ldquo;{recipeTitle}&rdquo;. This can&apos;t be undone.</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+              <button className="button" type="button" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancel</button>
+              <button className="button" type="button" onClick={() => void handleDeleteRecipe()} disabled={deleting}
+                style={{ background: "var(--berry)", color: "#fff" }}>
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Nutrition balance score — full nutrient breakdown */}
       {showAllNutrients && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}
@@ -522,6 +568,18 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
         </div>
 
         <div className="hero-actions">
+          {canEdit && (
+            <a className="button button-primary" href={`/edit/${recipe.id}`}>
+              <AppIcon name="recipe" size={16} />
+              Edit
+            </a>
+          )}
+          {canEdit && (
+            <button className="button" type="button" onClick={() => setConfirmDelete(true)} style={{ color: "var(--berry)" }}>
+              <AppIcon name="delete" size={16} />
+              Delete
+            </button>
+          )}
           <button className="button" type="button" onClick={handlePrint}>
             <AppIcon name="print" size={16} />
             Print
