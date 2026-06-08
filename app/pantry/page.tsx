@@ -27,6 +27,7 @@ import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import ReceiptScanner from "@/components/ReceiptScanner";
+import HubTabs from "@/components/HubTabs";
 import { detectPfand, disposalEmoji } from "@/lib/pfand";
 import { addPfandEntry } from "@/lib/pfand-tracker";
 import {
@@ -724,6 +725,7 @@ export default function PantryPage() {
     <>
       <Toaster position="top-right" />
       <main className="min-h-screen" style={{ background: "var(--background)" }}>
+        <div className="max-w-5xl mx-auto px-5 pt-5"><HubTabs /></div>
 
         {/* ── Page hero ── */}
         <section

@@ -24,6 +24,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import type { ShoppingItem, ShoppingCategory } from "@/types";
 import { lookupItem, suggestExpiryDate, CATEGORY_MAP } from "@/lib/pantry-items";
 import { convertToBase } from "@/lib/conversion";
+import HubTabs from "@/components/HubTabs";
 
 const CATEGORY_META: Record<ShoppingCategory, { label: string; icon: string }> = {
   "produce":       { label: "Produce",        icon: "🥕" },
@@ -678,6 +679,7 @@ export default function ShoppingListPage() {
       )}
 
       <main className="max-w-2xl mx-auto px-4 py-8 min-h-screen">
+        <HubTabs />
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

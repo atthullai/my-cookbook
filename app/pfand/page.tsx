@@ -14,6 +14,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import type { PfandResult } from "@/lib/pfand";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import HubTabs from "@/components/HubTabs";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,7 @@ export default function PfandPage() {
     <>
       <Toaster position="top-right" />
       <main className="min-h-screen" style={{ background: "var(--background)", color: "var(--foreground)" }}>
+        <div className="max-w-lg mx-auto px-5 pt-5"><HubTabs /></div>
 
         {/* ── Page hero ── */}
         <section

@@ -3157,3 +3157,12 @@ main.container > p {
   display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 .library-collection--create .library-collection-cover { border-style: dashed; }
+
+/* ── Lists hub tabs (Pantry / Shopping List / Pfand) ── */
+.hub-tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.hub-tab {
+  padding: 8px 2px 12px; font-size: 0.95rem; font-weight: 600; color: var(--muted);
+  text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.hub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.hub-tab:hover { color: var(--foreground); }
