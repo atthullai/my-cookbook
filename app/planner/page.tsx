@@ -272,7 +272,7 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, on
                       className="mt-1.5 w-full text-[9px] py-1 rounded-md font-semibold transition"
                       style={{ background: "rgba(201,149,42,0.25)", color: "#fff" }}
                     >
-                      🛒 Add missing to shopping list
+                      🛒 Add missing to list
                     </button>
                   )}
                 </div>

@@ -117,6 +117,13 @@ export const EQUIPMENT_LIBRARY: EquipmentItem[] = [
     synonyms: ["microwave", "microwave oven"],
   },
   {
+    name_en: "Toaster",
+    name_de: "Toaster",
+    category: "appliance",
+    image: "/equipment/toaster.webp",
+    synonyms: ["toaster", "bread toaster", "2-slice toaster", "pop-up toaster"],
+  },
+  {
     name_en: "Oven",
     name_de: "Backofen",
     category: "appliance",

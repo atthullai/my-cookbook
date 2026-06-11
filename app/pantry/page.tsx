@@ -1335,14 +1335,19 @@ export default function PantryPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, isReady: !f.isReady }))}
+                    onClick={() => setForm((f) => {
+                      const next = !f.isReady;
+                      // Turning on Ready-to-eat? Treat it as meal-prep: count it in portions.
+                      const unit = next && f.unit === "whole" ? "portion" : f.unit;
+                      return { ...f, isReady: next, unit };
+                    })}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
                     style={{
                       border: "1px solid var(--border)",
                       background: form.isReady ? "var(--accent)" : "var(--surface)",
                       color: form.isReady ? "#fff" : "var(--muted)",
                     }}
-                    title="Can be eaten as-is (leftovers, snacks, store-bought ready meals)"
+                    title="Can be eaten as-is — leftovers, meal-prep portions, store-bought ready meals"
                   >
                     🍽️ Ready-to-eat {form.isReady && <Check size={13} />}
                   </button>

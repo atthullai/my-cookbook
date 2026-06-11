@@ -420,6 +420,35 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
     }
   }, [planDate, planSlot, recipe.id]);
 
+  // Save cooked leftovers into the pantry as ready-to-eat portions (bulk-prep).
+  const saveLeftovers = useCallback(async () => {
+    setActionBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please log in"); return; }
+      const portions = Math.max(1, Math.round((recipe.servings || 1) * multiplier));
+      const { error } = await supabase.from("pantry_items").insert({
+        user_id: user.id,
+        name: recipeTitle,
+        quantity: portions,
+        unit: "portion",
+        category: "other",
+        storage_location: "fridge",
+        is_ready: true,
+        source: "homemade",
+        is_homemade: true,
+        made_on: new Date().toISOString().slice(0, 10),
+        recipe_id: Number(recipe.id),
+      });
+      if (error) throw error;
+      toast.success(`Saved ${portions} portion${portions === 1 ? "" : "s"} to your pantry`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save leftovers");
+    } finally {
+      setActionBusy(false);
+    }
+  }, [recipe.servings, recipe.id, recipeTitle, multiplier]);
+
   // ── "You may also like" — similar public recipes ───────────────────────────
   const [similar, setSimilar] = useState<RecipeSummary[]>([]);
   useEffect(() => {
@@ -623,6 +652,10 @@ export default function RecipeClient({ recipe }: RecipeClientProps) {
           </button>
           <button className="button" type="button" onClick={() => setShowPlan(true)} disabled={actionBusy}>
             📅 Add to plan
+          </button>
+          <button className="button" type="button" onClick={() => void saveLeftovers()} disabled={actionBusy}
+            title="Cooked a batch? Stash the servings in your pantry as ready-to-eat portions">
+            🍱 Save leftovers
           </button>
           <div className="segmented-control" aria-label="Recipe language">
             <button className={lang === "en" ? "button active" : "button"} type="button" onClick={() => setLang("en")}>
