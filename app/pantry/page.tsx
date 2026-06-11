@@ -148,7 +148,7 @@ const EMPTY_FORM = {
   isOpened: false, isReady: false, isFlex: false,
 };
 
-const UNIT_OPTIONS = ["whole", "g", "mL", "kg", "L"];
+const UNIT_OPTIONS = ["whole", "portion", "g", "mL", "kg", "L"];
 const DEFAULT_THRESHOLD: Record<string, number> = {
   "kg":    0.5,
   "g":     100,
@@ -1407,6 +1407,19 @@ export default function PantryPage() {
             <span className="text-7xl block mb-4" aria-hidden="true">🥫</span>
             <h2 className="text-xl font-semibold mb-2" style={{ color: "var(--foreground)" }}>Your pantry is empty</h2>
             <p className="text-sm" style={{ color: "var(--muted)" }}>Start tracking what you have at home.</p>
+          </div>
+        )}
+
+        {/* No items match the active filters */}
+        {!loading && items.length > 0 && sorted.length === 0 && (
+          <div className="text-center py-14 rounded-2xl" style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}>
+            <p className="text-3xl mb-2" aria-hidden="true">🔍</p>
+            <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>No items match these filters.</p>
+            <button type="button" onClick={() => { setZoneFilter("all"); setReadyFilter("all"); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border"
+              style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
+              Clear filters
+            </button>
           </div>
         )}
 

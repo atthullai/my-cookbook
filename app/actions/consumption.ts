@@ -70,11 +70,14 @@ export async function logSnack(
       .eq("id", s.id)
       .eq("user_id", user.id)
       .single();
-    const remaining = Number(row?.servings_remaining ?? 0);
-    const next = Math.max(0, remaining - s.servings);
+    const update: Record<string, unknown> = { last_taken_on: today };
+    // Only count down a tracked supply; leave an unknown (null) count alone.
+    if (row?.servings_remaining != null) {
+      update.servings_remaining = Math.max(0, Number(row.servings_remaining) - s.servings);
+    }
     await supabase
       .from("supplements")
-      .update({ servings_remaining: next, last_taken_on: today })
+      .update(update)
       .eq("id", s.id)
       .eq("user_id", user.id);
     loggedSupps.push({ id: s.id, name: s.name, servings: s.servings });

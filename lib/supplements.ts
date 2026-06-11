@@ -80,12 +80,13 @@ export async function takeSupplement(id: string): Promise<void> {
     .select("servings_remaining, daily_servings")
     .eq("id", id)
     .single();
-  const remaining = Number(row?.servings_remaining ?? 0);
   const daily = Number(row?.daily_servings ?? 1);
-  const { error } = await supabase
-    .from("supplements")
-    .update({ servings_remaining: Math.max(0, remaining - daily), last_taken_on: new Date().toISOString().slice(0, 10) })
-    .eq("id", id);
+  const update: Record<string, unknown> = { last_taken_on: new Date().toISOString().slice(0, 10) };
+  // Only count down when the supply is actually tracked — don't zero out an unknown count.
+  if (row?.servings_remaining != null) {
+    update.servings_remaining = Math.max(0, Number(row.servings_remaining) - daily);
+  }
+  const { error } = await supabase.from("supplements").update(update).eq("id", id);
   if (error) throw error;
 }
 

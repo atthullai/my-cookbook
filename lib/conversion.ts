@@ -23,6 +23,8 @@ const TIER1: Record<string, { factor: number; to: "g" | "ml" | "whole" }> = {
   mL:     { factor: 1,      to: "ml"  },
   "no.":  { factor: 1,      to: "whole" },
   whole:  { factor: 1,      to: "whole" },
+  portion:  { factor: 1,    to: "whole" },
+  portions: { factor: 1,    to: "whole" },
 };
 
 // ── Tier 2 — approximate ──────────────────────────────────────────────────────

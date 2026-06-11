@@ -19,13 +19,14 @@ interface PantryRow {
   id: string;
   name: string;
   unit: string | null;
+  quantity: number | null;
 }
 
 interface FoodLine extends ConsumptionItem {
   unitProfile?: Record<string, number> | null;
 }
 
-const UNIT_OPTIONS = ["whole", "slice", "piece", "g", "ml", "cup", "tbsp", "tsp"];
+const UNIT_OPTIONS = ["whole", "portion", "slice", "piece", "g", "ml", "cup", "tbsp", "tsp"];
 
 export default function LogSnackModal({ onClose, onLogged }: { onClose: () => void; onLogged?: () => void }) {
   const [pantry, setPantry] = useState<PantryRow[]>([]);
@@ -43,7 +44,7 @@ export default function LogSnackModal({ onClose, onLogged }: { onClose: () => vo
       try {
         const { data } = await supabase
           .from("pantry_items")
-          .select("id, name, unit")
+          .select("id, name, unit, quantity")
           .order("name", { ascending: true });
         setPantry((data ?? []) as PantryRow[]);
       } catch { /* ignore */ }
@@ -139,7 +140,12 @@ export default function LogSnackModal({ onClose, onLogged }: { onClose: () => vo
         <div className="modal-label" style={{ marginBottom: 6 }}>Food</div>
         {lines.map((l, i) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-            <span style={{ flex: 1, fontSize: "0.9rem", fontWeight: 600 }}>{l.name}</span>
+            <span style={{ flex: 1, fontSize: "0.9rem", fontWeight: 600 }}>
+              {l.name}
+              {(() => { const p = pantryByName.get(l.ref); return p?.quantity != null
+                ? <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: "0.78rem" }}> · {p.quantity}{p.unit ? ` ${p.unit}` : ""} in stock</span>
+                : null; })()}
+            </span>
             <input className="input" type="number" min={0} step="0.5" value={l.qty}
               onChange={(e) => updateLine(i, { qty: parseFloat(e.target.value) || 0 })}
               style={{ width: 70 }} aria-label={`${l.name} quantity`} />
