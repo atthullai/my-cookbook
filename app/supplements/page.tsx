@@ -19,6 +19,7 @@ import {
   getSupplements, addSupplement, updateSupplement, deleteSupplement,
   takeSupplement, supplementDaysLeft, supplementNeedsReorder, takenToday,
 } from "@/lib/supplements";
+import { resolveIngredientImage } from "@/lib/ingredient-images";
 
 const BLANK = {
   name: "", brand: "",
@@ -164,6 +165,15 @@ export default function SupplementsPage() {
             const took = takenToday(s);
             return (
               <div key={s.id} className="card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {(() => {
+                  const src = resolveIngredientImage(s.name) ?? "/ingredients/supplements.png";
+                  return (
+                    <span style={{ width: 42, height: 42, borderRadius: "50%", background: "#f4f4f3", display: "inline-flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }} aria-hidden="true">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" width={36} height={36} style={{ objectFit: "contain" }} loading="lazy" />
+                    </span>
+                  );
+                })()}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700 }}>{s.name}{s.brand ? <span style={{ color: "var(--muted)", fontWeight: 400 }}> · {s.brand}</span> : null}</div>
                   <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginTop: 2 }}>

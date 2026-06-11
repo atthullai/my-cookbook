@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getIngredientIcon, getEquipmentIcon } from "@/lib/ingredient-icons";
+import { resolveIngredientImage } from "@/lib/ingredient-images";
 
 /** Curated static map of Lucide icons used in ingredient/equipment configs */
 const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
@@ -43,6 +44,22 @@ export default function IngredientIcon({
   size = 16,
   className = "",
 }: IngredientIconProps) {
+  // Prefer the real cut-out icon when one matches (EN/DE/Tamil/Hindi aware).
+  const imageSrc = type === "ingredient" ? resolveIngredientImage(name) : null;
+  if (imageSrc) {
+    return (
+      <span
+        className={`inline-flex items-center justify-center rounded-full ${className}`}
+        style={{ width: size + 8, height: size + 8, background: "#fff", overflow: "hidden", flexShrink: 0 }}
+        title={name}
+        aria-hidden="true"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imageSrc} alt="" width={size + 4} height={size + 4} style={{ objectFit: "contain" }} loading="lazy" />
+      </span>
+    );
+  }
+
   const config = type === "equipment"
     ? getEquipmentIcon(name)
     : getIngredientIcon(name);

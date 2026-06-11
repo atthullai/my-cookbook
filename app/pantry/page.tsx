@@ -21,6 +21,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { INGREDIENT_ICONS } from "@/lib/ingredient-icons";
+import { resolveIngredientImage } from "@/lib/ingredient-images";
 import type { PantryItem, PantryItemStatus, ShoppingCategory, StorageLocation } from "@/types";
 import type { RecipeRecord } from "@/lib/recipe-types";
 import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
@@ -72,6 +73,21 @@ function getPantryIcon(name: string, category: ShoppingCategory): string {
   // partial match: "cherry tomatoes" → tomato
   const partial = Object.keys(INGREDIENT_ICONS).find((k) => key.includes(k) || k.includes(key));
   return partial ? INGREDIENT_ICONS[partial].emoji : CATEGORY_ICONS[category];
+}
+
+// Card icon: real cut-out image when one matches (EN/DE/Tamil/Hindi), else emoji.
+function PantryItemIcon({ name, category, size = 28 }: { name: string; category: ShoppingCategory; size?: number }) {
+  const src = resolveIngredientImage(name);
+  if (src) {
+    return (
+      <span className="inline-flex items-center justify-center rounded-full flex-shrink-0"
+        style={{ width: size + 6, height: size + 6, background: "#fff", overflow: "hidden" }} aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" width={size} height={size} style={{ objectFit: "contain" }} loading="lazy" />
+      </span>
+    );
+  }
+  return <span className="text-xl" aria-hidden="true">{getPantryIcon(name, category)}</span>;
 }
 
 const CATEGORIES: ShoppingCategory[] = [
@@ -1544,9 +1560,7 @@ export default function PantryPage() {
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-hidden="true">
-                        {getPantryIcon(item.name, item.category)}
-                      </span>
+                      <PantryItemIcon name={item.name} category={item.category} />
                       <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>
@@ -1874,7 +1888,7 @@ export default function PantryPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-hidden="true">{getPantryIcon(item.name, item.category)}</span>
+                      <PantryItemIcon name={item.name} category={item.category} />
                       <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>
