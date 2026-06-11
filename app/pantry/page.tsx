@@ -145,7 +145,7 @@ const EMPTY_FORM = {
   storage: "room-temp" as StorageLocation,
   expiryDate: "", lowStockThreshold: "3",
   brand: "", isHomemade: false, madeOn: today(),
-  isOpened: false,
+  isOpened: false, isReady: false, isFlex: false,
 };
 
 const UNIT_OPTIONS = ["whole", "g", "mL", "kg", "L"];
@@ -189,6 +189,8 @@ export default function PantryPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving]     = useState(false);
   const [sortBy, setSortBy]         = useState<SortOption>("name");
+  const [zoneFilter, setZoneFilter] = useState<"all" | StorageLocation>("all");
+  const [readyFilter, setReadyFilter] = useState<"all" | "ready" | "ingredient">("all");
   const [showSuggest, setShowSuggest] = useState(false);
   const [suggestItem, setSuggestItem] = useState<PantryItem | null>(null);
   const [allRecipes, setAllRecipes]   = useState<RecipeRecord[]>([]);
@@ -249,6 +251,12 @@ export default function PantryPage() {
           isOpened:           row.is_opened ?? false,
           openedDate:         row.opened_date ?? undefined,
           pfandAmount:        row.pfand_amount != null ? Number(row.pfand_amount) : undefined,
+          source:             (row.source ?? (row.is_homemade ? "homemade" : "store-bought")),
+          isReady:            row.is_ready ?? false,
+          isFlex:             row.is_flex ?? false,
+          recipeId:           row.recipe_id != null ? String(row.recipe_id) : null,
+          portionsTotal:      row.portions_total != null ? Number(row.portions_total) : null,
+          portionsRemaining:  row.portions_remaining != null ? Number(row.portions_remaining) : null,
         }))
       );
     } catch (err) {
@@ -357,6 +365,9 @@ export default function PantryPage() {
         is_homemade:          form.isHomemade,
         made_on:              form.isHomemade ? (form.madeOn || null) : null,
         is_opened:            form.isOpened,
+        source:               form.isHomemade ? "homemade" : "store-bought",
+        is_ready:             form.isReady,
+        is_flex:              form.isFlex,
         pfand_amount:         pfandAmount,
       };
 
@@ -683,7 +694,14 @@ export default function PantryPage() {
     expired: 0, "expiring-soon": 1, "low-stock": 2, ok: 3,
   };
 
-  const sorted = [...items].sort((a, b) => {
+  const visibleItems = items.filter((i) => {
+    if (zoneFilter !== "all" && i.storage !== zoneFilter) return false;
+    if (readyFilter === "ready" && !i.isReady) return false;
+    if (readyFilter === "ingredient" && i.isReady) return false;
+    return true;
+  });
+
+  const sorted = [...visibleItems].sort((a, b) => {
     // Always surface urgent items first regardless of sort mode
     const pa = STATUS_PRIORITY[getPantryStatus(a)];
     const pb = STATUS_PRIORITY[getPantryStatus(b)];
@@ -716,6 +734,8 @@ export default function PantryPage() {
       isHomemade:        item.isHomemade,
       madeOn:            item.madeOn ?? today(),
       isOpened:          item.isOpened,
+      isReady:           item.isReady ?? false,
+      isFlex:            item.isFlex ?? false,
     });
     setShowForm(true);
   };
@@ -947,6 +967,30 @@ export default function PantryPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Filter bar — storage zone + readiness */}
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Zone:</span>
+          {([["all","All"],["room-temp","Pantry"],["fridge","Fridge"],["freezer","Freezer"]] as const).map(([v, lbl]) => (
+            <button key={v} type="button" onClick={() => setZoneFilter(v)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border transition"
+              style={{
+                background: zoneFilter === v ? "var(--accent)" : "var(--surface)",
+                color: zoneFilter === v ? "#fff" : "var(--foreground)",
+                borderColor: zoneFilter === v ? "var(--accent)" : "var(--border)",
+              }}>{lbl}</button>
+          ))}
+          <span className="text-xs font-semibold uppercase tracking-wide ml-2" style={{ color: "var(--muted)" }}>Type:</span>
+          {([["all","All"],["ready","Ready-to-eat"],["ingredient","Ingredients"]] as const).map(([v, lbl]) => (
+            <button key={v} type="button" onClick={() => setReadyFilter(v)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border transition"
+              style={{
+                background: readyFilter === v ? "var(--accent)" : "var(--surface)",
+                color: readyFilter === v ? "#fff" : "var(--foreground)",
+                borderColor: readyFilter === v ? "var(--accent)" : "var(--border)",
+              }}>{lbl}</button>
+          ))}
         </div>
 
         {/* ── Inline add/edit form ──────────────────────────────────────── */}
@@ -1270,8 +1314,9 @@ export default function PantryPage() {
                   </div>
                 </div>
 
-                {/* Row 5: Homemade toggle */}
-                <div className="flex items-center justify-between pt-1">
+                {/* Row 5: Homemade / Ready-to-eat / Flex toggles */}
+                <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setForm((f) => ({
@@ -1288,6 +1333,33 @@ export default function PantryPage() {
                   >
                     🫙 Homemade {form.isHomemade && <Check size={13} />}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, isReady: !f.isReady }))}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: form.isReady ? "var(--accent)" : "var(--surface)",
+                      color: form.isReady ? "#fff" : "var(--muted)",
+                    }}
+                    title="Can be eaten as-is (leftovers, snacks, store-bought ready meals)"
+                  >
+                    🍽️ Ready-to-eat {form.isReady && <Check size={13} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, isFlex: !f.isFlex }))}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: form.isFlex ? "var(--accent)" : "var(--surface)",
+                      color: form.isFlex ? "#fff" : "var(--muted)",
+                    }}
+                    title="Fine at room temperature OR in the fridge (flex zone)"
+                  >
+                    🔁 Flex zone {form.isFlex && <Check size={13} />}
+                  </button>
+                  </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
                       className="px-4 py-2 rounded-xl text-sm font-medium transition"

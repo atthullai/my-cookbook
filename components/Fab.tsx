@@ -5,16 +5,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Plus, PencilLine, Link2, ScanLine, CalendarPlus, ShoppingCart } from "lucide-react";
+import { Plus, PencilLine, Link2, ScanLine, CalendarPlus, ShoppingCart, Utensils } from "lucide-react";
 import AddFromUrlModal from "@/components/AddFromUrlModal";
+import LogSnackModal from "@/components/LogSnackModal";
 
 const HIDDEN_ON = ["/login", "/onboarding", "/welcome"];
 
-type Action = { icon: React.ReactNode; label: string; go?: string; action?: "url" };
+type Action = { icon: React.ReactNode; label: string; go?: string; action?: "url" | "snack" };
 
 const ACTIONS: Action[] = [
   { icon: <PencilLine size={16} />,   label: "Create new recipe",  go: "/add" },
   { icon: <Link2 size={16} />,        label: "Add recipe from URL", action: "url" },
+  { icon: <Utensils size={16} />,     label: "Log a snack", action: "snack" },
   { icon: <ScanLine size={16} />,     label: "Scan",        go: "/pantry?scan=1" },
   { icon: <CalendarPlus size={16} />, label: "Plan a meal", go: "/planner" },
   { icon: <ShoppingCart size={16} />, label: "Add grocery", go: "/planner/shopping" },
@@ -25,6 +27,7 @@ export default function Fab() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [showUrl, setShowUrl] = useState(false);
+  const [showSnack, setShowSnack] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,12 +42,14 @@ export default function Fab() {
   const go = (href: string) => { setOpen(false); router.push(href); };
   const runAction = (a: Action) => {
     if (a.action === "url") { setOpen(false); setShowUrl(true); return; }
+    if (a.action === "snack") { setOpen(false); setShowSnack(true); return; }
     if (a.go) go(a.go);
   };
 
   return (
     <div ref={ref} className="fab-root" style={{ position: "fixed", right: 20, bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)", zIndex: 60 }}>
       {showUrl && <AddFromUrlModal onClose={() => setShowUrl(false)} />}
+      {showSnack && <LogSnackModal onClose={() => setShowSnack(false)} />}
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, alignItems: "flex-end" }}>
           {ACTIONS.map((a) => (

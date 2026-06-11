@@ -2978,6 +2978,10 @@ main.container > p {
 }
 .equipment-chip.checked .equipment-chip-label { text-decoration: line-through; }
 
+/* Stacked label + input field (supplements form) */
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field > span { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+
 /* Nutrition score badge + balance modal */
 .nutrition-score-badge {
   display: inline-flex;

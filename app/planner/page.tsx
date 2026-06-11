@@ -28,6 +28,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import LogSnackModal from "@/components/LogSnackModal";
 import type { RecipeSummary, PlannedMeal, MealSlot, MealEntryType } from "@/types";
 import { convertToBase } from "@/lib/conversion";
 import { markMealCooked } from "@/app/actions/planner";
@@ -457,6 +458,9 @@ export default function PlannerPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory]         = useState<{ date: string; slot: string; title: string }[]>([]);
 
+  // ── Log-a-snack (ad-hoc eat event) ─────────────────────────────────────────
+  const [showSnack, setShowSnack] = useState(false);
+
   // ── Top tabs: Plan / Queue / Previous ──────────────────────────────────────
   const [tab, setTab] = useState<"plan" | "queue" | "previous">("plan");
   const [planMenuOpen, setPlanMenuOpen] = useState(false);
@@ -867,13 +871,34 @@ export default function PlannerPage() {
       .order("meal_date", { ascending: false })
       .limit(60);
     const titleById = new Map(recipes.map((r) => [r.id, r.title]));
-    setHistory((data ?? []).map((r) => ({
+    const planned = (data ?? []).map((r) => ({
       date: r.meal_date as string,
       slot: r.meal_slot as string,
       title: r.recipe_id != null
         ? (titleById.get(String(r.recipe_id)) ?? "Recipe").split("|")[0].trim()
         : (r.label as string | null) ?? "Meal",
-    })));
+    }));
+
+    // Merge in logged snacks / ad-hoc eat events from the consumption log.
+    let snacks: { date: string; slot: string; title: string }[] = [];
+    try {
+      const { data: log } = await supabase.from("consumption_log")
+        .select("logged_at, label, items")
+        .eq("user_id", user.id)
+        .order("logged_at", { ascending: false })
+        .limit(60);
+      snacks = (log ?? []).map((r) => {
+        const items = (r.items as { name?: string }[] | null) ?? [];
+        const names = items.map((i) => i.name).filter(Boolean).slice(0, 3).join(", ");
+        return {
+          date: (r.logged_at as string).slice(0, 10),
+          slot: "snack",
+          title: (r.label as string | null) || names || "Snack",
+        };
+      });
+    } catch { /* consumption_log may not exist until migration is run */ }
+
+    setHistory([...planned, ...snacks].sort((a, b) => (a.date < b.date ? 1 : -1)));
   }, [recipes]);
   const openHistory = async () => { setShowHistory(true); await loadHistory(); };
 
@@ -1272,6 +1297,7 @@ export default function PlannerPage() {
                                   <button type="button" className="planner-overflow-item" onClick={() => openAdd({ recipe: true })}>🔖 Add saved recipe</button>
                                   <button type="button" className="planner-overflow-item" onClick={() => openAdd({ type: "food" })}>🥕 Add food</button>
                                   <button type="button" className="planner-overflow-item" onClick={() => openAdd({ type: "note" })}>📝 Add note</button>
+                                  <button type="button" className="planner-overflow-item" onClick={() => { setDayMenuIso(null); setShowSnack(true); }}>🍽️ Log a snack</button>
                                   <a className="planner-overflow-item" href="/add?source=url" onClick={() => setDayMenuIso(null)}>🔗 Save recipe link</a>
                                   <a className="planner-overflow-item" href="/add" onClick={() => setDayMenuIso(null)}>＋ Create new recipe</a>
                                 </div>
@@ -1650,9 +1676,12 @@ export default function PlannerPage() {
           {/* ── Previous tab ── */}
           {tab === "previous" && (
             <div>
-              <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>
-                These are the meals you&apos;ve planned in the past.
-              </p>
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <p className="text-sm" style={{ color: "var(--muted)", margin: 0 }}>
+                  Meals you&apos;ve planned and snacks you&apos;ve logged.
+                </p>
+                <button type="button" className="planner-tab" onClick={() => setShowSnack(true)}>🍽️ Log a snack</button>
+              </div>
               {history.length === 0 ? (
                 <div className="text-center py-10 rounded-2xl" style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}>
                   <p className="text-3xl mb-2">🕓</p>
@@ -1673,6 +1702,14 @@ export default function PlannerPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Log-a-snack modal ── */}
+          {showSnack && (
+            <LogSnackModal
+              onClose={() => setShowSnack(false)}
+              onLogged={() => { if (tab === "previous") void loadHistory(); }}
+            />
           )}
 
           {/* ── Schedule-from-queue modal ── */}

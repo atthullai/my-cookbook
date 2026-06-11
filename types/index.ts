@@ -250,11 +250,83 @@ export interface PantryItem {
   openedDate?: string;
   /** Pfand deposit amount in € (null = no Pfand) */
   pfandAmount?: number | null;
+  // ── v2 tracking axes (independent of storage zone) ──
+  /** Who made it. Drives Pfand/barcode/made-on. Mirrors isHomemade. */
+  source?: FoodSource;
+  /** Can be eaten as-is (orthogonal to source — a store-bought yogurt is ready too). */
+  isReady?: boolean;
+  /** Fine at room-temp OR fridge (a "flex zone" item). */
+  isFlex?: boolean;
+  /** Recipe this item was produced from (homemade / bulk-prep). */
+  recipeId?: string | null;
+  /** Bulk-prep batch size in portions/servings. */
+  portionsTotal?: number | null;
+  /** Portions left — decremented as eaten. */
+  portionsRemaining?: number | null;
+  /** Per-item partial-unit weights, e.g. { slice: 30, whole: 110 } (grams). */
+  unitProfile?: UnitProfile | null;
 }
 
 export type StorageLocation = "room-temp" | "fridge" | "freezer";
 
+export type FoodSource = "store-bought" | "homemade";
+
+/** Grams per named partial unit for an item (e.g. brioche { slice: 30 }). */
+export type UnitProfile = Partial<Record<"slice" | "piece" | "whole" | "clove" | "scoop", number>>;
+
 export type PantryItemStatus = "ok" | "expiring-soon" | "expired" | "low-stock";
+
+// ---------------------------------------------------------------------------
+// Supplements (serving-based, parallel to food)
+// ---------------------------------------------------------------------------
+export interface Supplement {
+  id: string;
+  name: string;
+  brand?: string;
+  servingsPerContainer?: number | null;
+  servingsRemaining?: number | null;
+  dailyServings: number;
+  reorderAtDays: number;
+  lastTakenOn?: string | null;
+  notes?: string;
+  updatedAt?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Consumption ("eat event") + saved quick combos
+// ---------------------------------------------------------------------------
+/** One food line inside an eat event / combo. */
+export interface ConsumptionItem {
+  ref: string;      // pantry name used for FIFO deduction
+  name: string;     // display name
+  qty: number;      // quantity entered by the user
+  unit: string;     // unit entered (g, whole, slice, …)
+  base?: number;    // resolved base quantity (g | ml | whole)
+  baseUnit?: "g" | "ml" | "whole";
+}
+
+export interface ConsumptionSupplement {
+  id: string;
+  name: string;
+  servings: number;
+}
+
+export interface ConsumptionEvent {
+  id: string;
+  label?: string;
+  comboId?: string | null;
+  items: ConsumptionItem[];
+  supplements: ConsumptionSupplement[];
+  loggedAt: string;
+}
+
+export interface QuickCombo {
+  id: string;
+  name: string;
+  items: ConsumptionItem[];
+  supplements: ConsumptionSupplement[];
+  createdAt?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Diet Plan

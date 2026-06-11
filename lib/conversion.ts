@@ -81,6 +81,12 @@ const TIER2: Record<string, { to: "g" | "ml" | "whole"; val: number }> = {
   "stalk":         { to: "g",   val: 5   },
   "leaf":          { to: "whole", val: 1   },
   "leaves":        { to: "whole", val: 3   },
+  // Portions / partial units (generic fallbacks; per-item unitProfile overrides these)
+  "slice":         { to: "g",   val: 30  },  // a bread slice ≈ 30 g
+  "slices":        { to: "g",   val: 30  },
+  "piece":         { to: "g",   val: 50  },
+  "pieces":        { to: "g",   val: 50  },
+  "scoop":         { to: "g",   val: 30  },
   // Pantry
   "can":           { to: "whole", val: 1   },
   "tin":           { to: "whole", val: 1   },
@@ -161,6 +167,28 @@ export function convertToBase(
 
   // Fallback — treat as grams tier-1-style
   return { base: qty, baseUnit: "g", tier: 1 };
+}
+
+// ── Pantry quantity resolver (partial-unit aware) ─────────────────────────────
+
+/**
+ * Resolve a quantity the user typed when logging consumption into a pantry base
+ * amount. Honours a per-item `unitProfile` first (e.g. brioche { slice: 30 }),
+ * so "2 slices" → 60 g even when the generic 30 g default is wrong, then falls
+ * back to the shared {@link convertToBase} engine. Fractions (e.g. ½ onion) are
+ * carried by `qty`.
+ */
+export function resolvePantryQty(
+  qty: number,
+  unit: string,
+  name: string,
+  unitProfile?: Partial<Record<string, number>> | null,
+): ConvertResult {
+  const u = (unit ?? "").toLowerCase().trim().replace(/s$/, ""); // slice/slices → slice
+  if (unitProfile && typeof unitProfile[u] === "number") {
+    return { base: qty * (unitProfile[u] as number), baseUnit: "g", tier: 2 };
+  }
+  return convertToBase(qty, unit, name);
 }
 
 // ── Gap formatting ────────────────────────────────────────────────────────────
