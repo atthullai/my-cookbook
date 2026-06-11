@@ -1154,9 +1154,6 @@ export default function PlannerPage() {
               <button type="button" aria-label="More" className="planner-overflow-btn" onClick={() => setPlanMenuOpen((v) => !v)}>⋯</button>
               {planMenuOpen && (
                 <div className="planner-overflow-menu" onMouseLeave={() => setPlanMenuOpen(false)}>
-                  <Link href="/planner/shopping" className="planner-overflow-item" onClick={() => setPlanMenuOpen(false)}>
-                    <ShoppingCart size={14} /> Shopping list
-                  </Link>
                   <button type="button" className="planner-overflow-item" onClick={() => { setPlanMenuOpen(false); openTemplates(); }}>🗂 Templates</button>
                   <button type="button" className="planner-overflow-item" onClick={() => { setPlanMenuOpen(false); void openHistory(); }}>
                     <History size={14} /> History

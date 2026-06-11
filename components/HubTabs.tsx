@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { label: "Pantry", href: "/pantry" },
-  { label: "Shopping List", href: "/planner/shopping" },
+  { label: "Shopping List", href: "/shopping" },
   { label: "Supplements", href: "/supplements" },
   { label: "Pfand", href: "/pfand" },
 ];
@@ -18,7 +18,7 @@ export default function HubTabs() {
   return (
     <div className="hub-tabs" role="tablist">
       {TABS.map((t) => {
-        const active = pathname === t.href || (t.href === "/planner/shopping" && pathname.startsWith("/planner/shopping"));
+        const active = pathname === t.href || (t.href === "/shopping" && pathname.startsWith("/shopping"));
         return (
           <Link key={t.href} href={t.href} role="tab" aria-selected={active} className={active ? "hub-tab active" : "hub-tab"}>
             {t.label}

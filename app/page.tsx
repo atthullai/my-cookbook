@@ -264,7 +264,7 @@ export default function Home() {
                 )}
               </Link>
 
-              <Link href="/planner/shopping" className="rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-md"
+              <Link href="/shopping" className="rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-md"
                 style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
                 <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--accent)", opacity: 0.85 }}>
                   Shopping list

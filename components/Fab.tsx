@@ -19,7 +19,7 @@ const ACTIONS: Action[] = [
   { icon: <Utensils size={16} />,     label: "Log a snack", action: "snack" },
   { icon: <ScanLine size={16} />,     label: "Scan",        go: "/pantry?scan=1" },
   { icon: <CalendarPlus size={16} />, label: "Plan a meal", go: "/planner" },
-  { icon: <ShoppingCart size={16} />, label: "Add grocery", go: "/planner/shopping" },
+  { icon: <ShoppingCart size={16} />, label: "Add grocery", go: "/shopping" },
 ];
 
 export default function Fab() {

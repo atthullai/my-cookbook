@@ -771,7 +771,7 @@ export default function PantryPage() {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Link href="/planner/shopping"
+              <Link href="/shopping"
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
                 style={{ border: "1px solid var(--border)", color: "var(--foreground)", background: "var(--surface)" }}
               >

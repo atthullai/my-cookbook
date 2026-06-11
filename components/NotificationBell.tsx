@@ -34,7 +34,7 @@ export default function NotificationBell() {
       next.push({ id: "meals", icon: "📅", text: `${mealRes.count} meal${mealRes.count === 1 ? "" : "s"} planned today`, href: "/planner" });
     }
     if ((groceryRes.count ?? 0) > 0) {
-      next.push({ id: "grocery", icon: "🛒", text: `${groceryRes.count} item${groceryRes.count === 1 ? "" : "s"} to buy`, href: "/planner/shopping" });
+      next.push({ id: "grocery", icon: "🛒", text: `${groceryRes.count} item${groceryRes.count === 1 ? "" : "s"} to buy`, href: "/shopping" });
     }
 
     const pantry = pantryRes.data ?? [];

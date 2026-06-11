@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
     label: "Pantry",
     key: "pantry",
     items: [
-      { href: "/planner/shopping",   label: "Shopping List" },
+      { href: "/shopping",   label: "Shopping List" },
       { href: "/pfand",              label: "Pfand"         },
     ],
   },

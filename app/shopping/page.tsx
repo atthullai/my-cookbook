@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Shopping List — /planner/shopping
+ * Shopping List — /shopping
  *
  * Features:
  * - "Add Item" inline form with category selector

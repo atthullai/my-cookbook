@@ -83,7 +83,7 @@ export default function AddToModal({ recipeId, recipeTitle, onClose }: AddToModa
           {/* Shopping List */}
           <button
             className="add-to-option"
-            onClick={() => { onClose(); router.push("/planner/shopping"); }}
+            onClick={() => { onClose(); router.push("/shopping"); }}
           >
             <span className="add-to-option-icon"><ShoppingCart size={18} /></span>
             <div className="add-to-option-text">
