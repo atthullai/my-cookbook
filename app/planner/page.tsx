@@ -31,6 +31,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import LogSnackModal from "@/components/LogSnackModal";
 import type { RecipeSummary, PlannedMeal, MealSlot, MealEntryType } from "@/types";
 import { convertToBase } from "@/lib/conversion";
+import { getKcalIndex, estimateFoodKcal, type KcalIndexEntry } from "@/lib/food-kcal";
 import { markMealCooked } from "@/app/actions/planner";
 import {
   checkMeal, buildReservations,
@@ -315,6 +316,8 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, on
           </div>
           <span className="text-[9px] uppercase tracking-wide font-semibold mt-1" style={{ color: "var(--muted)", opacity: 0.7 }}>
             {ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.label ?? "Meal"}
+            {meal.foodQty ? ` · ${meal.foodQty} ${meal.foodUnit ?? ""}` : ""}
+            {meal.foodKcal ? ` · ~${meal.foodKcal} cal` : ""}
           </span>
         </div>
       ) : (
@@ -475,6 +478,16 @@ export default function PlannerPage() {
   const [quickEntry, setQuickEntry] = useState<{ date: string; slot: MealSlot } | null>(null);
   const [quickType, setQuickType]   = useState<Exclude<MealEntryType, "recipe">>("restaurant");
   const [quickLabel, setQuickLabel] = useState("");
+  // Food entries: quantity + unit + calories (typed kcal wins; else library estimate)
+  const [quickQty, setQuickQty]   = useState("1");
+  const [quickUnit, setQuickUnit] = useState("glass");
+  const [quickKcal, setQuickKcal] = useState("");
+  const [kcalIndex, setKcalIndex] = useState<KcalIndexEntry[]>([]);
+  useEffect(() => { getKcalIndex().then(setKcalIndex); }, []);
+  const autoKcal = useMemo(() => {
+    if (quickType !== "food") return null;
+    return estimateFoodKcal(quickLabel, parseFloat(quickQty) || 0, quickUnit, kcalIndex);
+  }, [quickType, quickLabel, quickQty, quickUnit, kcalIndex]);
   const [quickLeftoverFrom, setQuickLeftoverFrom] = useState<string>(""); // source planned_meal id
   const [quickRecipeId, setQuickRecipeId] = useState<string>(""); // selected saved recipe (recipe add)
   const [isAddingManual, setIsAddingManual] = useState(false);
@@ -527,6 +540,9 @@ export default function PlannerPage() {
         entryType: ((row.entry_type as MealEntryType | undefined) ?? "recipe"),
         label:     (row.label as string | undefined) ?? undefined,
         leftoverOf: (row.leftover_of as string | null | undefined) ?? null,
+        foodQty:   row.food_qty != null ? Number(row.food_qty) : null,
+        foodUnit:  (row.food_unit as string | null | undefined) ?? null,
+        foodKcal:  row.food_kcal != null ? Number(row.food_kcal) : null,
       }));
 
       setPlannedMeals(mealRows);
@@ -604,7 +620,7 @@ export default function PlannerPage() {
       const first = monthAnchor;
       const last  = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0);
       const { data } = await supabase.from("planned_meals")
-        .select("meal_date, recipe_id, servings")
+        .select("*")
         .eq("user_id", user.id)
         .gte("meal_date", toISO(first)).lte("meal_date", toISO(last));
       if (!alive) return;
@@ -615,6 +631,7 @@ export default function PlannerPage() {
         if (!map[d]) map[d] = { count: 0, kcal: 0 };
         map[d].count++;
         if (row.recipe_id != null) map[d].kcal += (kcalById.get(String(row.recipe_id)) ?? 0) * ((row.servings as number) ?? 1);
+        else if (row.food_kcal != null) map[d].kcal += Number(row.food_kcal);
       }
       setMonthData(map);
     })();
@@ -729,9 +746,17 @@ export default function PlannerPage() {
       }
       if (!label) label = ENTRY_META[quickType].label;
 
+      // Food entries carry qty/unit/kcal (typed kcal wins over the library estimate).
+      const isFood = quickType === "food";
+      const foodQty  = isFood ? (parseFloat(quickQty) || null) : null;
+      const foodUnit = isFood ? quickUnit : null;
+      const foodKcal = isFood ? (quickKcal.trim() ? Math.round(parseFloat(quickKcal)) : autoKcal) : null;
+
       const { data, error } = await supabase.from("planned_meals").insert({
         user_id: user.id, meal_date: quickEntry.date, meal_slot: quickEntry.slot,
         recipe_id: null, servings: 1, entry_type: quickType, label, leftover_of: leftoverOf,
+        // food_kcal only for food entries so other quick-adds work pre-migration
+        ...(isFood ? { food_ref: label, food_qty: foodQty, food_unit: foodUnit, food_kcal: foodKcal } : {}),
       }).select().single();
 
       if (error) {
@@ -745,16 +770,21 @@ export default function PlannerPage() {
       setPlannedMeals((prev) => [...prev, {
         id: data.id as string, date: data.meal_date as string, slot: data.meal_slot as MealSlot,
         recipeId: "", servings: 1, entryType: quickType, label, leftoverOf,
+        foodQty, foodUnit, foodKcal,
       }]);
-      toast.success(`${ENTRY_META[quickType].icon} ${label} → ${quickEntry.slot}`, { duration: 2500 });
+      toast.success(
+        `${ENTRY_META[quickType].icon} ${label}${foodKcal ? ` · ~${foodKcal} cal` : ""} → ${quickEntry.slot}`,
+        { duration: 2500 },
+      );
       setQuickEntry(null);
+      setQuickKcal(""); setQuickQty("1"); setQuickUnit("glass");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add entry");
     } finally {
       setIsAddingManual(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quickEntry, quickType, quickLabel, quickLeftoverFrom, plannedMeals]);
+  }, [quickEntry, quickType, quickLabel, quickLeftoverFrom, plannedMeals, quickQty, quickUnit, quickKcal, autoKcal]);
 
   // Add a saved recipe to the chosen day/slot, else fall through to a manual entry.
   const confirmQuickAdd = useCallback(async () => {
@@ -1113,14 +1143,15 @@ export default function PlannerPage() {
   const caloriesByDate = useMemo(() => {
     const map: Record<string, number> = {};
     for (const date of weekDates) {
+      const iso = toISO(date);
       let kcal = 0;
-      for (const slot of SLOTS) {
-        const meal = getMeal(date, slot);
-        if (!meal) continue;
+      for (const meal of plannedMeals) {
+        if (meal.date !== iso) continue;
         const r = getRecipe(meal.recipeId);
         if (r?.nutrition?.calories) kcal += r.nutrition.calories * (meal.servings || 1);
+        else if (meal.foodKcal) kcal += meal.foodKcal; // ad-hoc food entries
       }
-      map[toISO(date)] = Math.round(kcal);
+      map[iso] = Math.round(kcal);
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1505,15 +1536,42 @@ export default function PlannerPage() {
                 {/* Label */}
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-                    Label (optional)
+                    {quickType === "food" ? "Food" : "Label (optional)"}
                   </label>
                   <input type="text" value={quickLabel} onChange={(e) => setQuickLabel(e.target.value)}
-                    placeholder={ENTRY_META[quickType].label}
+                    placeholder={quickType === "food" ? "e.g. Milk with Ovomaltine" : ENTRY_META[quickType].label}
                     maxLength={60}
                     onKeyDown={(e) => { if (e.key === "Enter") void addManualEntry(); }}
                     className="rounded-xl px-3 py-2 text-sm focus:outline-none"
                     style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
                 </div>
+
+                {/* Food: quantity, unit, calories */}
+                {quickType === "food" && (
+                  <div className="flex gap-2">
+                    <div className="flex flex-col gap-1" style={{ width: 70 }}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Qty</label>
+                      <input type="number" min={0} step="0.5" value={quickQty} onChange={(e) => setQuickQty(e.target.value)}
+                        className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Unit</label>
+                      <select value={quickUnit} onChange={(e) => setQuickUnit(e.target.value)}
+                        className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }}>
+                        {["glass", "mug", "cup", "whole", "portion", "slice", "piece", "g", "ml", "tbsp", "tsp"].map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1" style={{ width: 110 }}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Calories</label>
+                      <input type="number" min={0} value={quickKcal} onChange={(e) => setQuickKcal(e.target.value)}
+                        placeholder={autoKcal != null ? `~${autoKcal}` : "kcal"}
+                        className="rounded-xl px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-2 justify-end">
                   <button type="button" onClick={() => { setQuickEntry(null); setQuickRecipeId(""); }}

@@ -83,6 +83,10 @@ const TIER2: Record<string, { to: "g" | "ml" | "whole"; val: number }> = {
   "stalk":         { to: "g",   val: 5   },
   "leaf":          { to: "whole", val: 1   },
   "leaves":        { to: "whole", val: 3   },
+  // Drinkware
+  "glass":         { to: "ml",  val: 250 },  // 1 glass ≈ 250 ml
+  "glasses":       { to: "ml",  val: 250 },
+  "mug":           { to: "ml",  val: 300 },
   // Portions / partial units (generic fallbacks; per-item unitProfile overrides these)
   "slice":         { to: "g",   val: 30  },  // a bread slice ≈ 30 g
   "slices":        { to: "g",   val: 30  },

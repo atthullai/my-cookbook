@@ -187,6 +187,10 @@ export interface PlannedMeal {
   label?: string;
   /** For leftovers: the planned_meals.id this leftover came from */
   leftoverOf?: string | null;
+  /** Food entries: quantity + unit ("1 glass") and calories (typed or derived) */
+  foodQty?: number | null;
+  foodUnit?: string | null;
+  foodKcal?: number | null;
 }
 
 export type WeekPlan = Record<string, PlannedMeal[]>;
