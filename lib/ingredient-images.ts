@@ -327,6 +327,13 @@ export const EXTRA_SYNONYMS: Record<string, string> = {
   "rhubarb": "rhabarber",
   "fennel bulb": "fenchel",
   "snack cucumbers": "snackgurken", "mini cucumbers": "snackgurken",
+  // Caraway (Kümmel) is botanically different from cumin (Kreuzkümmel) but the
+  // seeds look identical at icon size — visual stand-in until a real icon exists.
+  "caraway": "cumin-seeds", "caraway seeds": "cumin-seeds", "kummel": "cumin-seeds",
+  // Quark/joghurt fat grades ("speicequark 40%" filename typo; Magerstufe)
+  "speisequark 40% fett": "speicequark-40-fett", "quark 40% fett": "speicequark-40-fett", "quark 40%": "speicequark-40-fett",
+  "magerquark": "speisequark-magerstufe", "quark magerstufe": "speisequark-magerstufe",
+  "griechischer joghurt": "greek-joghurt-10",
 };
 
 // Lowercase, fold accents (gruyère→gruyere, kümmel→kummel), hyphens→spaces.
