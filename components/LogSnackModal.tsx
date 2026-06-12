@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
+import IngredientIcon from "@/components/IngredientIcon";
 import { logSnack } from "@/app/actions/consumption";
 import { getSupplements } from "@/lib/supplements";
 import { getQuickCombos, saveQuickCombo } from "@/lib/quick-combos";
@@ -140,6 +141,7 @@ export default function LogSnackModal({ onClose, onLogged }: { onClose: () => vo
         <div className="modal-label" style={{ marginBottom: 6 }}>Food</div>
         {lines.map((l, i) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <IngredientIcon name={l.name} size={18} />
             <span style={{ flex: 1, fontSize: "0.9rem", fontWeight: 600 }}>
               {l.name}
               {(() => { const p = pantryByName.get(l.ref); return p?.quantity != null

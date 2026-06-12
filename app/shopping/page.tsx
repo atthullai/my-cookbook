@@ -24,7 +24,22 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import type { ShoppingItem, ShoppingCategory } from "@/types";
 import { lookupItem, suggestExpiryDate, CATEGORY_MAP } from "@/lib/pantry-items";
 import { convertToBase } from "@/lib/conversion";
+import { resolveIngredientImage } from "@/lib/ingredient-images";
 import HubTabs from "@/components/HubTabs";
+
+// Cut-out ingredient icon for a list row; nothing rendered when unknown
+// (the row already has its category section header for context).
+function ItemIcon({ name, size = 24 }: { name: string; size?: number }) {
+  const src = resolveIngredientImage(name);
+  if (!src) return null;
+  return (
+    <span className="inline-flex items-center justify-center rounded-full flex-shrink-0"
+      style={{ width: size + 6, height: size + 6, background: "#fff", overflow: "hidden", border: "1px solid var(--border)" }} aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" width={size} height={size} style={{ objectFit: "contain" }} loading="lazy" />
+    </span>
+  );
+}
 
 const CATEGORY_META: Record<ShoppingCategory, { label: string; icon: string }> = {
   "produce":       { label: "Produce",        icon: "🥕" },
@@ -656,6 +671,7 @@ export default function ShoppingListPage() {
                             }}>
                             {item.checked ? "✓" : ""}
                           </span>
+                          <ItemIcon name={item.name} size={26} />
                           <span className="flex-1 text-base font-medium" style={{ textDecoration: item.checked ? "line-through" : "none", color: "var(--foreground)" }}>
                             {item.name}
                           </span>
@@ -955,6 +971,8 @@ export default function ShoppingListPage() {
                                 </div>
                               );
                             })()}
+
+                            <ItemIcon name={item.name} />
 
                             {/* Name + quantity */}
                             <motion.span

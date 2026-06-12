@@ -28,6 +28,7 @@ import { mapRecipeRows } from "@/lib/recipe-db";
 import { toRecipeSummaries } from "@/lib/recipe-adapter";
 import { getCuisineTheme } from "@/lib/cuisine-themes";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import IngredientIcon from "@/components/IngredientIcon";
 import LogSnackModal from "@/components/LogSnackModal";
 import type { RecipeSummary, PlannedMeal, MealSlot, MealEntryType } from "@/types";
 import { convertToBase } from "@/lib/conversion";
@@ -288,8 +289,12 @@ function SlotCell({ date, slot, meal, recipe, onRemove, onServings, onCooked, on
           style={{ background: "var(--surface-strong)", border: "1px dashed var(--border)" }}
         >
           <div className="flex items-start justify-between gap-1">
-            <span className="text-[11px] font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "var(--foreground)" }}>
-              <span className="mr-1">{ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.icon ?? "🍴"}</span>
+            <span className="text-[11px] font-semibold leading-tight line-clamp-2 flex-1 flex items-center gap-1" style={{ color: "var(--foreground)" }}>
+              {meal.entryType === "food" && meal.label ? (
+                <IngredientIcon name={meal.label} size={14} />
+              ) : (
+                <span className="mr-1">{ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.icon ?? "🍴"}</span>
+              )}
               {meal.label || ENTRY_META[(meal.entryType ?? "other") as Exclude<MealEntryType, "recipe">]?.label || "Meal"}
             </span>
             <div className="flex items-center gap-0.5 flex-shrink-0">

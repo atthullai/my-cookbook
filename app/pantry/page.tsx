@@ -1479,7 +1479,7 @@ export default function PantryPage() {
                       })}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xl">{CATEGORY_ICONS[groupItems[0].category]}</span>
+                        <PantryItemIcon name={firstName} category={groupItems[0].category} />
                         <div>
                           <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
                             {firstName}
