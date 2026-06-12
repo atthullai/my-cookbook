@@ -283,6 +283,9 @@ export const EXTRA_SYNONYMS: Record<string, string> = {
   "yellow lentils": "moong-dal",
   "rose essence": "rose-flavouring-essence",
   "ice": "ice-cube", "eis": "ice-cube",
+  "flour": "weizenmehl-405",
+  "vollkornmehl": "dinkel-vollkornmehl", "whole grain flour": "dinkel-vollkornmehl", "wholemeal flour": "dinkel-vollkornmehl",
+  "roggenmehl": "rye-flour",
 };
 
 // Lowercase, fold accents (gruyère→gruyere, kümmel→kummel), hyphens→spaces.
@@ -294,6 +297,8 @@ const norm = (s: string): string =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[-–_]/g, " ")
+    // German flour grades: "weizenmehl type 1050" ≡ "weizenmehl 1050"
+    .replace(/\btype\s+(?=\d)/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
