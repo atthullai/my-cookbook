@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Pencil, ChefHat, X, Check, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, Pencil, ChefHat, X, Check, ShoppingCart, ChevronRight, ArrowLeft } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import { supabase } from "@/lib/supabase";
@@ -75,9 +75,9 @@ function getPantryIcon(name: string, category: ShoppingCategory): string {
   return partial ? INGREDIENT_ICONS[partial].emoji : CATEGORY_ICONS[category];
 }
 
-// Card icon: real cut-out image when one matches (EN/DE/Tamil/Hindi), else emoji.
-function PantryItemIcon({ name, category, size = 28 }: { name: string; category: ShoppingCategory; size?: number }) {
-  const src = resolveIngredientImage(name);
+// Card icon: scanned product photo first, then cut-out image (EN/DE/Tamil/Hindi), else emoji.
+function PantryItemIcon({ name, category, iconKey, size = 28 }: { name: string; category: ShoppingCategory; iconKey?: string | null; size?: number }) {
+  const src = iconKey || resolveIngredientImage(name);
   if (src) {
     return (
       <span className="inline-flex items-center justify-center rounded-full flex-shrink-0"
@@ -162,6 +162,7 @@ const EMPTY_FORM = {
   expiryDate: "", lowStockThreshold: "3",
   brand: "", isHomemade: false, madeOn: today(),
   isOpened: false, isReady: false, isFlex: false,
+  iconKey: "", // product photo URL from a barcode scan (Open Food Facts)
 };
 
 const UNIT_OPTIONS = ["whole", "portion", "g", "mL", "kg", "L"];
@@ -200,6 +201,8 @@ export default function PantryPage() {
   const [items, setItems]           = useState<PantryItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [showForm, setShowForm]     = useState(false);
+  // Item sheet sub-view: main fields or the Location radio list
+  const [formView, setFormView]     = useState<"main" | "location">("main");
   const [editTarget, setEditTarget] = useState<PantryItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PantryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -304,6 +307,7 @@ export default function PantryPage() {
       quantity: data.quantity ? String(data.quantity) : f.quantity,
       unit:     data.unit   || f.unit,
       isHomemade: false,
+      iconKey:  data.imageUrl || f.iconKey, // keep the product photo from the scan
     }));
     setShowForm(true);
     toast.success(`Found: ${data.name}`);
@@ -385,6 +389,8 @@ export default function PantryPage() {
         is_ready:             form.isReady,
         is_flex:              form.isFlex,
         pfand_amount:         pfandAmount,
+        // product photo from a barcode scan — only sent when present
+        ...(form.iconKey ? { icon_key: form.iconKey } : {}),
       };
 
       if (editTarget) {
@@ -752,7 +758,9 @@ export default function PantryPage() {
       isOpened:          item.isOpened,
       isReady:           item.isReady ?? false,
       isFlex:            item.isFlex ?? false,
+      iconKey:           item.iconKey ?? "",
     });
+    setFormView("main");
     setShowForm(true);
   };
 
@@ -812,7 +820,7 @@ export default function PantryPage() {
                 🧾 Scan receipt
               </button>
               <button type="button"
-                onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setShowForm((s) => !s); }}
+                onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setFormView("main"); setShowForm((s) => !s); }}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition"
                 style={{ background: "var(--accent)", color: "#fff" }}
               >
@@ -1009,28 +1017,73 @@ export default function PantryPage() {
           ))}
         </div>
 
-        {/* ── Inline add/edit form ──────────────────────────────────────── */}
-        <AnimatePresence>
-          {showForm && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden mb-6"
+        {/* ── Item sheet (add/edit) — centered modal, reference style ──── */}
+        {showForm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+            style={{ background: "rgba(0,0,0,0.45)" }}
+            onClick={() => { setShowForm(false); setEditTarget(null); setFormView("main"); }}>
+            <div className="w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 overflow-y-auto"
+              style={{ background: "var(--surface)", maxHeight: "88vh" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="rounded-2xl p-5 space-y-4 shadow-sm"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold" style={{ color: "var(--foreground)" }}>
-                    {editTarget ? "Edit Item" : "Add Item"}
-                  </h2>
-                  <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}>
-                    <X size={16} style={{ color: "var(--muted)" }} />
+              {formView === "location" ? (
+                /* ── Location sub-view: radio list ── */
+                <div>
+                  <div className="relative flex items-center justify-center mb-2" style={{ minHeight: 36 }}>
+                    <button type="button" aria-label="Back" onClick={() => setFormView("main")}
+                      className="absolute left-0 p-1.5"><ArrowLeft size={20} /></button>
+                    <h2 className="font-bold text-xl" style={{ color: "var(--foreground)" }}>Location</h2>
+                  </div>
+                  {([
+                    ["fridge",   "Fridge"],
+                    ["freezer",  "Freezer"],
+                    ["room-temp","Pantry"],
+                    ["flex",     "Flex zone"],
+                  ] as const).map(([val, lbl]) => {
+                    const selected = val === "flex" ? form.isFlex : (!form.isFlex && form.storage === val);
+                    return (
+                      <button key={val} type="button"
+                        onClick={() => {
+                          setForm((f) => val === "flex"
+                            ? { ...f, isFlex: true, storage: "room-temp" }
+                            : { ...f, isFlex: false, storage: val });
+                          setFormView("main");
+                        }}
+                        className="w-full flex items-center justify-between py-4 text-left"
+                        style={{ borderBottom: "1px solid var(--border)", color: "var(--foreground)" }}>
+                        <span className="text-base">{lbl}</span>
+                        <span className="w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ border: `2px solid ${selected ? "var(--accent)" : "var(--border)"}` }}>
+                          {selected && <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--accent)" }} />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {form.category === "eggs" && (
+                    <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>🥚 Eggs move room-temp → fridge automatically.</p>
+                  )}
+                </div>
+              ) : (
+              <>
+                <div className="flex justify-end">
+                  <button type="button" aria-label="Close" onClick={() => { setShowForm(false); setEditTarget(null); }}>
+                    <X size={20} style={{ color: "var(--muted)" }} />
                   </button>
                 </div>
 
-                {/* Row 1: Name · Amount · Unit (or Egg Size) */}
+                {/* Big icon + centered name */}
+                <div className="flex flex-col items-center gap-3 -mt-2">
+                  <span className="flex items-center justify-center" style={{ width: 84, height: 84 }} aria-hidden="true">
+                    {(() => {
+                      const src = form.iconKey || resolveIngredientImage(form.name);
+                      return src
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={src} alt="" width={80} height={80} style={{ objectFit: "contain" }} />
+                        : <span style={{ fontSize: 52 }}>{CATEGORY_ICONS[form.category]}</span>;
+                    })()}
+                  </span>
+                </div>
+
                 {/* Datalist: homemade suggestions when isHomemade, else category suggestions */}
                 <datalist id="pantry-item-suggestions">
                   {(form.isHomemade
@@ -1040,9 +1093,8 @@ export default function PantryPage() {
                     <option key={n} value={n} />
                   ))}
                 </datalist>
-                <div className="flex gap-2">
-                  <input
-                    type="text" placeholder="Name *" value={form.name}
+                <input
+                    type="text" placeholder="Item name *" value={form.name}
                     list="pantry-item-suggestions"
                     onChange={(e) => {
                       const name = e.target.value;
@@ -1070,15 +1122,22 @@ export default function PantryPage() {
                         };
                       });
                     }}
-                    className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
-                    style={{ flex: 2, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    className="w-full text-center text-xl font-bold rounded-xl px-3 py-2 focus:outline-none"
+                    style={{ border: "1px solid transparent", background: "transparent", color: "var(--foreground)" }}
+                    onFocus={(e) => { e.currentTarget.style.border = "1px solid var(--border)"; }}
+                    onBlur={(e) => { e.currentTarget.style.border = "1px solid transparent"; }}
                   />
+
+                {/* Quantity row */}
+                <div className="flex items-center justify-between gap-3 py-1" style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+                  <span className="text-base" style={{ color: "var(--foreground)" }}>Quantity</span>
+                  <div className="flex gap-2" style={{ maxWidth: 230 }}>
                   <input
                     type="number" value={form.quantity}
                     min="0" step="0.1" placeholder="Qty"
                     onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
                     className="rounded-xl px-2 py-2.5 text-sm focus:outline-none text-center"
-                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    style={{ width: 80, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   />
                   {form.category === "eggs" ? (
                     /* Egg size picker — S / M / L / XL */
@@ -1117,6 +1176,7 @@ export default function PantryPage() {
                       ))}
                     </select>
                   )}
+                  </div>
                 </div>
 
                 {/* Storage tip for known homemade items */}
@@ -1146,8 +1206,9 @@ export default function PantryPage() {
                   );
                 })()}
 
-                {/* Row 2: Category · Storage toggle */}
-                <div className="flex gap-2 items-center">
+                {/* Category row */}
+                <div className="flex items-center justify-between gap-3 py-1">
+                  <span className="text-base" style={{ color: "var(--foreground)" }}>Category</span>
                   <select
                     value={form.category}
                     onChange={(e) => {
@@ -1172,94 +1233,96 @@ export default function PantryPage() {
                       }
                     }}
                     className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
-                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    style={{ width: 190, minWidth: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                   >
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
                     ))}
                   </select>
-
-                  {/* Storage toggle — locked for eggs only */}
-                  {form.category === "eggs" ? (
-                    <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm"
-                      style={{ border: "1px solid var(--border)", color: "var(--muted)", background: "var(--surface)", whiteSpace: "nowrap" }}
-                    >
-                      🌡️→❄️ auto
-                    </div>
-                  ) : (
-                    <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-                      {STORAGE_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          title={opt.label}
-                          onClick={() => setForm((f) => ({ ...f, storage: opt.value }))}
-                          className="px-3 py-2.5 text-base transition"
-                          style={{
-                            background: form.storage === opt.value ? "var(--accent)" : "var(--surface)",
-                            color: form.storage === opt.value ? "#fff" : "var(--foreground)",
-                            borderRight: opt.value !== "freezer" ? "1px solid var(--border)" : undefined,
-                          }}
-                        >
-                          {opt.icon}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                {/* Row 3: Bought on + Expiry (eggs) / Made on + Expiry (homemade) / Brand + Expiry (others) */}
-                <div className="flex gap-2">
-                  {form.category === "eggs" ? (
-                    <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
-                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Bought on</label>
-                      <input
-                        type="date" value={form.madeOn}
-                        onChange={(e) => setForm((f) => ({ ...f, madeOn: e.target.value }))}
-                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
-                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                      />
-                    </div>
-                  ) : form.isHomemade ? (
-                    <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
-                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Made on</label>
-                      <input
-                        type="date" value={form.madeOn}
-                        onChange={(e) => setForm((f) => ({ ...f, madeOn: e.target.value }))}
-                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
-                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
-                      <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Brand</label>
-                      <input
-                        type="text" placeholder="Brand (optional)" value={form.brand}
-                        onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none"
-                        style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                      />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: 0 }}>
-                    <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-                      {form.category === "eggs" ? "Expiry (from carton)" :
-                       (() => {
-                          const itemDef = form.isHomemade
-                            ? lookupHomemadeItem(form.name)
-                            : lookupItem(form.category, form.name);
-                          if (!itemDef) return form.isHomemade ? "Use by (from prep date)" : "Expiry (from package)";
-                          return `Use by · ${itemDef.expiryDays}d from ${form.isHomemade ? "prep" : "purchase"}`;
-                        })()}
-                    </label>
+                {/* Location row → radio sub-view (reference style) */}
+                <button type="button" onClick={() => setFormView("location")}
+                  className="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-3.5 text-left"
+                  style={{ background: "var(--background)", color: "var(--foreground)" }}>
+                  <span className="text-base">Location</span>
+                  <span className="flex items-center gap-1.5 text-base" style={{ color: "var(--muted)" }}>
+                    {form.category === "eggs"
+                      ? "🌡️→❄️ auto"
+                      : form.isFlex
+                        ? "Flex zone"
+                        : (STORAGE_OPTIONS.find((o) => o.value === form.storage)?.label ?? "Pantry").replace("Room temp", "Pantry")}
+                    <ChevronRight size={18} />
+                  </span>
+                </button>
+
+                {/* Bought on (eggs) / Made on (homemade) / Brand row */}
+                {form.category === "eggs" ? (
+                  <div className="flex items-center justify-between gap-3 py-1">
+                    <span className="text-base" style={{ color: "var(--foreground)" }}>Bought on</span>
+                    <input
+                      type="date" value={form.madeOn}
+                      onChange={(e) => setForm((f) => ({ ...f, madeOn: e.target.value }))}
+                      className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
+                      style={{ width: 190, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    />
+                  </div>
+                ) : form.isHomemade ? (
+                  <div className="flex items-center justify-between gap-3 py-1">
+                    <span className="text-base" style={{ color: "var(--foreground)" }}>Made on</span>
+                    <input
+                      type="date" value={form.madeOn}
+                      onChange={(e) => setForm((f) => ({ ...f, madeOn: e.target.value }))}
+                      className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer"
+                      style={{ width: 190, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 py-1">
+                    <span className="text-base" style={{ color: "var(--foreground)" }}>Brand</span>
+                    <input
+                      type="text" placeholder="optional" value={form.brand}
+                      onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+                      className="rounded-xl px-3 py-2.5 text-sm focus:outline-none text-right"
+                      style={{ width: 190, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+                    />
+                  </div>
+                )}
+
+                {/* Use-by date toggle (reference style) */}
+                <div className="flex items-center justify-between gap-3 py-1">
+                  <span className="text-base" style={{ color: "var(--foreground)" }}>Use-by date</span>
+                  <button
+                    type="button" role="switch" aria-checked={!!form.expiryDate}
+                    onClick={() => setForm((f) => f.expiryDate
+                      ? { ...f, expiryDate: "" }
+                      : { ...f, expiryDate: suggestExpiryDate(f.isHomemade ? "homemade" : f.category, f.name) || addDays(today(), 7) })}
+                    className="w-12 h-7 rounded-full transition relative flex-shrink-0"
+                    style={{ background: form.expiryDate ? "var(--accent)" : "var(--border)" }}
+                  >
+                    <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all"
+                      style={{ left: form.expiryDate ? "calc(100% - 1.5rem)" : "0.25rem" }} />
+                  </button>
+                </div>
+                {form.expiryDate && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-3"
+                    style={{ background: "var(--background)" }}>
+                    <span className="text-sm flex items-center gap-1.5" style={{ color: "var(--foreground)" }}>
+                      {(() => {
+                        const d = Math.ceil((new Date(form.expiryDate).getTime() - Date.now()) / 86_400_000);
+                        if (d < 0)  return <><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#dc2626" }} /> Expired</>;
+                        if (d === 0) return <><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#ef4444" }} /> Use by today</>;
+                        if (d <= 3) return <><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#f59e0b" }} /> Use within {d}d</>;
+                        return "Use by";
+                      })()}
+                    </span>
                     <div className="flex gap-2 items-center">
                       <input
                         type="date" value={form.expiryDate}
                         onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                        className="rounded-xl px-3 py-2.5 text-sm focus:outline-none cursor-pointer flex-1"
+                        className="rounded-xl px-3 py-2 text-sm focus:outline-none cursor-pointer"
                         style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
                       />
-                      {/* Quick-fill button when a known item is selected */}
                       {(() => {
                         const itemDef = form.isHomemade
                           ? lookupHomemadeItem(form.name)
@@ -1280,7 +1343,7 @@ export default function PantryPage() {
                       })()}
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Opened toggle — only for categories with hasOpenedState */}
                 {CATEGORY_MAP[form.category]?.hasOpenedState && (
@@ -1330,9 +1393,8 @@ export default function PantryPage() {
                   </div>
                 </div>
 
-                {/* Row 5: Homemade / Ready-to-eat / Flex toggles */}
-                <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-                  <div className="flex flex-wrap gap-2">
+                {/* Type chips: Homemade / Ready-to-eat (Flex zone lives in Location) */}
+                <div className="flex flex-wrap gap-2 py-1">
                   <button
                     type="button"
                     onClick={() => setForm((f) => ({
@@ -1367,39 +1429,31 @@ export default function PantryPage() {
                   >
                     🍽️ Ready-to-eat {form.isReady && <Check size={13} />}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, isFlex: !f.isFlex }))}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition"
-                    style={{
-                      border: "1px solid var(--border)",
-                      background: form.isFlex ? "var(--accent)" : "var(--surface)",
-                      color: form.isFlex ? "#fff" : "var(--muted)",
-                    }}
-                    title="Fine at room temperature OR in the fridge (flex zone)"
-                  >
-                    🔁 Flex zone {form.isFlex && <Check size={13} />}
-                  </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                      className="px-4 py-2 rounded-xl text-sm font-medium transition"
-                      style={{ color: "var(--muted)" }}
-                    >
-                      Cancel
+                </div>
+
+                {/* Footer: delete · feedback · save */}
+                <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+                  {editTarget ? (
+                    <button type="button" aria-label="Delete item"
+                      onClick={() => { setShowForm(false); setDeleteTarget(editTarget); }}>
+                      <Trash2 size={20} style={{ color: "var(--muted)" }} />
                     </button>
+                  ) : <span />}
+                  <div className="flex items-center gap-4">
+                    <Link href="/feedback" className="text-sm font-semibold" style={{ color: "var(--accent)" }}>Feedback</Link>
                     <button type="button" onClick={saveItem} disabled={isSaving}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-60 transition"
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 transition"
                       style={{ background: "var(--accent)", color: "#fff" }}
                     >
-                      {isSaving ? "Saving…" : <><Check size={14} /> {editTarget ? "Update" : "Add"}</>}
+                      {isSaving ? "Saving…" : <><Check size={14} /> {editTarget ? "Save" : "Add"}</>}
                     </button>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Section label ── */}
         {!loading && sorted.length > 0 && (
@@ -1479,7 +1533,7 @@ export default function PantryPage() {
                       })}
                     >
                       <div className="flex items-center gap-3">
-                        <PantryItemIcon name={firstName} category={groupItems[0].category} />
+                        <PantryItemIcon name={firstName} category={groupItems[0].category} iconKey={groupItems[0].iconKey} />
                         <div>
                           <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
                             {firstName}
@@ -1560,7 +1614,7 @@ export default function PantryPage() {
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <PantryItemIcon name={item.name} category={item.category} />
+                      <PantryItemIcon name={item.name} category={item.category} iconKey={item.iconKey} />
                       <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>
@@ -1888,7 +1942,7 @@ export default function PantryPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <PantryItemIcon name={item.name} category={item.category} />
+                      <PantryItemIcon name={item.name} category={item.category} iconKey={item.iconKey} />
                       <p className="font-semibold text-sm leading-tight" style={{ color: "var(--foreground)" }}>{item.name}</p>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[status]}`}>

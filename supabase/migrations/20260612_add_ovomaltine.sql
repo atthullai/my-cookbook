@@ -23,7 +23,7 @@ INSERT INTO public.ingredients (
   78, 4, 51.1, 192,
   320, 330,
   80, 12, 1.4, 2.5,
-  200, 'label'
+  200, 'manual'
 )
 ON CONFLICT (name_en) DO UPDATE SET
   name_de = EXCLUDED.name_de,
