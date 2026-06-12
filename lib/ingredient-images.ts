@@ -343,7 +343,9 @@ export const EXTRA_SYNONYMS: Record<string, string> = {
   // Homemade spice powders: any "podi" (Tamil) or named powders → homemade-powder jar
   "podi": "homemade-powder", "rasam powder": "homemade-powder", "gojju powder": "homemade-powder",
   "kuzhambu powder": "homemade-powder", "homemade masala": "homemade-powder",
-  "paruppu podi": "homemade-powder", "idli podi": "homemade-powder", "milagai podi": "homemade-powder",
+  "paruppu podi": "homemade-powder", "idli podi": "homemade-powder",
+  "milagai podi": "black-pepper-powder", "milagu podi": "black-pepper-powder", // user convention: milagai podi = pepper powder
+  "pepper powder": "black-pepper-powder", "kali mirch powder": "black-pepper-powder",
   // Sesame oil naming: gingelly/gingerly = plain sesame oil; roasted/toasted is its own icon
   "gingerly oil": "sesame-oil",
   "roasted sesame oil": "roasted-sesame-seed-oil", "toasted sesame oil": "roasted-sesame-seed-oil",
