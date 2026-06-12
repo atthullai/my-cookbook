@@ -286,6 +286,47 @@ export const EXTRA_SYNONYMS: Record<string, string> = {
   "flour": "weizenmehl-405",
   "vollkornmehl": "dinkel-vollkornmehl", "whole grain flour": "dinkel-vollkornmehl", "wholemeal flour": "dinkel-vollkornmehl",
   "roggenmehl": "rye-flour",
+  // ── Tomato varieties ───────────────────────────────────────────
+  "fleischtomaten": "fleisch-tomaten", "fleischtomate": "fleisch-tomaten",
+  "beefsteak tomato": "fleisch-tomaten", "beef tomato": "fleisch-tomaten", "beefsteak tomatoes": "fleisch-tomaten",
+  "roma tomato": "roma-tomatoes", "plum tomato": "roma-tomatoes", "plum tomatoes": "roma-tomatoes",
+  "tomatenmark": "tomato-paste", "passata": "tomato-paste", "tomato puree": "tomato-paste",
+  // ── English names for German-named icons ───────────────────────
+  "apple spritzer": "apfelschorlen", "apfelschorle": "apfelschorlen",
+  "mountain cheese": "bergkase-mild", "bergkase": "bergkase-mild", "bergkäse": "bergkase-mild",
+  "vanilla sugar": "bourbon-vanillezucker", "vanillezucker": "bourbon-vanillezucker",
+  "vanilla extract": "bourbon-vanille-extrakt",
+  "frying oil": "bratol",
+  "bread roll": "brotchen", "bread rolls": "brotchen", "buns": "brotchen",
+  "canned peas": "canned-erbsen",
+  "canned beetroot": "canned-rote-bete", "canned beets": "canned-rote-bete",
+  "canned red cabbage": "canned-rotkohl",
+  "sauerkraut": "canned-sauerkraut",
+  "napa cabbage": "chinakohl", "chinese cabbage": "chinakohl",
+  "iced tea": "eistee", "ice tea": "eistee",
+  "peanut oil": "erdnussol", "groundnut oil": "erdnussol",
+  "greek yogurt": "greek-joghurt-10", "greek yoghurt": "greek-joghurt-10",
+  "grill cheese": "grill-und-pfannenkase-krauter", "grillkase": "grill-und-pfannenkase-krauter",
+  "jasmine rice": "jasmin-reis",
+  "germ oil": "keimol",
+  "flaxseed oil": "leinol", "linseed oil": "leinol",
+  "rice pudding": "milchreis", "pudding rice": "milchreis", "milk rice": "milchreis",
+  "rice noodles": "reisnudeln",
+  "risotto rice": "risotto-paella-reis", "arborio rice": "risotto-paella-reis", "arborio": "risotto-paella-reis", "paella rice": "risotto-paella-reis",
+  "fried onions": "rostzwiebeln", "crispy onions": "rostzwiebeln",
+  "shiitake": "shiitake-pilze", "shiitake mushrooms": "shiitake-pilze",
+  "sparkling water": "sprudelwasser", "soda water": "sprudelwasser",
+  "runner beans": "stagenbohnen-breit", "stangenbohnen": "stagenbohnen-breit",
+  "grapeseed oil": "traubenkernol", "grape seed oil": "traubenkernol",
+  "drinking chocolate": "trinkschokolade", "hot chocolate": "trinkschokolade",
+  "walnut oil": "walnussol",
+  "cayenne": "cayennepfeffer-gemahlen", "cayenne pepper": "cayennepfeffer-gemahlen",
+  "dried basil": "gerebelt-basilikum",
+  "marjoram": "gerebelt-majoran", "majoran": "gerebelt-majoran",
+  "dried thyme": "gerebelt-thymian",
+  "rhubarb": "rhabarber",
+  "fennel bulb": "fenchel",
+  "snack cucumbers": "snackgurken", "mini cucumbers": "snackgurken",
 };
 
 // Lowercase, fold accents (gruyère→gruyere, kümmel→kummel), hyphens→spaces.
@@ -329,9 +370,15 @@ export function resolveIngredientImage(name: string): string | null {
 
   let slug = ALIAS_TO_SLUG.get(q) ?? null;
 
-  // naive plural/singular fallback
+  // naive plural/singular fallback (EN -s/-es, DE -n/-en)
+  if (!slug) {
+    for (const v of [q + "s", q + "es", q + "n", q + "en"]) {
+      slug = ALIAS_TO_SLUG.get(v) ?? null;
+      if (slug) break;
+    }
+  }
   if (!slug && q.endsWith("s")) slug = ALIAS_TO_SLUG.get(q.slice(0, -1)) ?? null;
-  if (!slug) slug = ALIAS_TO_SLUG.get(q + "s") ?? null;
+  if (!slug && q.endsWith("es")) slug = ALIAS_TO_SLUG.get(q.slice(0, -2)) ?? null;
 
   // longest alias phrase contained in the query ("ripe cherry tomatoes, diced")
   if (!slug && q.length >= 3) {
