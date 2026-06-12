@@ -3,8 +3,15 @@
 import { readFileSync } from "node:fs";
 import { resolveIngredientImage } from "../lib/ingredient-images";
 
+// Deliberately not iconified (user decision 2026-06): niche items not worth an icon.
+const IGNORE = new Set([
+  "thai red curry paste", "thai green curry paste", "kokum", "agar agar",
+  "buttermilk", "duck", "sea bass", "tilapia", "hilsa", "catla",
+  "golden syrup", "treacle", "linguine", "rigatoni",
+]);
+
 const src = readFileSync("scripts/seed-ingredients.ts", "utf8");
-const names = [...src.matchAll(/name_en:\s*'([^']+)'/g)].map((m) => m[1]);
+const names = [...src.matchAll(/name_en:\s*'([^']+)'/g)].map((m) => m[1]).filter((n) => !IGNORE.has(n.toLowerCase()));
 const namesDe = [...src.matchAll(/name_de:\s*'([^']+)'/g)].map((m) => m[1]);
 
 let hit = 0;

@@ -704,6 +704,9 @@ export const INGREDIENT_IMAGE_ALIASES: Record<string, string[]> = {
   "hirtenkase": [
     "hirtenkäse"
   ],
+  "hoisin-sauce": [
+    "hoisin sauce"
+  ],
   "holy-basil": [
     "holy basil"
   ],
@@ -718,6 +721,9 @@ export const INGREDIENT_IMAGE_ALIASES: Record<string, string[]> = {
   ],
   "horse-gram": [
     "horse gram"
+  ],
+  "hummus": [
+    "hummus"
   ],
   "ice-cube": [
     "ice cube"
@@ -1325,6 +1331,9 @@ export const INGREDIENT_IMAGE_ALIASES: Record<string, string[]> = {
   "shallots": [
     "shallots"
   ],
+  "shaoxing-wine": [
+    "shaoxing wine"
+  ],
   "shiitake-pilze": [
     "shiitake pilze"
   ],
@@ -1440,6 +1449,9 @@ export const INGREDIENT_IMAGE_ALIASES: Record<string, string[]> = {
   ],
   "tagliatelle": [
     "tagliatelle"
+  ],
+  "tahini-sauce": [
+    "tahini sauce"
   ],
   "tapioca-starch": [
     "tapioca starch"
@@ -1560,6 +1572,9 @@ export const INGREDIENT_IMAGE_ALIASES: Record<string, string[]> = {
   ],
   "white-wine": [
     "white wine"
+  ],
+  "worcestershire-sauce": [
+    "worcestershire sauce"
   ],
   "xanthan-gum": [
     "xanthan gum"

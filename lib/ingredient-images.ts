@@ -334,6 +334,19 @@ export const EXTRA_SYNONYMS: Record<string, string> = {
   "speisequark 40% fett": "speicequark-40-fett", "quark 40% fett": "speicequark-40-fett", "quark 40%": "speicequark-40-fett",
   "magerquark": "speisequark-magerstufe", "quark magerstufe": "speisequark-magerstufe",
   "griechischer joghurt": "greek-joghurt-10",
+  // ── New icons (added 2026-06) ──────────────────────────────────
+  "tahini": "tahini-sauce", "tahin": "tahini-sauce", "sesame paste": "tahini-sauce",
+  "hoisin": "hoisin-sauce",
+  "shaoxing": "shaoxing-wine", "shao hsing": "shaoxing-wine", "chinese cooking wine": "shaoxing-wine",
+  "houmous": "hummus", "hummus dip": "hummus",
+  "worcester sauce": "worcestershire-sauce", "worcestershire": "worcestershire-sauce",
+  // Homemade spice powders: any "podi" (Tamil) or named powders → homemade-powder jar
+  "podi": "homemade-powder", "rasam powder": "homemade-powder", "gojju powder": "homemade-powder",
+  "kuzhambu powder": "homemade-powder", "homemade masala": "homemade-powder",
+  "paruppu podi": "homemade-powder", "idli podi": "homemade-powder", "milagai podi": "homemade-powder",
+  // Sesame oil naming: gingelly/gingerly = plain sesame oil; roasted/toasted is its own icon
+  "gingerly oil": "sesame-oil",
+  "roasted sesame oil": "roasted-sesame-seed-oil", "toasted sesame oil": "roasted-sesame-seed-oil",
 };
 
 // Lowercase, fold accents (gruyère→gruyere, kümmel→kummel), hyphens→spaces.
