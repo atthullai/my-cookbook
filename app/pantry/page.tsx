@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { mapRecipeRows } from "@/lib/recipe-db";
 import { INGREDIENT_ICONS } from "@/lib/ingredient-icons";
 import { resolveIngredientImage } from "@/lib/ingredient-images";
+import { getCategoryIndex, resolveCategory, type CategoryEntry } from "@/lib/ingredient-category";
 import type { PantryItem, PantryItemStatus, ShoppingCategory, StorageLocation } from "@/types";
 import type { RecipeRecord } from "@/lib/recipe-types";
 import { SuggestRecipesModal } from "@/components/SuggestRecipesModal";
@@ -43,6 +44,7 @@ import {
   suggestedUnitsForCategory,
   defaultUnitForItem,
   openedStorageForItem,
+  categoryForItem,
   CATEGORY_MAP,
 } from "@/lib/pantry-items";
 
@@ -203,6 +205,9 @@ export default function PantryPage() {
   const [showForm, setShowForm]     = useState(false);
   // Item sheet sub-view: main fields or the Location radio list
   const [formView, setFormView]     = useState<"main" | "location">("main");
+  // Ingredient→category index for auto-categorizing typed names
+  const [catIndex, setCatIndex]     = useState<CategoryEntry[]>([]);
+  useEffect(() => { getCategoryIndex().then(setCatIndex); }, []);
   const [editTarget, setEditTarget] = useState<PantryItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PantryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -1099,26 +1104,32 @@ export default function PantryPage() {
                     onChange={(e) => {
                       const name = e.target.value;
                       setForm((f) => {
+                        // Auto-detect the category from the typed name (skip for homemade):
+                        // ingredient library first (broad), then curated pantry list.
+                        const detected = !f.isHomemade
+                          ? (resolveCategory(name, catIndex) ?? categoryForItem(name))
+                          : null;
+                        const category = (detected ?? f.category) as ShoppingCategory;
                         const itemDef = f.isHomemade
                           ? lookupHomemadeItem(name)
-                          : lookupItem(f.category, name);
-                        const suggestedUnit = defaultUnitForItem(f.category, name) as string | undefined;
-                        const validUnits = suggestedUnitsForCategory(f.category) as string[];
+                          : lookupItem(category, name);
+                        const suggestedUnit = defaultUnitForItem(category, name) as string | undefined;
+                        const validUnits = suggestedUnitsForCategory(category) as string[];
                         return {
                           ...f,
                           name,
+                          category,
                           // Auto-fill expiry whenever a known item is selected
                           expiryDate: itemDef
-                            ? suggestExpiryDate(f.isHomemade ? "homemade" : f.category, name)
+                            ? suggestExpiryDate(f.isHomemade ? "homemade" : category, name)
                             : f.expiryDate,
                           // Auto-set unit from item default
                           unit: (suggestedUnit && validUnits.includes(suggestedUnit))
                             ? suggestedUnit
                             : (validUnits.includes(f.unit) ? f.unit : (validUnits[0] ?? f.unit)),
-                          // Auto-set storage
-                          storage: (itemDef?.defaultStorage)
-                            ? (itemDef.defaultStorage as typeof f.storage)
-                            : f.storage,
+                          // Auto-set storage: item default, else category default
+                          storage: (itemDef?.defaultStorage as typeof f.storage)
+                            ?? (detected ? DEFAULT_STORAGE[category] : f.storage),
                         };
                       });
                     }}

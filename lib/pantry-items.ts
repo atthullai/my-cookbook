@@ -581,6 +581,31 @@ export function itemNamesForCategory(categoryId: string): string[] {
 }
 
 /**
+ * Reverse lookup: which category does this item name belong to?
+ * Exact name match first, then a word-boundary contains match
+ * ("cherry tomatoes" → produce via "tomato"). Returns null if unknown.
+ */
+export function categoryForItem(name: string): string | null {
+  const lower = name.toLowerCase().trim();
+  if (!lower) return null;
+  // 1) exact item-name match
+  for (const cat of PANTRY_CATEGORIES) {
+    if (cat.items.some((i) => i.name.toLowerCase() === lower)) return cat.id;
+  }
+  // 2) the typed name contains a known item name as a whole word (longest first)
+  const candidates: { id: string; item: string }[] = [];
+  for (const cat of PANTRY_CATEGORIES) {
+    for (const i of cat.items) candidates.push({ id: cat.id, item: i.name.toLowerCase() });
+  }
+  candidates.sort((a, b) => b.item.length - a.item.length);
+  for (const c of candidates) {
+    if (c.item.length < 3) continue;
+    if (new RegExp(`(^|\\W)${c.item.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(s?)(\\W|$)`).test(lower)) return c.id;
+  }
+  return null;
+}
+
+/**
  * Calculate the expiry date string (YYYY-MM-DD) from today + days.
  * Returns empty string if days is 0 or undefined.
  */
