@@ -11,6 +11,7 @@
  */
 
 import type { RecipeRecord, RecipeNutritionFacts } from "@/lib/recipe-types";
+import { cleanRecipeTitle } from "@/lib/recipe-types";
 import type {
   Recipe, RecipeSummary, CuisineOrigin,
   Ingredient, Equipment, RecipeStep,
@@ -177,7 +178,7 @@ export function toRecipe(record: RecipeRecord): Recipe {
 
   return {
     id:              String(record.id),
-    title:           record.title_en,
+    title:           cleanRecipeTitle(record.title_en),
     description:     record.description_en ?? undefined,
     cuisine:         toCuisineOrigin(record),
     tags:            toRecipeTags(record.badges),
@@ -217,7 +218,7 @@ export function toRecipeSummary(record: RecipeRecord): RecipeSummary {
   return {
     id:              String(record.id),
     ownerId:         record.user_id ?? null,
-    title:           record.title_en,
+    title:           cleanRecipeTitle(record.title_en),
     cuisine:         toCuisineOrigin(record),
     tags:            toRecipeTags(record.badges),
     category:        record.category ?? undefined,

@@ -7,6 +7,7 @@ type JsonLdValue = Record<string, unknown>;
 
 import { matchToLibrary } from "@/lib/ingredient-matcher";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { cleanRecipeTitle as cleanTitle } from "@/lib/recipe-types";
 
 export type ImportedRecipeDraft = {
   sourceUrl: string;
@@ -413,10 +414,6 @@ function extractDescription(recipe: JsonLdValue): string {
 
 // Blog SEO titles often append site name or alternate title after | or —
 // e.g. "Idli Using Idli Rava | Idli in Mixie with Rice Rava" → "Idli Using Idli Rava"
-function cleanTitle(raw: string): string {
-  return raw.split(/\s*[|–—]\s+/)[0].trim();
-}
-
 function extractCategory(recipe: JsonLdValue): string {
   return normalizeText(recipe.recipeCategory);
 }

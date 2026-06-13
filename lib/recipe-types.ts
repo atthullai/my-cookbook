@@ -660,12 +660,25 @@ export function normalizeRecipe(value: unknown): RecipeRecord {
 
 // These helpers keep the React pages simple: the page asks for "the title in the current language"
 // instead of re-implementing fallback logic everywhere.
+/**
+ * Strips trailing SEO/blog cruft from a recipe title for display, e.g.
+ * "Egg Masala Recipe | Egg Masala Gravy | Egg Recipe" → "Egg Masala Recipe".
+ * Splits on a pipe or en/em-dash that is followed by whitespace, so genuine
+ * hyphenated ("Idli-Rava") or non-spaced titles stay intact. Non-destructive:
+ * only the displayed value is cleaned — the stored title_en/title_de are kept,
+ * so the edit form still shows (and can correct) the original.
+ */
+export function cleanRecipeTitle(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw.split(/\s*[|–—]\s+/)[0].trim() || raw.trim();
+}
+
 export function getRecipeTitle(recipe: RecipeRecord, lang: AppLanguage): string {
   if (lang === "de" && recipe.title_de) {
-    return recipe.title_de;
+    return cleanRecipeTitle(recipe.title_de);
   }
 
-  return recipe.title_en;
+  return cleanRecipeTitle(recipe.title_en);
 }
 
 export function getRecipeDescription(recipe: RecipeRecord, lang: AppLanguage): string {
